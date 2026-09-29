@@ -366,9 +366,12 @@ async function handlePdfAction(type, code) {
 
   if (type === "detail") {
     await generatePdf(
-      () => api.pdfSemuaDetailPiutang6D2(code),
+      (attempt) => api.pdfSemuaDetailPiutang6D2(
+        code,
+        attempt > 0 ? { _pdf_retry: Date.now() } : {}
+      ),
       "Laporan Detail Piutang PDF",
-      { retry: 2, validatePdf: true }
+      { retry: 2, validatePdf: true, requireBackendSize: true }
     );
   }
 }
@@ -376,6 +379,7 @@ async function handlePdfAction(type, code) {
 async function generatePdf(loader, label, options = {}) {
   const retryCount = Number(options.retry || 0);
   const validatePdf = options.validatePdf !== false;
+  const requireBackendSize = options.requireBackendSize === true;
 
   for (let attempt = 0; attempt <= retryCount; attempt++) {
     try {
@@ -385,31 +389,35 @@ async function generatePdf(loader, label, options = {}) {
           : "PDF terdeteksi tidak lengkap. Mencoba ulang " + attempt + "/" + retryCount + "..."
       );
 
-      const data = await loader();
-      const base64 = data?.pdf_base64 || data?.data?.pdf_base64;
-      const filename = data?.filename || data?.data?.filename || "dokumen.pdf";
+      const data = await loader(attempt);
+      const payload = extractPdfPayload(data);
 
-      if (!base64) throw new Error("Backend tidak mengembalikan pdf_base64.");
-
-      const blob = base64ToBlob(base64, "application/pdf");
-
-      if (validatePdf) {
-        const validation = await validatePdfBlob(blob);
-        if (!validation.valid) {
-          throw new Error("PDF tidak lengkap: " + validation.reason);
-        }
+      if (!payload.base64) {
+        throw new Error("Backend tidak mengembalikan pdf_base64.");
       }
+
+      const blob = base64ToBlob(payload.base64, "application/pdf");
+      const validation = validatePdf
+        ? await validatePdfBlob(blob, payload.expectedSize, requireBackendSize)
+        : { valid: true, size: blob.size };
+
+      if (!validation.valid) {
+        throw new Error("PDF tidak lengkap: " + validation.reason);
+      }
+
+      const diagnostics =
+        "size=" + validation.size +
+        (validation.expectedSize ? "/" + validation.expectedSize : "") +
+        ", EOF=" + (validation.hasEof ? "OK" : "NO");
 
       const url = URL.createObjectURL(blob);
       const opened = window.open(url, "_blank", "noopener,noreferrer");
 
       if (!opened) {
-        downloadBlob(blob, filename);
-        showToast("Popup diblokir. PDF otomatis diunduh.");
+        downloadBlob(blob, payload.filename);
+        showToast("PDF valid (" + diagnostics + "). Popup diblokir, file diunduh.");
       } else {
-        showToast("PDF dibuka di tab baru.");
-        // Jangan terlalu cepat mencabut Blob URL karena PDF viewer browser
-        // dapat membaca dokumen secara lazy setelah tab terbuka.
+        showToast("PDF valid (" + diagnostics + "). Dibuka di tab baru.");
         setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
       }
       return;
@@ -421,9 +429,44 @@ async function generatePdf(loader, label, options = {}) {
   }
 }
 
-async function validatePdfBlob(blob) {
+function extractPdfPayload(data) {
+  const source = data?.data && typeof data.data === "object" ? data.data : data;
+  const base64 = source?.pdf_base64 || "";
+  const filename = source?.filename || "dokumen.pdf";
+  const rawSize =
+    source?.size_bytes ??
+    source?.size ??
+    source?.pdf_size ??
+    null;
+  const expectedSize = Number(rawSize);
+
+  return {
+    base64,
+    filename,
+    expectedSize: Number.isFinite(expectedSize) && expectedSize > 0
+      ? expectedSize
+      : null
+  };
+}
+
+async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = false) {
   if (!(blob instanceof Blob) || blob.size < 100) {
-    return { valid: false, reason: "ukuran file tidak valid (" + (blob?.size || 0) + " byte)" };
+    return {
+      valid: false,
+      size: blob?.size || 0,
+      hasEof: false,
+      reason: "ukuran file tidak valid (" + (blob?.size || 0) + " byte)"
+    };
+  }
+
+  if (requireExpectedSize && expectedSize && blob.size !== expectedSize) {
+    return {
+      valid: false,
+      size: blob.size,
+      expectedSize,
+      hasEof: false,
+      reason: "ukuran hasil decoding " + blob.size + " byte, backend melaporkan " + expectedSize + " byte"
+    };
   }
 
   const buffer = await blob.arrayBuffer();
@@ -431,20 +474,46 @@ async function validatePdfBlob(blob) {
   const header = new TextDecoder("latin1").decode(bytes.slice(0, 8));
 
   if (!header.startsWith("%PDF-")) {
-    return { valid: false, reason: "header %PDF tidak ditemukan" };
+    return {
+      valid: false,
+      size: bytes.length,
+      expectedSize,
+      hasEof: false,
+      reason: "header %PDF tidak ditemukan"
+    };
   }
 
   const tailStart = Math.max(0, bytes.length - 2048);
   const tail = new TextDecoder("latin1").decode(bytes.slice(tailStart));
-  if (!/%%EOF\s*$/.test(tail)) {
-    return { valid: false, reason: "penanda %%EOF tidak ditemukan di akhir file" };
+  const hasEof = /%%EOF\s*$/.test(tail);
+  const hasStartXref = /startxref\s+\d+\s+%%EOF\s*$/.test(tail);
+
+  if (!hasEof) {
+    return {
+      valid: false,
+      size: bytes.length,
+      expectedSize,
+      hasEof,
+      reason: "penanda %%EOF tidak ditemukan di akhir file"
+    };
   }
 
-  if (!/startxref\s+\d+\s+%%EOF\s*$/.test(tail)) {
-    return { valid: false, reason: "struktur startxref/%%EOF tidak lengkap" };
+  if (!hasStartXref) {
+    return {
+      valid: false,
+      size: bytes.length,
+      expectedSize,
+      hasEof,
+      reason: "struktur startxref/%%EOF tidak lengkap"
+    };
   }
 
-  return { valid: true, size: bytes.length };
+  return {
+    valid: true,
+    size: bytes.length,
+    expectedSize,
+    hasEof: true
+  };
 }
 
 function base64ToBlob(base64, mime) {
@@ -464,7 +533,7 @@ function base64ToBlob(base64, mime) {
   for (let i = 0; i < binary.length; i += chunkSize) {
     const chunk = binary.slice(i, i + chunkSize);
     const bytes = new Uint8Array(chunk.length);
-    for (let j = 0; j < chunk.length; j++) bytes[j] = chunk.charCodeAt(j);
+    for (let j = 0; j < chunk.length; j++) bytes[j] = binary.charCodeAt(j);
     parts.push(bytes);
   }
   return new Blob(parts, { type: mime });
