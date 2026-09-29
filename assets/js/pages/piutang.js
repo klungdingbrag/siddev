@@ -417,8 +417,10 @@ async function generatePdf6D2(code) {
         throw new Error("Backend tidak mengembalikan pdf_base64.");
       }
 
+      const base64Diagnostic = await inspectBase64Transport(payload.base64, payload.transportFingerprint);
       const blob = base64ToBlob(payload.base64, "application/pdf");
       const validation = await validatePdfBlob(blob, payload.expectedSize, true);
+      validation.base64Diagnostic = base64Diagnostic;
 
       showPdfDiagnostic(validation, payload, attempt + 1);
 
@@ -466,6 +468,7 @@ function showPdfDiagnostic(validation, payload, attempt) {
     fp?.sha256 && validation.clientSha256
       ? String(fp.sha256).toLowerCase() === String(validation.clientSha256).toLowerCase()
       : null;
+  const b64 = validation.base64Diagnostic;
   const serverMarkers =
     fp
       ? "Server fingerprint: size=" + esc(String(fp.reported_size_bytes ?? "?")) +
@@ -491,7 +494,25 @@ function showPdfDiagnostic(validation, payload, attempt) {
       ? "<div style=\"margin-top:4px;font-size:11px;color:" + (shaMatch ? "#027a48" : "#b42318") + "\">SHA-256 client/server: " + (shaMatch ? "MATCH" : "BERBEDA") + "</div>"
       : "") +
     (validation.clientSha256
-      ? "<div style=\"margin-top:4px;font-size:10px;word-break:break-all;color:#667085\">Client SHA-256: " + esc(validation.clientSha256) + "</div>"
+      ? "<div style=\"margin-top:4px;font-size:10px;word-break:break-all;color:#667085\">Client PDF SHA-256: " + esc(validation.clientSha256) + "</div>"
+      : "") +
+    (b64
+      ? "<div style=\"margin-top:4px;font-size:11px;color:" + (b64.headMatch && b64.tailMatch ? "#027a48" : "#b42318") + "\">Base64 head/tail server-client: " + (b64.headMatch ? "HEAD MATCH" : "HEAD BERBEDA") + " · " + (b64.tailMatch ? "TAIL MATCH" : "TAIL BERBEDA") + "</div>"
+      : "") +
+    (b64?.clientSha256
+      ? "<div style=\"margin-top:4px;font-size:10px;word-break:break-all;color:#667085\">Client Base64 SHA-256: " + esc(b64.clientSha256) + "</div>"
+      : "") +
+    (b64?.serverHead
+      ? "<div style=\"margin-top:4px;font-size:10px;word-break:break-all;color:#667085\">Server Base64 head: " + esc(b64.serverHead) + "</div>"
+      : "") +
+    (b64?.clientHead
+      ? "<div style=\"margin-top:4px;font-size:10px;word-break:break-all;color:#667085\">Client Base64 head: " + esc(b64.clientHead) + "</div>"
+      : "") +
+    (b64?.serverTail
+      ? "<div style=\"margin-top:4px;font-size:10px;word-break:break-all;color:#667085\">Server Base64 tail: " + esc(b64.serverTail) + "</div>"
+      : "") +
+    (b64?.clientTail
+      ? "<div style=\"margin-top:4px;font-size:10px;word-break:break-all;color:#667085\">Client Base64 tail: " + esc(b64.clientTail) + "</div>"
       : "") +
     (validation.tailHex
       ? "<div style=\"margin-top:4px;font-size:10px;word-break:break-all;color:#667085\">Client tail HEX: " + esc(validation.tailHex) + "</div>"
@@ -573,6 +594,39 @@ function extractPdfPayload(data) {
       ? expectedSize
       : null,
     transportFingerprint: source?.pdf_transport_fingerprint || null
+  };
+}
+
+async function sha256HexFromText(text) {
+  const encoded = new TextEncoder().encode(String(text));
+  return sha256HexFromBytes(encoded);
+}
+
+function cleanBase64ForDiagnostic(base64) {
+  return String(base64 || "")
+    .replace(/^data:.*?;base64,/, "")
+    .replace(/\s+/g, "");
+}
+
+async function inspectBase64Transport(base64, fingerprint = null) {
+  const client = cleanBase64ForDiagnostic(base64);
+  const headLength = 80;
+  const tailLength = 120;
+  const clientHead = client.slice(0, headLength);
+  const clientTail = client.slice(Math.max(0, client.length - tailLength));
+
+  const serverHead = fingerprint?.base64_head || "";
+  const serverTail = fingerprint?.base64_tail || "";
+
+  return {
+    clientSha256: await sha256HexFromText(client),
+    clientLength: client.length,
+    serverHead,
+    serverTail,
+    clientHead,
+    clientTail,
+    headMatch: !!serverHead && clientHead === serverHead,
+    tailMatch: !!serverTail && clientTail === serverTail
   };
 }
 
