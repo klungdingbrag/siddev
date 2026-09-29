@@ -20,18 +20,34 @@ function buildUrl(action, params = {}) {
 export async function apiRequest(action, params = {}) {
   const url = buildUrl(action, params);
 
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      Accept: "application/json"
-    }
-  });
+  let response;
+
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      mode: "cors",
+      redirect: "follow",
+      cache: "no-store"
+    });
+  } catch (error) {
+    throw new Error(
+      `NETWORK/CORS: ${error?.message || "fetch gagal"} | URL: ${url}`
+    );
+  }
 
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} saat memanggil API.`);
   }
 
-  const result = await response.json();
+  let result;
+
+  try {
+    result = await response.json();
+  } catch (error) {
+    throw new Error(
+      `RESPONSE_JSON_ERROR: ${error?.message || "respons bukan JSON"}`
+    );
+  }
 
   if (!result.success) {
     throw new Error(
