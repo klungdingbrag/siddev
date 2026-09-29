@@ -448,7 +448,7 @@ function showPdfDiagnostic(validation, payload, attempt) {
     panel = document.createElement("div");
     panel.id = "pdf-diagnostic";
     panel.style.cssText =
-      "position:fixed;right:18px;bottom:18px;z-index:99999;max-width:420px;" +
+      "position:fixed;right:18px;bottom:18px;z-index:99999;max-width:460px;" +
       "padding:14px 16px;border:1px solid #d7dce5;border-radius:12px;" +
       "background:#fff;color:#172033;box-shadow:0 10px 30px rgba(0,0,0,.14);" +
       "font:13px/1.5 system-ui,sans-serif;";
@@ -458,6 +458,18 @@ function showPdfDiagnostic(validation, payload, attempt) {
   const expected = payload.expectedSize ? payload.expectedSize + " byte" : "tidak dikirim";
   const actual = validation.size + " byte";
   const status = validation.valid ? "VALID" : "TIDAK VALID";
+  const fp = payload.transportFingerprint;
+
+  const serverBytes = Number(fp?.decoded_size_bytes);
+  const sizeDelta = Number.isFinite(serverBytes) ? (actual === "undefined" ? 0 : validation.size - serverBytes) : null;
+  const serverMarkers =
+    fp
+      ? "Server fingerprint: size=" + esc(String(fp.reported_size_bytes ?? "?")) +
+        ", decoded=" + esc(String(fp.decoded_size_bytes ?? "?")) +
+        ", startxref=" + (fp.startxref_present ? "OK" : "NO") +
+        ", EOF=" + (fp.eof_present ? "OK" : "NO") +
+        (fp.sha256 ? ", SHA-256=" + esc(String(fp.sha256)) : "")
+      : "Server fingerprint tidak tersedia";
 
   panel.innerHTML =
     "<strong>PDF Diagnostic 6D.2 — " + status + "</strong>" +
@@ -467,6 +479,10 @@ function showPdfDiagnostic(validation, payload, attempt) {
     "<div>Header: " + (validation.hasHeader ? "OK" : "GAGAL") + "</div>" +
     "<div>startxref: " + (validation.hasStartXref ? "OK" : "GAGAL") + "</div>" +
     "<div>%%EOF: " + (validation.hasEof ? "OK" : "GAGAL") + "</div>" +
+    "<div style=\"margin-top:6px;font-size:11px;color:#667085\">" + serverMarkers + "</div>" +
+    (Number.isFinite(sizeDelta) && sizeDelta !== 0
+      ? "<div style=\"margin-top:4px;font-size:11px;color:#b42318\">Selisih byte client vs server: " + sizeDelta + "</div>"
+      : "") +
     (validation.reason ? "<div style=\"margin-top:6px;color:#b42318\">" + esc(validation.reason) + "</div>" : "");
 }
 
@@ -539,7 +555,8 @@ function extractPdfPayload(data) {
     filename,
     expectedSize: Number.isFinite(expectedSize) && expectedSize > 0
       ? expectedSize
-      : null
+      : null,
+    transportFingerprint: source?.pdf_transport_fingerprint || null
   };
 }
 
@@ -556,22 +573,23 @@ async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = 
     };
   }
 
-  if (requireExpectedSize && expectedSize && blob.size !== expectedSize) {
-    return {
-      valid: false,
-      size: blob.size,
-      expectedSize,
-      hasHeader: false,
-      hasStartXref: false,
-      hasEof: false,
-      reason: "ukuran hasil decoding " + blob.size + " byte, backend melaporkan " + expectedSize + " byte"
-    };
-  }
-
   const buffer = await blob.arrayBuffer();
   const bytes = new Uint8Array(buffer);
+
   const header = new TextDecoder("latin1").decode(bytes.slice(0, 8));
   const hasHeader = header.startsWith("%PDF-");
+
+  const tailStart = Math.max(0, bytes.length - 4096);
+  const tail = new TextDecoder("latin1").decode(bytes.slice(tailStart));
+
+  // Jangan mengandalkan regex yang hanya cocok jika tidak ada whitespace tertentu.
+  // Cari marker EOF yang benar-benar berada di bagian akhir dokumen.
+  const eofMatch = /%%EOF\s*$/.exec(tail);
+  const hasEof = !!eofMatch;
+
+  // startxref harus berada sebelum EOF dan diikuti offset numerik.
+  const startxrefMatch = /startxref\s+(\d+)\s+%%EOF\s*$/.exec(tail);
+  const hasStartXref = !!startxrefMatch;
 
   if (!hasHeader) {
     return {
@@ -579,16 +597,23 @@ async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = 
       size: bytes.length,
       expectedSize,
       hasHeader,
-      hasStartXref: false,
-      hasEof: false,
+      hasStartXref,
+      hasEof,
       reason: "header %PDF tidak ditemukan"
     };
   }
 
-  const tailStart = Math.max(0, bytes.length - 2048);
-  const tail = new TextDecoder("latin1").decode(bytes.slice(tailStart));
-  const hasEof = /%%EOF\s*$/.test(tail);
-  const hasStartXref = /startxref\s+\d+\s+%%EOF\s*$/.test(tail);
+  if (requireExpectedSize && expectedSize && bytes.length !== expectedSize) {
+    return {
+      valid: false,
+      size: bytes.length,
+      expectedSize,
+      hasHeader,
+      hasStartXref,
+      hasEof,
+      reason: "ukuran hasil decoding " + bytes.length + " byte, backend melaporkan " + expectedSize + " byte"
+    };
+  }
 
   if (!hasEof) {
     return {
@@ -620,7 +645,8 @@ async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = 
     expectedSize,
     hasHeader,
     hasStartXref,
-    hasEof
+    hasEof,
+    startxrefOffset: Number(startxrefMatch[1])
   };
 }
 
