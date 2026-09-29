@@ -420,13 +420,12 @@ async function generatePdf6D2(code) {
       const blob = base64ToBlob(payload.base64, "application/pdf");
       const validation = await validatePdfBlob(blob, payload.expectedSize, true);
 
+      showPdfDiagnostic(validation, payload, attempt + 1);
+
       if (!validation.valid) {
-        showPdfDiagnostic(validation, payload, attempt + 1);
         if (attempt < maxAttempts - 1) continue;
         throw new Error("PDF 6D.2 tidak valid: " + validation.reason);
       }
-
-      showPdfDiagnostic(validation, payload, attempt + 1);
 
       // 6D.2 sementara menggunakan direct download, bukan PDF viewer.
       downloadBlob(blob, payload.filename);
