@@ -540,7 +540,7 @@ function normalizePhone(value) {
   let phone = String(value || "").replace(/[^0-9]/g, "");
   if (!phone) return "";
   if (phone.startsWith("0")) phone = "62" + phone.slice(1);
-  return /^62\\d{8,15}$/.test(phone) ? phone : "";
+  return /^62\d{8,15}$/.test(phone) ? phone : "";
 }
 
 function buildWhatsAppMessage(type, code, name) {
