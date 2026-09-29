@@ -456,15 +456,11 @@ function openWhatsAppPicker(type, code, name) {
   modal.classList.remove("hidden");
   modal.setAttribute("aria-hidden", "false");
 
-  document.querySelector("#contact-whatsapp").addEventListener("click", () => {
+  document.querySelector("#contact-whatsapp").addEventListener("click", async () => {
     const message = document.querySelector("#wa-message").value.trim();
     const phone = normalizePhone(document.querySelector("#wa-number").value);
-    closeActionModal();
-    if (document.querySelector("#wa-document").value === "none") {
-      openWhatsApp(phone, message);
-    } else {
-      showToast("Untuk berbagi PDF, gunakan tombol Bagikan agar PDF ikut dikirim.");
-    }
+    const documentType = document.querySelector("#wa-document").value;
+    await sendWhatsAppShare(documentType, code, phone, message);
   });
 
   document.querySelector("#contact-device").addEventListener("click", selectDeviceContact);
