@@ -461,7 +461,11 @@ function showPdfDiagnostic(validation, payload, attempt) {
   const fp = payload.transportFingerprint;
 
   const serverBytes = Number(fp?.decoded_size_bytes);
-  const sizeDelta = Number.isFinite(serverBytes) ? (actual === "undefined" ? 0 : validation.size - serverBytes) : null;
+  const sizeDelta = Number.isFinite(serverBytes) ? validation.size - serverBytes : null;
+  const shaMatch =
+    fp?.sha256 && validation.clientSha256
+      ? String(fp.sha256).toLowerCase() === String(validation.clientSha256).toLowerCase()
+      : null;
   const serverMarkers =
     fp
       ? "Server fingerprint: size=" + esc(String(fp.reported_size_bytes ?? "?")) +
@@ -480,8 +484,20 @@ function showPdfDiagnostic(validation, payload, attempt) {
     "<div>startxref: " + (validation.hasStartXref ? "OK" : "GAGAL") + "</div>" +
     "<div>%%EOF: " + (validation.hasEof ? "OK" : "GAGAL") + "</div>" +
     "<div style=\"margin-top:6px;font-size:11px;color:#667085\">" + serverMarkers + "</div>" +
-    (Number.isFinite(sizeDelta) && sizeDelta !== 0
-      ? "<div style=\"margin-top:4px;font-size:11px;color:#b42318\">Selisih byte client vs server: " + sizeDelta + "</div>"
+    (Number.isFinite(sizeDelta)
+      ? "<div style=\"margin-top:4px;font-size:11px;color:" + (sizeDelta === 0 ? "#027a48" : "#b42318") + "\">Selisih byte client vs server: " + sizeDelta + "</div>"
+      : "") +
+    (shaMatch !== null
+      ? "<div style=\"margin-top:4px;font-size:11px;color:" + (shaMatch ? "#027a48" : "#b42318") + "\">SHA-256 client/server: " + (shaMatch ? "MATCH" : "BERBEDA") + "</div>"
+      : "") +
+    (validation.clientSha256
+      ? "<div style=\"margin-top:4px;font-size:10px;word-break:break-all;color:#667085\">Client SHA-256: " + esc(validation.clientSha256) + "</div>"
+      : "") +
+    (validation.tailHex
+      ? "<div style=\"margin-top:4px;font-size:10px;word-break:break-all;color:#667085\">Client tail HEX: " + esc(validation.tailHex) + "</div>"
+      : "") +
+    (validation.tailText
+      ? "<div style=\"margin-top:4px;font-size:10px;white-space:pre-wrap;word-break:break-all;color:#667085\">Client tail text: " + esc(validation.tailText) + "</div>"
       : "") +
     (validation.reason ? "<div style=\"margin-top:6px;color:#b42318\">" + esc(validation.reason) + "</div>" : "");
 }
@@ -560,6 +576,26 @@ function extractPdfPayload(data) {
   };
 }
 
+async function sha256HexFromBytes(bytes) {
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function bytesToHex(bytes, maxBytes = 96) {
+  return Array.from(bytes.slice(Math.max(0, bytes.length - maxBytes)))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join(" ");
+}
+
+function bytesToLatin1(bytes, maxBytes = 160) {
+  const tail = bytes.slice(Math.max(0, bytes.length - maxBytes));
+  return Array.from(tail)
+    .map(b => (b >= 32 && b <= 126) || b === 9 || b === 10 || b === 13 ? String.fromCharCode(b) : ".")
+    .join("");
+}
+
 async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = false) {
   if (!(blob instanceof Blob) || blob.size < 100) {
     return {
@@ -569,12 +605,16 @@ async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = 
       hasHeader: false,
       hasStartXref: false,
       hasEof: false,
+      clientSha256: null,
+      tailHex: "",
+      tailText: "",
       reason: "ukuran file tidak valid (" + (blob?.size || 0) + " byte)"
     };
   }
 
   const buffer = await blob.arrayBuffer();
   const bytes = new Uint8Array(buffer);
+  const clientSha256 = await sha256HexFromBytes(bytes);
 
   const header = new TextDecoder("latin1").decode(bytes.slice(0, 8));
   const hasHeader = header.startsWith("%PDF-");
@@ -590,6 +630,8 @@ async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = 
   // startxref harus berada sebelum EOF dan diikuti offset numerik.
   const startxrefMatch = /startxref\s+(\d+)\s+%%EOF\s*$/.exec(tail);
   const hasStartXref = !!startxrefMatch;
+  const tailHex = bytesToHex(bytes);
+  const tailText = bytesToLatin1(bytes);
 
   if (!hasHeader) {
     return {
@@ -599,6 +641,9 @@ async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = 
       hasHeader,
       hasStartXref,
       hasEof,
+      clientSha256,
+      tailHex,
+      tailText,
       reason: "header %PDF tidak ditemukan"
     };
   }
@@ -611,6 +656,9 @@ async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = 
       hasHeader,
       hasStartXref,
       hasEof,
+      clientSha256,
+      tailHex,
+      tailText,
       reason: "ukuran hasil decoding " + bytes.length + " byte, backend melaporkan " + expectedSize + " byte"
     };
   }
@@ -623,6 +671,9 @@ async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = 
       hasHeader,
       hasStartXref,
       hasEof,
+      clientSha256,
+      tailHex,
+      tailText,
       reason: "penanda %%EOF tidak ditemukan di akhir file"
     };
   }
@@ -635,6 +686,9 @@ async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = 
       hasHeader,
       hasStartXref,
       hasEof,
+      clientSha256,
+      tailHex,
+      tailText,
       reason: "struktur startxref/%%EOF tidak lengkap"
     };
   }
@@ -646,6 +700,9 @@ async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = 
     hasHeader,
     hasStartXref,
     hasEof,
+    clientSha256,
+    tailHex,
+    tailText,
     startxrefOffset: Number(startxrefMatch[1])
   };
 }
