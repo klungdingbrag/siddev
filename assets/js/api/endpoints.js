@@ -18,9 +18,10 @@ export const api = Object.freeze({
     apiRequest("pdfSemuaDetailPiutang6D1", {
       kode_pelanggan: kodePelanggan
     }),
-  pdfSemuaDetailPiutang6D2: (kodePelanggan) =>
+  pdfSemuaDetailPiutang6D2: (kodePelanggan, extra = {}) =>
     apiRequest("pdfSemuaDetailPiutang6D2", {
-      kode_pelanggan: kodePelanggan
+      kode_pelanggan: kodePelanggan,
+      ...extra
     }),
   pdfInvoice: (kodeTransaksi) =>
     apiRequest("pdfInvoice", {
