@@ -1,6 +1,6 @@
 import { APP_CONFIG } from "./config.js";
 import { apiHealth } from "./api/client.js";
-import { renderPiutangPage } from "./pages/piutang.js?v=20260929-pdf-fix-3";
+import { renderPiutangPage } from "./pages/piutang.js?v=20260929-pdf-fix-4";
 import { renderDashboardPage } from "./pages/dashboard.js";
 
 const sidebar = document.querySelector("#sidebar");
