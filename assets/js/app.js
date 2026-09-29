@@ -78,12 +78,18 @@ function setActiveNav(hash) {
 function route() {
   const hash = window.location.hash || "#dashboard";
   const title = hash === "#piutang" ? "Piutang Pelanggan" : "Dashboard";
-  document.querySelector(".topbar h1").textContent = title;
+  const titleElement = document.querySelector(".topbar h1");
+
+  if (titleElement) {
+    titleElement.textContent = title;
+  }
+
   if (hash === "#piutang") {
     renderPiutangPage();
   } else {
     renderDashboardPage();
   }
+
   setActiveNav(hash);
 }
 
@@ -91,19 +97,35 @@ window.addEventListener("hashchange", route);
 route();
 
 async function checkApi() {
-  const status = document.querySelector("#api-status");
-  const card = document.querySelector("#api-card-status");
-
   try {
     const data = await apiHealth();
     const online = data?.status === "ok";
 
-    status.textContent = online ? "API Online" : "API Response";
-    card.textContent = online ? "ONLINE" : "READY";
+    const status = document.querySelector("#api-status");
+    const card = document.querySelector("#api-card-status");
+
+    if (status) {
+      status.textContent = online ? "API Online" : "API Response";
+    }
+
+    if (card) {
+      card.textContent = online ? "ONLINE" : "READY";
+    }
+
+    console.info("[API] health:", data);
   } catch (error) {
-    status.textContent = "API Offline";
-    card.textContent = "OFFLINE";
-    console.warn(error);
+    const status = document.querySelector("#api-status");
+    const card = document.querySelector("#api-card-status");
+
+    if (status) {
+      status.textContent = "API Offline";
+    }
+
+    if (card) {
+      card.textContent = "OFFLINE";
+    }
+
+    console.warn("[API] health check failed:", error);
   }
 }
 
