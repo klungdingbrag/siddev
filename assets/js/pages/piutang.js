@@ -365,15 +365,83 @@ async function handlePdfAction(type, code) {
   }
 
   if (type === "detail") {
-    await generatePdf(
-      (attempt) => api.pdfSemuaDetailPiutang6D2(
+    await generatePdf6D2(code);
+  }
+}
+
+async function generatePdf6D2(code) {
+  const maxAttempts = 3;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      showToast(
+        attempt === 0
+          ? "Membuat Laporan Detail PDF 6D.2..."
+          : "Mencoba ulang PDF 6D.2 (" + (attempt + 1) + "/" + maxAttempts + ")..."
+      );
+
+      const data = await api.pdfSemuaDetailPiutang6D2(
         code,
         attempt > 0 ? { _pdf_retry: Date.now() } : {}
-      ),
-      "Laporan Detail Piutang PDF",
-      { retry: 2, validatePdf: true, requireBackendSize: true }
-    );
+      );
+      const payload = extractPdfPayload(data);
+
+      if (!payload.base64) {
+        throw new Error("Backend tidak mengembalikan pdf_base64.");
+      }
+
+      const blob = base64ToBlob(payload.base64, "application/pdf");
+      const validation = await validatePdfBlob(blob, payload.expectedSize, true);
+
+      if (!validation.valid) {
+        showPdfDiagnostic(validation, payload, attempt + 1);
+        if (attempt < maxAttempts - 1) continue;
+        throw new Error("PDF 6D.2 tidak valid: " + validation.reason);
+      }
+
+      showPdfDiagnostic(validation, payload, attempt + 1);
+
+      // 6D.2 sementara menggunakan direct download, bukan PDF viewer.
+      downloadBlob(blob, payload.filename);
+      showToast(
+        "PDF 6D.2 valid. " +
+        validation.size + " byte. File langsung diunduh."
+      );
+      return;
+    } catch (error) {
+      if (attempt >= maxAttempts - 1) {
+        showToast("Gagal membuat PDF 6D.2: " + (error.message || "Unknown error"), true);
+      }
+    }
   }
+}
+
+function showPdfDiagnostic(validation, payload, attempt) {
+  let panel = document.querySelector("#pdf-diagnostic");
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.id = "pdf-diagnostic";
+    panel.style.cssText =
+      "position:fixed;right:18px;bottom:18px;z-index:99999;max-width:420px;" +
+      "padding:14px 16px;border:1px solid #d7dce5;border-radius:12px;" +
+      "background:#fff;color:#172033;box-shadow:0 10px 30px rgba(0,0,0,.14);" +
+      "font:13px/1.5 system-ui,sans-serif;";
+    document.body.appendChild(panel);
+  }
+
+  const expected = payload.expectedSize ? payload.expectedSize + " byte" : "tidak dikirim";
+  const actual = validation.size + " byte";
+  const status = validation.valid ? "VALID" : "TIDAK VALID";
+
+  panel.innerHTML =
+    "<strong>PDF Diagnostic 6D.2 — " + status + "</strong>" +
+    "<div>Attempt: " + attempt + "</div>" +
+    "<div>Backend size: " + esc(expected) + "</div>" +
+    "<div>Decoded size: " + esc(actual) + "</div>" +
+    "<div>Header: " + (validation.hasHeader ? "OK" : "GAGAL") + "</div>" +
+    "<div>startxref: " + (validation.hasStartXref ? "OK" : "GAGAL") + "</div>" +
+    "<div>%%EOF: " + (validation.hasEof ? "OK" : "GAGAL") + "</div>" +
+    (validation.reason ? "<div style=\"margin-top:6px;color:#b42318\">" + esc(validation.reason) + "</div>" : "");
 }
 
 async function generatePdf(loader, label, options = {}) {
@@ -454,6 +522,9 @@ async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = 
     return {
       valid: false,
       size: blob?.size || 0,
+      expectedSize,
+      hasHeader: false,
+      hasStartXref: false,
       hasEof: false,
       reason: "ukuran file tidak valid (" + (blob?.size || 0) + " byte)"
     };
@@ -464,6 +535,8 @@ async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = 
       valid: false,
       size: blob.size,
       expectedSize,
+      hasHeader: false,
+      hasStartXref: false,
       hasEof: false,
       reason: "ukuran hasil decoding " + blob.size + " byte, backend melaporkan " + expectedSize + " byte"
     };
@@ -472,12 +545,15 @@ async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = 
   const buffer = await blob.arrayBuffer();
   const bytes = new Uint8Array(buffer);
   const header = new TextDecoder("latin1").decode(bytes.slice(0, 8));
+  const hasHeader = header.startsWith("%PDF-");
 
-  if (!header.startsWith("%PDF-")) {
+  if (!hasHeader) {
     return {
       valid: false,
       size: bytes.length,
       expectedSize,
+      hasHeader,
+      hasStartXref: false,
       hasEof: false,
       reason: "header %PDF tidak ditemukan"
     };
@@ -493,6 +569,8 @@ async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = 
       valid: false,
       size: bytes.length,
       expectedSize,
+      hasHeader,
+      hasStartXref,
       hasEof,
       reason: "penanda %%EOF tidak ditemukan di akhir file"
     };
@@ -503,6 +581,8 @@ async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = 
       valid: false,
       size: bytes.length,
       expectedSize,
+      hasHeader,
+      hasStartXref,
       hasEof,
       reason: "struktur startxref/%%EOF tidak lengkap"
     };
@@ -512,7 +592,9 @@ async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = 
     valid: true,
     size: bytes.length,
     expectedSize,
-    hasEof: true
+    hasHeader,
+    hasStartXref,
+    hasEof
   };
 }
 
