@@ -429,43 +429,100 @@ function openWhatsAppPicker(type, code, name) {
     ? customerValue(state.detailData, state.detailRow, ["telp", "telepon", "no_wa", "nomor_wa", "whatsapp"], "")
     : "";
 
+  const documentOptions = type === "invoice"
+    ? '<option value="invoice">PDF Invoice</option>'
+    : '<option value="summary">Ringkasan Piutang PDF</option><option value="detail">Laporan Detail Piutang PDF</option><option value="none">Tanpa PDF</option>';
+
   document.querySelector("#action-content").innerHTML =
     '<div class="contact-picker">' +
       '<p class="contact-description">' + esc(title) + '</p>' +
+      '<label class="field-label">Dokumen yang dibagikan</label>' +
+      '<select id="wa-document" class="contact-input">' + documentOptions + '</select>' +
       '<div class="contact-actions">' +
-        '<button id="contact-device" class="btn btn-light">▣ Pilih dari Kontak Perangkat</button>' +
+        '<button id="contact-whatsapp" class="btn btn-light">▣ Pilih Kontak di WhatsApp</button>' +
+        '<button id="contact-device" class="btn btn-light">▣ Kontak Perangkat</button>' +
       '</div>' +
-      '<label class="field-label">Nomor WhatsApp tujuan</label>' +
-      '<input id="wa-number" class="contact-input" type="tel" inputmode="tel" placeholder="Contoh: 081234567890" value="' + esc(customerPhone) + '">' +
-      '<small class="contact-hint">Anda tetap menentukan nomor tujuan sendiri. Nomor pelanggan hanya diisi sebagai pilihan awal jika tersedia.</small>' +
+      '<label class="field-label">Nomor tujuan (opsional)</label>' +
+      '<input id="wa-number" class="contact-input" type="tel" inputmode="tel" placeholder="Kosongkan untuk memilih kontak di WhatsApp" value="' + esc(customerPhone) + '">' +
+      '<small class="contact-hint">Jika nomor dikosongkan, WhatsApp akan membuka pilihan kontak. Jika nomor diisi, chat langsung dibuka ke nomor tersebut.</small>' +
       '<label class="field-label">Pesan</label>' +
       '<textarea id="wa-message" class="contact-message" rows="6">' + esc(buildWhatsAppMessage(type, code, name)) + '</textarea>' +
       '<div class="contact-footer">' +
         '<button id="wa-cancel" class="btn btn-light">Batal</button>' +
-        '<button id="wa-send" class="btn btn-whatsapp">Buka WhatsApp</button>' +
+        '<button id="wa-send" class="btn btn-whatsapp">Bagikan</button>' +
       '</div>' +
     '</div>';
 
   modal.classList.remove("hidden");
   modal.setAttribute("aria-hidden", "false");
 
+  document.querySelector("#contact-whatsapp").addEventListener("click", () => {
+    const message = document.querySelector("#wa-message").value.trim();
+    const phone = normalizePhone(document.querySelector("#wa-number").value);
+    closeActionModal();
+    if (document.querySelector("#wa-document").value === "none") {
+      openWhatsApp(phone, message);
+    } else {
+      showToast("Untuk berbagi PDF, gunakan tombol Bagikan agar PDF ikut dikirim.");
+    }
+  });
+
   document.querySelector("#contact-device").addEventListener("click", selectDeviceContact);
   document.querySelector("#wa-cancel").addEventListener("click", closeActionModal);
-  document.querySelector("#wa-send").addEventListener("click", () => {
+  document.querySelector("#wa-send").addEventListener("click", async () => {
     const phone = normalizePhone(document.querySelector("#wa-number").value);
     const message = document.querySelector("#wa-message").value.trim();
-    if (!phone) {
-      showToast("Masukkan nomor WhatsApp yang valid.", true);
+    const documentType = document.querySelector("#wa-document").value;
+    await sendWhatsAppShare(documentType, code, phone, message);
+  });
+}
+
+async function sendWhatsAppShare(documentType, code, phone, message) {
+  try {
+    closeActionModal();
+
+    if (documentType === "none") {
+      openWhatsApp(phone, message);
       return;
     }
+
+    showToast("Menyiapkan PDF untuk WhatsApp...");
+    const loader = documentType === "invoice"
+      ? () => api.pdfInvoice(code)
+      : documentType === "summary"
+        ? () => api.pdfRingkasanPiutang({ kode_pelanggan: code })
+        : () => api.pdfSemuaDetailPiutang6D2(code);
+
+    const data = await loader();
+    const base64 = data?.pdf_base64 || data?.data?.pdf_base64;
+    const filename = data?.filename || data?.data?.filename || "dokumen-piutang.pdf";
+    if (!base64) throw new Error("Backend tidak mengembalikan PDF.");
+
+    const blob = base64ToBlob(base64, "application/pdf");
+    const file = new File([blob], filename, { type: "application/pdf" });
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        title: filename,
+        text: message,
+        files: [file]
+      });
+      showToast("PDF siap dibagikan melalui menu share perangkat.");
+      return;
+    }
+
+    downloadBlob(blob, filename);
     openWhatsApp(phone, message);
-    closeActionModal();
-  });
+    showToast("PDF diunduh. WhatsApp dibuka; lampirkan PDF tersebut di chat.");
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    showToast("Gagal membagikan PDF: " + (error.message || "Unknown error"), true);
+  }
 }
 
 async function selectDeviceContact() {
   if (!("contacts" in navigator) || typeof navigator.contacts.select !== "function") {
-    showToast("Pemilih kontak perangkat tidak didukung browser ini. Masukkan nomor secara manual.", true);
+    showToast("Pemilih kontak perangkat tidak didukung browser ini. Kosongkan nomor untuk memilih kontak langsung di WhatsApp.", true);
     return;
   }
 
@@ -481,22 +538,23 @@ async function selectDeviceContact() {
 
 function normalizePhone(value) {
   let phone = String(value || "").replace(/[^0-9]/g, "");
+  if (!phone) return "";
   if (phone.startsWith("0")) phone = "62" + phone.slice(1);
-  return /^62\d{8,15}$/.test(phone) ? phone : "";
+  return /^62\\d{8,15}$/.test(phone) ? phone : "";
 }
 
 function buildWhatsAppMessage(type, code, name) {
   if (type === "invoice") {
-    return "Halo, berikut informasi invoice " + code + " untuk " + (name || "pelanggan") + ".";
+    return "Halo, berikut invoice " + code + " untuk " + (name || "pelanggan") + ".";
   }
-  if (type === "customer") {
-    return "Halo, berikut laporan piutang pelanggan " + (name || "pelanggan") + ".";
-  }
-  return "Halo, berikut dokumen piutang pelanggan " + (name || "pelanggan") + ".";
+  return "Halo, berikut laporan piutang pelanggan " + (name || "pelanggan") + ".";
 }
 
 function openWhatsApp(phone, message) {
-  const url = "https://wa.me/" + phone + "?text=" + encodeURIComponent(message);
+  const base = phone
+    ? "https://wa.me/" + phone
+    : "https://wa.me/";
+  const url = base + "?text=" + encodeURIComponent(message);
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
