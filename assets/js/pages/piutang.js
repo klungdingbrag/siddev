@@ -101,11 +101,16 @@ async function loadPiutang(force = false) {
   setState("loading", "Mengambil data piutang dari Development backend...");
   try {
     const result = await api.piutang();
-    state.rows = Array.isArray(result?.data)
-      ? result.data.filter(r => money(r.total_piutang) > 0)
-      : Array.isArray(result)
-        ? result.filter(r => money(r.total_piutang) > 0)
-        : [];
+    const rows = extractPiutangRows(result);
+
+    if (!rows) {
+      throw new Error(
+        "Struktur respons piutang tidak dikenali. " +
+        "API berhasil tetapi daftar pelanggan tidak ditemukan."
+      );
+    }
+
+    state.rows = rows.filter(r => money(r.total_piutang) > 0);
     state.loaded = true;
     state.page = 1;
     updateSummary(result);
@@ -120,6 +125,28 @@ async function loadPiutang(force = false) {
   } finally {
     state.loading = false;
   }
+}
+
+function extractPiutangRows(result) {
+  if (Array.isArray(result)) return result;
+
+  // API V1 piutang returns an object containing the customer rows.
+  // Keep compatibility with earlier/alternate envelopes without changing backend.
+  const candidates = [
+    result?.rows,
+    result?.pelanggan,
+    result?.customers,
+    result?.data,
+    result?.data?.rows,
+    result?.data?.pelanggan,
+    result?.data?.customers
+  ];
+
+  for (const value of candidates) {
+    if (Array.isArray(value)) return value;
+  }
+
+  return null;
 }
 
 function updateSummary(result) {
