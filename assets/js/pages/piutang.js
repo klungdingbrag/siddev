@@ -7,10 +7,18 @@ const state = {
   filtered: [],
   page: 1,
   pageSize: 25,
-  search: ""
+  search: "",
+  detailCode: null,
+  detailRow: null,
+  detailData: null,
+  tabungan: 0
 };
 
-const rupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
+const rupiah = new Intl.NumberFormat("id-ID", {
+  style: "currency",
+  currency: "IDR",
+  maximumFractionDigits: 0
+});
 const number = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 });
 
 function money(v) {
@@ -23,7 +31,12 @@ function formatMoney(v) {
 }
 
 function esc(v) {
-  return String(v ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+  return String(v ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 const root = () => document.querySelector("#page-content");
@@ -42,7 +55,8 @@ export function renderPiutangPage() {
     '<div id="piutang-table-wrap" class="table-scroll hidden"><table class="data-table"><thead><tr><th>Pelanggan</th><th>Belum Jatuh Tempo</th><th>1–30</th><th>31–60</th><th>61–90</th><th>91–120</th><th>≥121</th><th>Total Piutang</th><th></th></tr></thead><tbody id="piutang-body"></tbody></table></div>' +
     '<div id="piutang-cards" class="mobile-data-cards hidden"></div>' +
     '<div id="piutang-pagination" class="pagination hidden"><button id="piutang-prev" class="btn btn-light">← Sebelumnya</button><span id="piutang-page-info">Halaman 1 / 1</span><button id="piutang-next" class="btn btn-light">Berikutnya →</button></div></section>' +
-    '<div id="piutang-modal" class="modal hidden" aria-hidden="true"><div class="modal-backdrop" data-close-detail></div><section class="modal-panel" role="dialog" aria-modal="true"><div class="modal-header"><div><p class="eyebrow">Pelanggan</p><h3 id="detail-title">Detail Piutang</h3><span id="detail-code" class="modal-code"></span></div><button id="detail-close" class="modal-close">×</button></div><div id="detail-content" class="modal-body"></div></section></div>';
+    '<div id="piutang-modal" class="modal hidden" aria-hidden="true"><div class="modal-backdrop" data-close-detail></div><section class="modal-panel modal-panel-detail" role="dialog" aria-modal="true"><div class="modal-header"><div><p class="eyebrow">Detail</p><h3 id="detail-title">Detail</h3><span id="detail-code" class="modal-code"></span></div><button id="detail-close" class="modal-close" aria-label="Tutup">×</button></div><div id="detail-content" class="modal-body"></div><div id="detail-footer" class="detail-footer hidden"></div></section></div>' +
+    '<div id="action-modal" class="modal hidden" aria-hidden="true"><div class="modal-backdrop" data-close-action></div><section class="modal-panel action-modal-panel" role="dialog" aria-modal="true"><div class="modal-header"><div><p class="eyebrow">WhatsApp</p><h3>Pilih kontak tujuan</h3></div><button id="action-close" class="modal-close" aria-label="Tutup">×</button></div><div id="action-content" class="modal-body"></div></section></div>';
 
   bindEvents();
   loadPiutang();
@@ -72,7 +86,13 @@ function bindEvents() {
   document.querySelector("#detail-close").addEventListener("click", closeDetail);
   document.querySelector("#piutang-modal").addEventListener("click", (e) => {
     if (e.target.matches("[data-close-detail]")) closeDetail();
+    const btn = e.target.closest("[data-pdf-action]");
+    if (btn) handlePdfAction(btn.dataset.pdfAction, btn.dataset.code);
+    const wa = e.target.closest("[data-wa-action]");
+    if (wa) openWhatsAppPicker(wa.dataset.waAction, wa.dataset.code, wa.dataset.name || "");
   });
+  document.querySelector("#action-close").addEventListener("click", closeActionModal);
+  document.querySelector("#action-modal").addEventListener("click", actionModalClick);
 }
 
 async function loadPiutang(force = false) {
@@ -81,7 +101,11 @@ async function loadPiutang(force = false) {
   setState("loading", "Mengambil data piutang dari Development backend...");
   try {
     const result = await api.piutang();
-    state.rows = Array.isArray(result?.data) ? result.data.filter(r => money(r.total_piutang) > 0) : [];
+    state.rows = Array.isArray(result?.data)
+      ? result.data.filter(r => money(r.total_piutang) > 0)
+      : Array.isArray(result)
+        ? result.filter(r => money(r.total_piutang) > 0)
+        : [];
     state.loaded = true;
     state.page = 1;
     updateSummary(result);
@@ -100,9 +124,11 @@ async function loadPiutang(force = false) {
 
 function updateSummary(result) {
   const rows = state.rows;
-  const total = rows.reduce((s,r) => s + money(r.total_piutang), 0);
-  const current = rows.reduce((s,r) => s + money(r.belum_jatuh_tempo), 0);
-  const overdue = rows.reduce((s,r) => s + money(r.aging_1_30) + money(r.aging_31_60) + money(r.aging_61_90) + money(r.aging_91_120) + money(r.aging_121_plus), 0);
+  const total = rows.reduce((s, r) => s + money(r.total_piutang), 0);
+  const current = rows.reduce((s, r) => s + money(r.belum_jatuh_tempo), 0);
+  const overdue = rows.reduce((s, r) =>
+    s + money(r.aging_1_30) + money(r.aging_31_60) + money(r.aging_61_90) +
+    money(r.aging_91_120) + money(r.aging_121_plus), 0);
   document.querySelector("#sum-customers").textContent = number.format(Number(result?.total_pelanggan ?? rows.length));
   document.querySelector("#sum-total").textContent = formatMoney(Number(result?.total_piutang ?? total));
   document.querySelector("#sum-current").textContent = formatMoney(current);
@@ -111,7 +137,11 @@ function updateSummary(result) {
 
 function filterAndRender() {
   const q = state.search;
-  state.filtered = q ? state.rows.filter(r => String(r.kd_pelanggan || "").toLowerCase().includes(q) || String(r.nm_pelanggan || "").toLowerCase().includes(q)) : [...state.rows];
+  state.filtered = q
+    ? state.rows.filter(r =>
+        String(r.kd_pelanggan || "").toLowerCase().includes(q) ||
+        String(r.nm_pelanggan || "").toLowerCase().includes(q))
+    : [...state.rows];
   state.page = Math.min(state.page, Math.max(1, Math.ceil(state.filtered.length / state.pageSize)));
   renderTable();
 }
@@ -141,7 +171,8 @@ function renderTable() {
   body.innerHTML = rows.map(rowHtml).join("");
   cards.innerHTML = rows.map(cardHtml).join("");
   pagination.classList.remove("hidden");
-  document.querySelector("#piutang-page-info").textContent = "Halaman " + state.page + " / " + pages + " · " + number.format(state.filtered.length) + " pelanggan";
+  document.querySelector("#piutang-page-info").textContent =
+    "Halaman " + state.page + " / " + pages + " · " + number.format(state.filtered.length) + " pelanggan";
   document.querySelector("#piutang-prev").disabled = state.page <= 1;
   document.querySelector("#piutang-next").disabled = state.page >= pages;
 }
@@ -164,30 +195,319 @@ function detailClick(e) {
 async function openDetail(code) {
   const row = state.rows.find(r => String(r.kd_pelanggan) === String(code));
   if (!row) return;
+
+  state.detailCode = code;
+  state.detailRow = row;
+  state.detailData = null;
+  state.tabungan = 0;
+
   const modal = document.querySelector("#piutang-modal");
-  document.querySelector("#detail-title").textContent = row.nm_pelanggan || code;
+  document.querySelector("#detail-title").textContent = "Detail";
   document.querySelector("#detail-code").textContent = code;
-  document.querySelector("#detail-content").innerHTML = '<div class="detail-loading">Mengambil detail outstanding...</div>';
+  document.querySelector("#detail-content").innerHTML = '<div class="detail-loading">Mengambil detail pelanggan, piutang, dan saldo tabungan...</div>';
+  document.querySelector("#detail-footer").classList.add("hidden");
   modal.classList.remove("hidden");
   modal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
+
   try {
-    const result = await api.customerPiutangDetail(code);
-    const tx = Array.isArray(result?.data) ? result.data : [];
-    renderDetail(result, tx, row);
+    const [detailResult, tabunganResult] = await Promise.all([
+      api.customerPiutangDetail(code),
+      api.tabungan(code).catch(() => null)
+    ]);
+    state.detailData = detailResult;
+    state.tabungan = extractTabungan(tabunganResult, detailResult);
+    renderDetail(detailResult, row);
   } catch (error) {
-    document.querySelector("#detail-content").innerHTML = '<div class="detail-error"><strong>Detail tidak berhasil dimuat.</strong><span>' + esc(error.message || "Unknown error") + '</span></div>';
+    document.querySelector("#detail-content").innerHTML =
+      '<div class="detail-error"><strong>Detail tidak berhasil dimuat.</strong><span>' +
+      esc(error.message || "Unknown error") + '</span></div>';
   }
 }
 
-function renderDetail(result, tx, row) {
-  const total = tx.reduce((s,r) => s + money(r.piutang), 0) || money(row.total_piutang);
-  let html = '<div class="detail-customer"><div><span>Nama</span><strong>' + esc(result?.nama_pelanggan || row.nm_pelanggan || row.kd_pelanggan) + '</strong></div><div><span>Alamat</span><strong>' + esc(result?.alamat || "—") + '</strong></div><div><span>Telepon</span><strong>' + esc(result?.telp || "—") + '</strong></div></div>';
-  html += '<div class="detail-total-card"><span>Total Outstanding</span><strong>' + formatMoney(total) + '</strong><small>' + number.format(tx.length) + ' transaksi ditampilkan</small></div>';
-  html += '<div class="detail-heading">Transaksi Outstanding</div><div class="detail-table-scroll"><table class="detail-table"><thead><tr><th>Kode</th><th>Tanggal</th><th>Jatuh Tempo</th><th>Umur</th><th>Piutang</th></tr></thead><tbody>';
-  html += tx.length ? tx.map(t => '<tr><td>' + esc(t.kode_transaksi) + '</td><td>' + esc(t.tanggal || "—") + '</td><td>' + esc(t.jatuh_tempo || "—") + '</td><td>' + (t.umur_hari == null ? "—" : number.format(t.umur_hari) + " hari") + '</td><td><strong>' + formatMoney(t.piutang) + '</strong></td></tr>').join("") : '<tr><td colspan="5" class="empty-cell">Tidak ada transaksi outstanding.</td></tr>';
+function extractTabungan(result, detail) {
+  const candidates = [
+    result?.saldo_tabungan,
+    result?.data?.saldo_tabungan,
+    detail?.saldo_tabungan,
+    detail?.data?.saldo_tabungan,
+    result?.saldo,
+    result?.data?.saldo,
+    typeof result === "number" ? result : null
+  ];
+  for (const v of candidates) {
+    if (v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v))) return Number(v);
+  }
+  return 0;
+}
+
+function extractTransactions(result) {
+  if (Array.isArray(result)) return result;
+  if (Array.isArray(result?.data)) return result.data;
+  if (Array.isArray(result?.transaksi)) return result.transaksi;
+  if (Array.isArray(result?.data?.transaksi)) return result.data.transaksi;
+  if (Array.isArray(result?.rows)) return result.rows;
+  return [];
+}
+
+function customerValue(result, row, keys, fallback = "") {
+  for (const key of keys) {
+    const a = result?.[key];
+    const b = result?.data?.[key];
+    if (a !== undefined && a !== null && a !== "") return a;
+    if (b !== undefined && b !== null && b !== "") return b;
+  }
+  return fallback;
+}
+
+function renderDetail(result, row) {
+  const tx = extractTransactions(result);
+  const name = customerValue(result, row, ["nama_pelanggan", "nm_pelanggan", "nama"], row.nm_pelanggan || row.kd_pelanggan);
+  const address = customerValue(result, row, ["alamat", "alamat_pelanggan"], "—");
+  const phone = customerValue(result, row, ["telp", "telepon", "no_wa", "nomor_wa", "whatsapp"], "Tidak tersedia");
+
+  const total = money(customerValue(result, row, ["total_piutang", "saldo_hutang", "total_outstanding"], row.total_piutang));
+  const aging = {
+    current: money(row.belum_jatuh_tempo),
+    a30: money(row.aging_1_30),
+    a60: money(row.aging_31_60),
+    a90: money(row.aging_61_90),
+    a120: money(row.aging_91_120),
+    a121: money(row.aging_121_plus)
+  };
+
+  let html =
+    '<div class="detail-customer">' +
+      '<div class="detail-customer-full"><span>Nama</span><strong>' + esc(name) + '</strong></div>' +
+      '<div><span>Alamat</span><strong>' + esc(address) + '</strong></div>' +
+      '<div><span>No. WhatsApp</span><strong>' + esc(phone) + '</strong></div>' +
+    '</div>' +
+
+    '<div class="detail-aging-grid">' +
+      agingCard("Belum Jatuh Tempo", aging.current, "current") +
+      agingCard("1 s/d 30 Hari", aging.a30, "warning") +
+      agingCard("31 s/d 60 Hari", aging.a60, "warning") +
+      agingCard("61 s/d 90 Hari", aging.a90, "warning") +
+      agingCard("91 s/d 120 Hari", aging.a120, "warning") +
+      agingCard("≥121 Hari", aging.a121, "danger") +
+    '</div>' +
+
+    '<div class="detail-financial-grid">' +
+      '<div class="financial-card savings"><span>Saldo Tabungan</span><strong>' + formatMoney(state.tabungan) + '</strong></div>' +
+      '<div class="financial-card debt"><span>Total Piutang</span><strong>' + formatMoney(total) + '</strong></div>' +
+    '</div>' +
+
+    '<div class="detail-heading">Transaksi Outstanding</div>' +
+    '<div class="detail-table-scroll"><table class="detail-table"><thead><tr><th>Kode</th><th>Tanggal</th><th>Jatuh Tempo</th><th>Umur</th><th>Piutang</th><th>Aksi</th></tr></thead><tbody>';
+
+  html += tx.length
+    ? tx.map(t => invoiceRowHtml(t, name)).join("")
+    : '<tr><td colspan="6" class="empty-cell">Tidak ada transaksi outstanding.</td></tr>';
+
   html += '</tbody></table></div>';
+
   document.querySelector("#detail-content").innerHTML = html;
+
+  document.querySelector("#detail-footer").innerHTML =
+    '<div class="detail-footer-left">' +
+      '<button class="btn btn-light" data-pdf-action="summary" data-code="' + esc(state.detailCode) + '">▣ Ringkasan PDF</button>' +
+      '<button class="btn btn-light" data-pdf-action="detail" data-code="' + esc(state.detailCode) + '">▤ Laporan Detail PDF</button>' +
+    '</div>' +
+    '<div class="detail-footer-right">' +
+      '<button class="btn btn-light" id="detail-footer-close">Tutup</button>' +
+      '<button class="btn btn-whatsapp" data-wa-action="customer" data-code="' + esc(state.detailCode) + '" data-name="' + esc(name) + '">▣ Share WhatsApp</button>' +
+    '</div>';
+  document.querySelector("#detail-footer").classList.remove("hidden");
+  document.querySelector("#detail-footer-close").addEventListener("click", closeDetail);
+}
+
+function agingCard(label, value, tone) {
+  return '<div class="aging-card aging-' + tone + '"><span>' + label + '</span><strong>' + formatMoney(value) + '</strong></div>';
+}
+
+function invoiceRowHtml(t, name) {
+  const code = t.kode_transaksi || t.kode || "";
+  const date = t.tanggal || "—";
+  const due = t.jatuh_tempo || t.jatuhTempo || "—";
+  const age = t.umur_hari == null ? "—" : number.format(t.umur_hari) + " hari";
+  const balance = t.piutang ?? t.saldo_hutang ?? t.saldo ?? 0;
+
+  return '<tr>' +
+    '<td>' + esc(code) + '</td>' +
+    '<td>' + esc(date) + '</td>' +
+    '<td>' + esc(due) + '</td>' +
+    '<td>' + esc(age) + '</td>' +
+    '<td><strong>' + formatMoney(balance) + '</strong></td>' +
+    '<td><div class="invoice-actions">' +
+      '<button class="mini-action" data-pdf-action="invoice" data-code="' + esc(code) + '" title="Buka PDF Invoice">▣ PDF</button>' +
+      '<button class="mini-action whatsapp-mini" data-wa-action="invoice" data-code="' + esc(code) + '" data-name="' + esc(name) + '" title="Bagikan Invoice ke WhatsApp">▢ WhatsApp</button>' +
+    '</div></td>' +
+  '</tr>';
+}
+
+async function handlePdfAction(type, code) {
+  if (type === "invoice") {
+    if (!code) return;
+    await generatePdf(
+      () => api.pdfInvoice(code),
+      "Invoice PDF"
+    );
+    return;
+  }
+
+  if (!code) return;
+  if (type === "summary") {
+    await generatePdf(
+      () => api.pdfRingkasanPiutang({ kode_pelanggan: code }),
+      "Ringkasan Piutang PDF"
+    );
+    return;
+  }
+
+  if (type === "detail") {
+    await generatePdf(
+      () => api.pdfSemuaDetailPiutang6D2(code),
+      "Laporan Detail Piutang PDF"
+    );
+  }
+}
+
+async function generatePdf(loader, label) {
+  try {
+    showToast("Membuat " + label + "...");
+    const data = await loader();
+    const base64 = data?.pdf_base64 || data?.data?.pdf_base64;
+    const filename = data?.filename || data?.data?.filename || "dokumen.pdf";
+
+    if (!base64) throw new Error("Backend tidak mengembalikan pdf_base64.");
+
+    const blob = base64ToBlob(base64, "application/pdf");
+    const url = URL.createObjectURL(blob);
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+
+    if (!opened) {
+      downloadBlob(blob, filename);
+      showToast("Popup diblokir. PDF otomatis diunduh.");
+    } else {
+      showToast("PDF dibuka di tab baru.");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+  } catch (error) {
+    showToast("Gagal membuat PDF: " + (error.message || "Unknown error"), true);
+  }
+}
+
+function base64ToBlob(base64, mime) {
+  const clean = String(base64).replace(/^data:.*?;base64,/, "");
+  const binary = atob(clean);
+  const chunkSize = 1024 * 64;
+  const parts = [];
+  for (let i = 0; i < binary.length; i += chunkSize) {
+    const chunk = binary.slice(i, i + chunkSize);
+    const bytes = new Uint8Array(chunk.length);
+    for (let j = 0; j < chunk.length; j++) bytes[j] = binary.charCodeAt(j);
+    parts.push(bytes);
+  }
+  return new Blob(parts, { type: mime });
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function openWhatsAppPicker(type, code, name) {
+  const modal = document.querySelector("#action-modal");
+  const title = type === "invoice" ? "Bagikan Invoice ke WhatsApp" : "Bagikan Laporan ke WhatsApp";
+  const customerPhone = state.detailData
+    ? customerValue(state.detailData, state.detailRow, ["telp", "telepon", "no_wa", "nomor_wa", "whatsapp"], "")
+    : "";
+
+  document.querySelector("#action-content").innerHTML =
+    '<div class="contact-picker">' +
+      '<p class="contact-description">' + esc(title) + '</p>' +
+      '<div class="contact-actions">' +
+        '<button id="contact-device" class="btn btn-light">▣ Pilih dari Kontak Perangkat</button>' +
+      '</div>' +
+      '<label class="field-label">Nomor WhatsApp tujuan</label>' +
+      '<input id="wa-number" class="contact-input" type="tel" inputmode="tel" placeholder="Contoh: 081234567890" value="' + esc(customerPhone) + '">' +
+      '<small class="contact-hint">Anda tetap menentukan nomor tujuan sendiri. Nomor pelanggan hanya diisi sebagai pilihan awal jika tersedia.</small>' +
+      '<label class="field-label">Pesan</label>' +
+      '<textarea id="wa-message" class="contact-message" rows="6">' + esc(buildWhatsAppMessage(type, code, name)) + '</textarea>' +
+      '<div class="contact-footer">' +
+        '<button id="wa-cancel" class="btn btn-light">Batal</button>' +
+        '<button id="wa-send" class="btn btn-whatsapp">Buka WhatsApp</button>' +
+      '</div>' +
+    '</div>';
+
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden", "false");
+
+  document.querySelector("#contact-device").addEventListener("click", selectDeviceContact);
+  document.querySelector("#wa-cancel").addEventListener("click", closeActionModal);
+  document.querySelector("#wa-send").addEventListener("click", () => {
+    const phone = normalizePhone(document.querySelector("#wa-number").value);
+    const message = document.querySelector("#wa-message").value.trim();
+    if (!phone) {
+      showToast("Masukkan nomor WhatsApp yang valid.", true);
+      return;
+    }
+    openWhatsApp(phone, message);
+    closeActionModal();
+  });
+}
+
+async function selectDeviceContact() {
+  if (!("contacts" in navigator) || typeof navigator.contacts.select !== "function") {
+    showToast("Pemilih kontak perangkat tidak didukung browser ini. Masukkan nomor secara manual.", true);
+    return;
+  }
+
+  try {
+    const contacts = await navigator.contacts.select(["name", "tel"], { multiple: false });
+    const tel = contacts?.[0]?.tel?.[0];
+    if (tel) document.querySelector("#wa-number").value = tel;
+    else showToast("Kontak yang dipilih tidak memiliki nomor telepon.", true);
+  } catch (error) {
+    if (error?.name !== "AbortError") showToast("Kontak tidak dapat dipilih.", true);
+  }
+}
+
+function normalizePhone(value) {
+  let phone = String(value || "").replace(/[^0-9]/g, "");
+  if (phone.startsWith("0")) phone = "62" + phone.slice(1);
+  return /^62\d{8,15}$/.test(phone) ? phone : "";
+}
+
+function buildWhatsAppMessage(type, code, name) {
+  if (type === "invoice") {
+    return "Halo, berikut informasi invoice " + code + " untuk " + (name || "pelanggan") + ".";
+  }
+  if (type === "customer") {
+    return "Halo, berikut laporan piutang pelanggan " + (name || "pelanggan") + ".";
+  }
+  return "Halo, berikut dokumen piutang pelanggan " + (name || "pelanggan") + ".";
+}
+
+function openWhatsApp(phone, message) {
+  const url = "https://wa.me/" + phone + "?text=" + encodeURIComponent(message);
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function actionModalClick(e) {
+  if (e.target.matches("[data-close-action]")) closeActionModal();
+}
+
+function closeActionModal() {
+  const modal = document.querySelector("#action-modal");
+  modal.classList.add("hidden");
+  modal.setAttribute("aria-hidden", "true");
 }
 
 function closeDetail() {
@@ -202,4 +522,18 @@ function setState(type, message) {
   el.className = "table-state " + type;
   el.textContent = message;
   el.classList.remove("hidden");
+}
+
+function showToast(message, isError = false) {
+  let toast = document.querySelector("#app-toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "app-toast";
+    document.body.appendChild(toast);
+  }
+  toast.className = "app-toast " + (isError ? "error" : "");
+  toast.textContent = message;
+  toast.classList.add("show");
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => toast.classList.remove("show"), 3500);
 }
