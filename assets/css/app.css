@@ -379,3 +379,355 @@ button, input, select {
   .pagination { gap: 10px; }
   .pagination .btn { padding: 8px 10px; font-size: 12px; }
 }
+
+
+/* =========================================================
+   PIUTANG DETAIL / ACTIONS
+   ========================================================= */
+.modal-panel-detail {
+  display: flex;
+  flex-direction: column;
+  max-height: 92vh;
+}
+
+.modal-panel-detail .modal-body {
+  overflow: auto;
+}
+
+.detail-customer {
+  display: grid;
+  grid-template-columns: 1.2fr 1.5fr 1fr;
+  gap: 12px;
+}
+
+.detail-customer-full {
+  grid-column: 1 / -1;
+}
+
+.detail-customer div {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--surface-soft);
+}
+
+.detail-customer span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+
+.detail-customer strong {
+  font-size: 14px;
+  word-break: break-word;
+}
+
+.detail-aging-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.aging-card {
+  border: 1px solid var(--border);
+  border-left: 4px solid #f59e0b;
+  border-radius: 12px;
+  padding: 13px 14px;
+  background: var(--surface);
+}
+
+.aging-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 7px;
+}
+
+.aging-card strong {
+  display: block;
+  font-size: 14px;
+}
+
+.aging-current {
+  border-left-color: #10b981;
+}
+
+.aging-danger {
+  border-left-color: #dc2626;
+  background: #fff7f7;
+}
+
+.detail-financial-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.financial-card {
+  border-radius: 13px;
+  border: 1px solid var(--border);
+  padding: 15px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.financial-card span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.financial-card strong {
+  font-size: 22px;
+  white-space: nowrap;
+}
+
+.financial-card.savings {
+  background: var(--surface-soft);
+}
+
+.financial-card.debt {
+  background: #19344f;
+  border-color: #19344f;
+  color: #fff;
+}
+
+.financial-card.debt span {
+  color: rgba(255,255,255,.78);
+}
+
+.detail-heading {
+  font-weight: 800;
+  margin: 22px 0 10px;
+}
+
+.detail-table-scroll {
+  overflow-x: auto;
+}
+
+.detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 780px;
+}
+
+.detail-table th,
+.detail-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.detail-table th {
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.detail-table td:nth-child(5) {
+  text-align: right;
+}
+
+.invoice-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.mini-action {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 7px;
+  padding: 6px 9px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.mini-action:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.whatsapp-mini,
+.btn-whatsapp {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #fff;
+}
+
+.whatsapp-mini:hover,
+.btn-whatsapp:hover {
+  border-color: #15803d;
+  color: #fff;
+  background: #15803d;
+}
+
+.detail-footer {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  background: rgba(255,255,255,.98);
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+}
+
+.detail-footer-left,
+.detail-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-modal-panel {
+  width: min(520px, 100%);
+}
+
+.contact-picker {
+  display: grid;
+  gap: 12px;
+}
+
+.contact-description {
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.contact-actions {
+  display: flex;
+}
+
+.field-label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.contact-input,
+.contact-message {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  outline: none;
+  background: var(--surface-soft);
+}
+
+.contact-input:focus,
+.contact-message:focus {
+  border-color: var(--accent);
+  background: #fff;
+}
+
+.contact-message {
+  resize: vertical;
+  min-height: 130px;
+  line-height: 1.5;
+}
+
+.contact-hint {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.contact-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.app-toast {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 500;
+  max-width: min(460px, calc(100vw - 44px));
+  background: #17202a;
+  color: #fff;
+  border-radius: 10px;
+  padding: 12px 15px;
+  box-shadow: 0 14px 40px rgba(16,24,40,.22);
+  font-size: 13px;
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.app-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.app-toast.error {
+  background: #b42318;
+}
+
+@media (max-width: 800px) {
+  .detail-customer {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-customer-full {
+    grid-column: auto;
+  }
+
+  .detail-aging-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .detail-financial-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .financial-card strong {
+    font-size: 19px;
+  }
+
+  .detail-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .detail-footer-left,
+  .detail-footer-right {
+    width: 100%;
+  }
+
+  .detail-footer-left .btn,
+  .detail-footer-right .btn {
+    flex: 1;
+  }
+}
+
+@media (max-width: 520px) {
+  .detail-aging-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-footer-left,
+  .detail-footer-right {
+    flex-direction: column;
+  }
+
+  .detail-footer-left .btn,
+  .detail-footer-right .btn {
+    width: 100%;
+  }
+}
