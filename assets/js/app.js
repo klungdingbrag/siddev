@@ -1,5 +1,7 @@
 import { APP_CONFIG } from "./config.js";
 import { apiHealth } from "./api/client.js";
+import { renderPiutangPage } from "./pages/piutang.js";
+import { renderDashboardPage } from "./pages/dashboard.js";
 
 const sidebar = document.querySelector("#sidebar");
 const topbar = document.querySelector("#topbar");
@@ -66,6 +68,27 @@ content.innerHTML = `
     </article>
   </section>
 `;
+
+function setActiveNav(hash) {
+  document.querySelectorAll(".nav-item").forEach((item) => {
+    item.classList.toggle("active", item.getAttribute("href") === hash);
+  });
+}
+
+function route() {
+  const hash = window.location.hash || "#dashboard";
+  const title = hash === "#piutang" ? "Piutang Pelanggan" : "Dashboard";
+  document.querySelector(".topbar h1").textContent = title;
+  if (hash === "#piutang") {
+    renderPiutangPage();
+  } else {
+    renderDashboardPage();
+  }
+  setActiveNav(hash);
+}
+
+window.addEventListener("hashchange", route);
+route();
 
 async function checkApi() {
   const status = document.querySelector("#api-status");
