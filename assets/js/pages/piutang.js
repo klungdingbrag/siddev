@@ -367,45 +367,104 @@ async function handlePdfAction(type, code) {
   if (type === "detail") {
     await generatePdf(
       () => api.pdfSemuaDetailPiutang6D2(code),
-      "Laporan Detail Piutang PDF"
+      "Laporan Detail Piutang PDF",
+      { retry: 2, validatePdf: true }
     );
   }
 }
 
-async function generatePdf(loader, label) {
-  try {
-    showToast("Membuat " + label + "...");
-    const data = await loader();
-    const base64 = data?.pdf_base64 || data?.data?.pdf_base64;
-    const filename = data?.filename || data?.data?.filename || "dokumen.pdf";
+async function generatePdf(loader, label, options = {}) {
+  const retryCount = Number(options.retry || 0);
+  const validatePdf = options.validatePdf !== false;
 
-    if (!base64) throw new Error("Backend tidak mengembalikan pdf_base64.");
+  for (let attempt = 0; attempt <= retryCount; attempt++) {
+    try {
+      showToast(
+        attempt === 0
+          ? "Membuat " + label + "..."
+          : "PDF terdeteksi tidak lengkap. Mencoba ulang " + attempt + "/" + retryCount + "..."
+      );
 
-    const blob = base64ToBlob(base64, "application/pdf");
-    const url = URL.createObjectURL(blob);
-    const opened = window.open(url, "_blank", "noopener,noreferrer");
+      const data = await loader();
+      const base64 = data?.pdf_base64 || data?.data?.pdf_base64;
+      const filename = data?.filename || data?.data?.filename || "dokumen.pdf";
 
-    if (!opened) {
-      downloadBlob(blob, filename);
-      showToast("Popup diblokir. PDF otomatis diunduh.");
-    } else {
-      showToast("PDF dibuka di tab baru.");
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      if (!base64) throw new Error("Backend tidak mengembalikan pdf_base64.");
+
+      const blob = base64ToBlob(base64, "application/pdf");
+
+      if (validatePdf) {
+        const validation = await validatePdfBlob(blob);
+        if (!validation.valid) {
+          throw new Error("PDF tidak lengkap: " + validation.reason);
+        }
+      }
+
+      const url = URL.createObjectURL(blob);
+      const opened = window.open(url, "_blank", "noopener,noreferrer");
+
+      if (!opened) {
+        downloadBlob(blob, filename);
+        showToast("Popup diblokir. PDF otomatis diunduh.");
+      } else {
+        showToast("PDF dibuka di tab baru.");
+        // Jangan terlalu cepat mencabut Blob URL karena PDF viewer browser
+        // dapat membaca dokumen secara lazy setelah tab terbuka.
+        setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
+      }
+      return;
+    } catch (error) {
+      if (attempt >= retryCount) {
+        showToast("Gagal membuat PDF: " + (error.message || "Unknown error"), true);
+      }
     }
-  } catch (error) {
-    showToast("Gagal membuat PDF: " + (error.message || "Unknown error"), true);
   }
 }
 
+async function validatePdfBlob(blob) {
+  if (!(blob instanceof Blob) || blob.size < 100) {
+    return { valid: false, reason: "ukuran file tidak valid (" + (blob?.size || 0) + " byte)" };
+  }
+
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  const header = new TextDecoder("latin1").decode(bytes.slice(0, 8));
+
+  if (!header.startsWith("%PDF-")) {
+    return { valid: false, reason: "header %PDF tidak ditemukan" };
+  }
+
+  const tailStart = Math.max(0, bytes.length - 2048);
+  const tail = new TextDecoder("latin1").decode(bytes.slice(tailStart));
+  if (!/%%EOF\s*$/.test(tail)) {
+    return { valid: false, reason: "penanda %%EOF tidak ditemukan di akhir file" };
+  }
+
+  if (!/startxref\s+\d+\s+%%EOF\s*$/.test(tail)) {
+    return { valid: false, reason: "struktur startxref/%%EOF tidak lengkap" };
+  }
+
+  return { valid: true, size: bytes.length };
+}
+
 function base64ToBlob(base64, mime) {
-  const clean = String(base64).replace(/^data:.*?;base64,/, "");
-  const binary = atob(clean);
+  const clean = String(base64)
+    .replace(/^data:.*?;base64,/, "")
+    .replace(/\s+/g, "");
+
+  let binary;
+  try {
+    binary = atob(clean);
+  } catch (error) {
+    throw new Error("pdf_base64 tidak dapat didekode: " + (error.message || "base64 invalid"));
+  }
+
   const chunkSize = 1024 * 64;
   const parts = [];
   for (let i = 0; i < binary.length; i += chunkSize) {
     const chunk = binary.slice(i, i + chunkSize);
     const bytes = new Uint8Array(chunk.length);
-    for (let j = 0; j < chunk.length; j++) bytes[j] = binary.charCodeAt(j);
+    for (let j = 0; j < chunk.length; j++) bytes[j] = chunk.charCodeAt(j);
     parts.push(bytes);
   }
   return new Blob(parts, { type: mime });
