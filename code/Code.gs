@@ -4141,16 +4141,9 @@ function buildInvoicePdfHtml_(nota) {
             '</tr>' +
 
             '<tr>' +
-              '<td class="summary-label">BAYAR</td>' +
+              '<td class="summary-label">SUDAH DIBAYAR</td>' +
               '<td class="summary-value">' +
-                stage6cEscapeHtml_(stage6cFormatRupiah_(summary.bayar)) +
-              '</td>' +
-            '</tr>' +
-
-            '<tr>' +
-              '<td class="summary-label">ANGSURAN</td>' +
-              '<td class="summary-value">' +
-                stage6cEscapeHtml_(stage6cFormatRupiah_(summary.angsuran)) +
+                stage6cEscapeHtml_(stage6cFormatRupiah_(Number(summary.jumlah || 0) - Number(summary.piutang || 0))) +
               '</td>' +
             '</tr>' +
 
