@@ -194,3 +194,176 @@ function testInvoiceSettlement_V1() {
 
   return result;
 }
+
+
+/**
+ * ============================================================
+ * MULTI-INVOICE SETTLEMENT VALIDATION V1
+ * ============================================================
+ * Read-only Development test.
+ *
+ * Samples real invoices from penjualan and validates the same
+ * settlement formula across multiple states:
+ *   - unpaid / no payment
+ *   - partially paid / still outstanding
+ *   - fully paid / saldo zero
+ *
+ * itempiutang is checked by the Settlement Engine when available.
+ * No database mutation.
+ */
+function testInvoiceSettlementMulti_V1() {
+  const query =
+    'SELECT kode,tanggal,pelanggan,nama_pelanggan,jumlah,bayar,angsuran,piutang ' +
+    'FROM penjualan ' +
+    'WHERE jumlah > 0 ' +
+    'AND piutang >= 0 ' +
+    'ORDER BY tanggal DESC ' +
+    'LIMIT 100';
+
+  console.log('======================================');
+  console.log('MULTI-INVOICE SETTLEMENT VALIDATION V1');
+  console.log('READ-ONLY');
+  console.log('======================================');
+  console.log('CANDIDATE QUERY: ' + query);
+
+  const result = sidRetailQuery(query);
+  if (!result || result.status !== 'success') {
+    throw new Error(
+      'Gagal mengambil kandidat invoice: ' + JSON.stringify(result)
+    );
+  }
+
+  const rows = Array.isArray(result.data) ? result.data : [];
+  if (!rows.length) {
+    throw new Error('Tidak ada kandidat invoice untuk validation.');
+  }
+
+  const candidates = {
+    unpaid: null,
+    partial: null,
+    paid: null
+  };
+
+  rows.forEach(function(row) {
+    if (!row || !row.kode || candidates.partial && candidates.unpaid && candidates.paid) {
+      return;
+    }
+
+    const totalInvoice = parseMoney(row.jumlah);
+    const saldoHutang = parseMoney(row.piutang);
+
+    if (totalInvoice <= 0 || saldoHutang < 0) return;
+
+    if (saldoHutang === totalInvoice && !candidates.unpaid) {
+      candidates.unpaid = row;
+      return;
+    }
+
+    if (saldoHutang > 0 &&
+        saldoHutang < totalInvoice &&
+        !candidates.partial) {
+      candidates.partial = row;
+      return;
+    }
+
+    if (saldoHutang === 0 && !candidates.paid) {
+      candidates.paid = row;
+    }
+  });
+
+  const selected = [];
+  ['unpaid', 'partial', 'paid'].forEach(function(type) {
+    if (candidates[type]) {
+      selected.push({
+        type: type,
+        kode: candidates[type].kode,
+        tanggal: candidates[type].tanggal || ''
+      });
+    }
+  });
+
+  console.log('SELECTED INVOICES: ' + JSON.stringify(selected, null, 2));
+
+  if (!selected.length) {
+    throw new Error(
+      'Tidak ditemukan invoice yang memenuhi kategori validation.'
+    );
+  }
+
+  const results = [];
+  let allFormulaPass = true;
+  let allItemValidationPass = true;
+
+  selected.forEach(function(item) {
+    console.log('--------------------------------------');
+    console.log('VALIDATING TYPE: ' + item.type);
+    console.log('KODE: ' + item.kode);
+
+    const settlement = getInvoiceSettlementData_V1(item.kode);
+
+    if (!settlement || settlement.status !== 'success') {
+      allFormulaPass = false;
+      allItemValidationPass = false;
+      results.push({
+        type: item.type,
+        kode: item.kode,
+        status: 'ERROR',
+        error: JSON.stringify(settlement)
+      });
+      return;
+    }
+
+    const data = settlement.data;
+    const expectedPaid =
+      Math.max(0, data.total_invoice - data.saldo_hutang);
+
+    const formulaDifference =
+      data.total_dibayar - expectedPaid;
+
+    const formulaPass =
+      Math.abs(formulaDifference) < 0.01;
+
+    const itemValidationPass =
+      data.validation.status === 'MATCH' ||
+      data.validation.status === 'NO_ITEMPIUTANG_ROW';
+
+    if (!formulaPass) allFormulaPass = false;
+    if (!itemValidationPass) allItemValidationPass = false;
+
+    results.push({
+      type: item.type,
+      kode: data.kode_transaksi,
+      tanggal: data.tanggal,
+      nama_pelanggan: data.nama_pelanggan,
+      total_invoice: data.total_invoice,
+      total_dibayar: data.total_dibayar,
+      saldo_hutang: data.saldo_hutang,
+      formula_difference: formulaDifference,
+      formula_status: formulaPass ? 'PASS' : 'FAIL',
+      itempiutang_validation: data.validation.status,
+      itempiutang_difference: data.validation.difference
+    });
+
+    console.log('RESULT: ' + JSON.stringify(results[results.length - 1], null, 2));
+  });
+
+  const summary = {
+    candidate_count: rows.length,
+    selected_count: selected.length,
+    selected_types: selected.map(function(item) { return item.type; }),
+    formula_status: allFormulaPass ? 'PASS' : 'FAIL',
+    itempiutang_validation_status:
+      allItemValidationPass ? 'PASS' : 'CHECK_REQUIRED',
+    results: results
+  };
+
+  console.log('======================================');
+  console.log('MULTI-INVOICE VALIDATION SUMMARY');
+  console.log(JSON.stringify(summary, null, 2));
+  console.log('======================================');
+
+  return {
+    status: 'success',
+    data: summary
+  };
+}
