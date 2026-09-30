@@ -509,7 +509,7 @@ function getInvoiceSettlementData_V1(kodeTransaksi) {
   let validationStatus = 'NOT_CHECKED';
 
   const itemQuery =
-    'SELECT kode,kode_piutang,jumlah_piutang,return,jumlah ' +
+    'SELECT kode,kode_piutang,jumlah_piutang,`return`,jumlah ' +
     'FROM itempiutang ' +
     "WHERE kode_piutang = '" + safeKode + "' LIMIT 1";
 
