@@ -345,3 +345,103 @@ function testInvoicePaymentSchemas_V2() {
 
   return result;
 }
+
+
+/**
+ * Focused read-only row audit for actual invoice settlement sources.
+ * This does NOT decide accounting yet. It only retrieves rows related
+ * to one invoice so we can verify where the server POS settlement
+ * is represented.
+ */
+function auditInvoicePaymentRows_V2(kodeTransaksi) {
+  const kode = invoiceWhatsAppNormalizeCode_V2_(kodeTransaksi);
+  const safeKode = kode.replace(/'/g, "''");
+
+  const queries = [
+    {
+      table: 'itempiutang',
+      query:
+        'SELECT * FROM itempiutang ' +
+        "WHERE kode = '" + safeKode + "' " +
+        "OR kode_piutang = '" + safeKode + "'"
+    },
+    {
+      table: 'pembayaran_angsuran',
+      query:
+        'SELECT * FROM pembayaran_angsuran ' +
+        "WHERE kode_faktur = '" + safeKode + "'"
+    },
+    {
+      table: 'piutang',
+      query:
+        'SELECT * FROM piutang ' +
+        "WHERE kode = '" + safeKode + "'"
+    },
+    {
+      table: 'tabel_angsuran',
+      query:
+        'SELECT * FROM tabel_angsuran ' +
+        "WHERE kode = '" + safeKode + "'"
+    },
+    {
+      table: 'multi_payment',
+      query:
+        'SELECT * FROM multi_payment ' +
+        "WHERE kode = '" + safeKode + "'"
+    }
+  ];
+
+  console.log('======================================');
+  console.log('ACTUAL INVOICE PAYMENT ROW AUDIT V2');
+  console.log('READ-ONLY');
+  console.log('KODE: ' + kode);
+  console.log('======================================');
+
+  const result = {
+    status: 'success',
+    kode_transaksi: kode,
+    tables: []
+  };
+
+  queries.forEach(function(item) {
+    console.log('--------------------------------------');
+    console.log('TABLE: ' + item.table);
+    console.log('QUERY: ' + item.query);
+
+    const response = sidRetailQuery(item.query);
+
+    if (!response || response.status !== 'success') {
+      console.log('FAILED: ' + JSON.stringify(response));
+      result.tables.push({
+        table: item.table,
+        status: 'failed',
+        error: JSON.stringify(response)
+      });
+      return;
+    }
+
+    const rows = Array.isArray(response.data) ? response.data : [];
+
+    console.log('ROW COUNT: ' + rows.length);
+    console.log(JSON.stringify(rows, null, 2));
+
+    result.tables.push({
+      table: item.table,
+      status: 'success',
+      row_count: rows.length,
+      rows: rows
+    });
+  });
+
+  console.log('======================================');
+  console.log('ACTUAL PAYMENT ROW AUDIT RESULT');
+  console.log(JSON.stringify(result, null, 2));
+  console.log('======================================');
+
+  return result;
+}
+
+/** Test actual settlement rows for the known installment invoice. */
+function testInvoicePaymentRows_V2() {
+  return auditInvoicePaymentRows_V2('R43-261225003');
+}
