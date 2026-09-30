@@ -178,8 +178,8 @@ function getInvoiceSettlementData_V1(kodeTransaksi) {
  * Test the settlement engine against the known invoice where
  * the server shows Rp1,512,000 applied and Rp421,000 outstanding.
  */
-function testInvoiceSettlement_V1() {
-  const kodeTransaksi = 'R43-261225003';
+function testInvoiceSettlement_V1(kodeTransaksi) {
+  kodeTransaksi = kodeTransaksi || 'R43-261225003';
 
   console.log('======================================');
   console.log('TEST INVOICE SETTLEMENT V1');
@@ -193,6 +193,14 @@ function testInvoiceSettlement_V1() {
   console.log(JSON.stringify(result, null, 2));
 
   return result;
+}
+
+/**
+ * GAS editor runner for the second partial-invoice validation.
+ * Keeps the settlement engine generic while allowing one-click execution.
+ */
+function testInvoiceSettlementPartial_V1() {
+  return testInvoiceSettlement_V1('R43-130926006');
 }
 
 
