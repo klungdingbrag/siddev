@@ -394,3 +394,131 @@ function testInvoiceSettlementMulti_V1() {
     data: summary
   };
 }
+
+
+/**
+ * ============================================================
+ * PDF INVOICE ACCOUNTING AUDIT V1
+ * ============================================================
+ * Read-only wrapper around the existing PDF Invoice generator.
+ *
+ * Purpose:
+ * - capture generator errors in the Execution log
+ * - inspect the generated PDF response
+ * - compare PDF accounting fields with Settlement Engine V1
+ *
+ * This function does NOT modify the PDF generator.
+ */
+function testPdfInvoiceAccountingAudit_V1(kodeTransaksi) {
+  const kode = invoiceWhatsAppNormalizeCode_V2_(kodeTransaksi);
+
+  console.log('======================================');
+  console.log('PDF INVOICE ACCOUNTING AUDIT V1');
+  console.log('READ-ONLY');
+  console.log('KODE: ' + kode);
+  console.log('======================================');
+
+  let pdfResult = null;
+
+  try {
+    console.log('CALLING: getPdfInvoiceTransaksi(' + kode + ')');
+    pdfResult = getPdfInvoiceTransaksi(kode);
+
+    console.log('PDF GENERATOR RESULT TYPE: ' + typeof pdfResult);
+    console.log(
+      'PDF GENERATOR RESULT: ' +
+      JSON.stringify(pdfResult, null, 2)
+    );
+  } catch (error) {
+    console.log('PDF GENERATOR ERROR');
+    console.log('ERROR MESSAGE: ' +
+      (error && error.message ? error.message : String(error)));
+    console.log('ERROR STACK: ' +
+      (error && error.stack ? error.stack : 'NO_STACK'));
+
+    return {
+      status: 'error',
+      kode_transaksi: kode,
+      stage: 'pdf_generator',
+      error_message:
+        error && error.message ? error.message : String(error),
+      error_stack:
+        error && error.stack ? error.stack : ''
+    };
+  }
+
+  let settlement = null;
+
+  try {
+    settlement = getInvoiceSettlementData_V1(kode);
+  } catch (error) {
+    console.log('SETTLEMENT AUDIT ERROR');
+    console.log('ERROR MESSAGE: ' +
+      (error && error.message ? error.message : String(error)));
+
+    return {
+      status: 'error',
+      kode_transaksi: kode,
+      stage: 'settlement_engine',
+      pdf_result: pdfResult,
+      error_message:
+        error && error.message ? error.message : String(error)
+    };
+  }
+
+  const pdfAccounting = {
+    total_invoice:
+      pdfResult && pdfResult.total_invoice !== undefined
+        ? parseMoney(pdfResult.total_invoice)
+        : null,
+    saldo_hutang:
+      pdfResult && pdfResult.saldo_hutang !== undefined
+        ? parseMoney(pdfResult.saldo_hutang)
+        : null
+  };
+
+  const settlementAccounting = settlement.data;
+
+  const comparison = {
+    total_invoice_difference:
+      pdfAccounting.total_invoice === null
+        ? null
+        : pdfAccounting.total_invoice -
+          settlementAccounting.total_invoice,
+
+    saldo_hutang_difference:
+      pdfAccounting.saldo_hutang === null
+        ? null
+        : pdfAccounting.saldo_hutang -
+          settlementAccounting.saldo_hutang,
+
+    pdf_has_total_invoice:
+      pdfAccounting.total_invoice !== null,
+
+    pdf_has_saldo_hutang:
+      pdfAccounting.saldo_hutang !== null
+  };
+
+  console.log('PDF ACCOUNTING: ' +
+    JSON.stringify(pdfAccounting, null, 2));
+
+  console.log('SETTLEMENT ACCOUNTING: ' +
+    JSON.stringify({
+      total_invoice: settlementAccounting.total_invoice,
+      total_dibayar: settlementAccounting.total_dibayar,
+      saldo_hutang: settlementAccounting.saldo_hutang
+    }, null, 2));
+
+  console.log('ACCOUNTING COMPARISON: ' +
+    JSON.stringify(comparison, null, 2));
+
+  console.log('======================================');
+
+  return {
+    status: 'success',
+    kode_transaksi: kode,
+    pdf_result: pdfResult,
+    settlement: settlement,
+    comparison: comparison
+  };
+}
