@@ -406,6 +406,7 @@ function testInvoiceSettlementMulti_V1() {
  * - capture generator errors in the Execution log
  * - inspect the generated PDF response
  * - compare PDF accounting fields with Settlement Engine V1
+ * - verify TOTAL INVOICE / SUDAH DIBAYAR / SALDO HUTANG
  *
  * This function does NOT modify the PDF generator.
  */
@@ -471,6 +472,10 @@ function testPdfInvoiceAccountingAudit_V1(kodeTransaksi) {
       pdfResult && pdfResult.total_invoice !== undefined
         ? parseMoney(pdfResult.total_invoice)
         : null,
+    sudah_dibayar:
+      pdfResult && pdfResult.sudah_dibayar !== undefined
+        ? parseMoney(pdfResult.sudah_dibayar)
+        : null,
     saldo_hutang:
       pdfResult && pdfResult.saldo_hutang !== undefined
         ? parseMoney(pdfResult.saldo_hutang)
@@ -486,6 +491,12 @@ function testPdfInvoiceAccountingAudit_V1(kodeTransaksi) {
         : pdfAccounting.total_invoice -
           settlementAccounting.total_invoice,
 
+    sudah_dibayar_difference:
+      pdfAccounting.sudah_dibayar === null
+        ? null
+        : pdfAccounting.sudah_dibayar -
+          settlementAccounting.total_dibayar,
+
     saldo_hutang_difference:
       pdfAccounting.saldo_hutang === null
         ? null
@@ -494,6 +505,9 @@ function testPdfInvoiceAccountingAudit_V1(kodeTransaksi) {
 
     pdf_has_total_invoice:
       pdfAccounting.total_invoice !== null,
+
+    pdf_has_sudah_dibayar:
+      pdfAccounting.sudah_dibayar !== null,
 
     pdf_has_saldo_hutang:
       pdfAccounting.saldo_hutang !== null
