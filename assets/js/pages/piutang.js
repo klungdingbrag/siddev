@@ -417,59 +417,37 @@ async function generatePdf6D2(code) {
   }
 }
 
-async function generatePdf(loader, label, options = {}) {
-  const retryCount = Number(options.retry || 0);
-  const validatePdf = options.validatePdf !== false;
-  const requireBackendSize = options.requireBackendSize === true;
-
+async function generatePdf(loader, label) {
   setPdfLoading(true, "Membuat " + label + "...", "PDF sedang dibuat. Mohon tunggu.");
-  for (let attempt = 0; attempt <= retryCount; attempt++) {
-    try {
-      showToast(
-        attempt === 0
-          ? "Membuat " + label + "..."
-          : "PDF terdeteksi tidak lengkap. Mencoba ulang " + attempt + "/" + retryCount + "..."
-      );
+  try {
+    const data = await loader();
+    const payload = extractPdfPayload(data);
 
-      const data = await loader(attempt);
-      const payload = extractPdfPayload(data);
-
-      if (!payload.base64) {
-        throw new Error("Backend tidak mengembalikan pdf_base64.");
-      }
-
-      const blob = base64ToBlob(payload.base64, "application/pdf");
-      const validation = validatePdf
-        ? await validatePdfBlob(blob, payload.expectedSize, requireBackendSize)
-        : { valid: true, size: blob.size };
-
-      if (!validation.valid) {
-        throw new Error("PDF tidak lengkap: " + validation.reason);
-      }
-
-      const diagnostics =
-        "size=" + validation.size +
-        (validation.expectedSize ? "/" + validation.expectedSize : "") +
-        ", EOF=" + (validation.hasEof ? "OK" : "NO");
-
-      const url = URL.createObjectURL(blob);
-      const opened = window.open(url, "_blank", "noopener,noreferrer");
-
-      if (!opened) {
-        downloadBlob(blob, payload.filename);
-        showToast("PDF valid (" + diagnostics + "). Popup diblokir, file diunduh.");
-      } else {
-        showToast("PDF valid (" + diagnostics + "). Dibuka di tab baru.");
-        setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
-      }
-      setPdfLoading(false, "PDF selesai", label + " selesai dibuat.");
-      return;
-    } catch (error) {
-      if (attempt >= retryCount) {
-        setPdfLoading(false, "PDF gagal", label + " gagal dibuat.");
-        showToast("Gagal membuat PDF: " + (error.message || "Unknown error"), true);
-      }
+    if (!payload.base64) {
+      throw new Error("Backend tidak mengembalikan pdf_base64.");
     }
+
+    const blob = base64ToBlob(payload.base64, "application/pdf");
+
+    if (!(blob instanceof Blob) || blob.size < 100) {
+      throw new Error("PDF yang diterima kosong atau tidak valid.");
+    }
+
+    const url = URL.createObjectURL(blob);
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+
+    if (!opened) {
+      downloadBlob(blob, payload.filename);
+      showToast(label + " selesai dibuat. Popup diblokir, file diunduh.");
+    } else {
+      showToast(label + " selesai dibuat.");
+      setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
+    }
+
+    setPdfLoading(false, "PDF selesai", label + " selesai dibuat.");
+  } catch (error) {
+    setPdfLoading(false, "PDF gagal", label + " gagal dibuat.");
+    showToast("Gagal membuat PDF: " + (error.message || "Unknown error"), true);
   }
 }
 
