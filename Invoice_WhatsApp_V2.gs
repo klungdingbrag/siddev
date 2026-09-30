@@ -522,3 +522,8 @@ function testPdfInvoiceAccountingAudit_V1(kodeTransaksi) {
     comparison: comparison
   };
 }
+
+
+function testPdfInvoiceAccountingAuditPartial_V1() {
+  return testPdfInvoiceAccountingAudit_V1('R43-130926006');
+}
