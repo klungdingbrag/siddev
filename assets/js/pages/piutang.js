@@ -609,6 +609,53 @@ function buildWhatsAppMessage(type, code, name) {
     ].join("\n");
   }
 
+  if (type === "invoice") {
+    const tx = (extractTransactions(state.detailData) || []).find((item) => {
+      const invoiceCode = item?.kode_transaksi || item?.kode || "";
+      return String(invoiceCode) === String(code);
+    }) || {};
+
+    const totalInvoice = money(
+      tx.jumlah ??
+      tx.total_invoice ??
+      tx.total ??
+      tx.total_nota ??
+      tx.nilai_invoice ??
+      0
+    );
+
+    const saldoHutang = money(
+      tx.piutang ??
+      tx.saldo_hutang ??
+      tx.saldo ??
+      0
+    );
+
+    const sudahDibayar = Math.max(0, totalInvoice - saldoHutang);
+    const tanggal = tx.tanggal || "—";
+    const jatuhTempo = tx.jatuh_tempo || tx.jatuhTempo || "—";
+
+    return [
+      "Halo Bapak/Ibu *" + customerName + "*",
+      "",
+      "Berikut informasi nota yang dimaksud dari *TB NUSANTARA*.",
+      "",
+      "*NO. NOTA: " + code + "*",
+      "Tanggal: " + tanggal,
+      "Jatuh Tempo: " + jatuhTempo,
+      "",
+      "*TOTAL INVOICE: " + formatMoney(totalInvoice) + "*",
+      "*SUDAH DIBAYAR: " + formatMoney(sudahDibayar) + "*",
+      "*SALDO HUTANG: " + formatMoney(saldoHutang) + "*",
+      "",
+      "Apabila pembayaran atas nota tersebut sudah dilakukan, silakan informasikan kepada kami.",
+      "",
+      "Terima kasih atas perhatian dan kerja samanya.",
+      "",
+      "*TB NUSANTARA*"
+    ].join("\n");
+  }
+
   return [
     "Halo Bapak/Ibu *" + customerName + "*",
     "",
