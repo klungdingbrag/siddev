@@ -42,56 +42,22 @@ function getInvoiceWhatsAppData_V2(kodeTransaksi) {
 function auditInvoiceWhatsApp_V2(kodeTransaksi) {
   const kode = invoiceWhatsAppNormalizeCode_V2_(kodeTransaksi);
 
-  const headerQuery =
-    'SELECT kode,tanggal,pelanggan,nama_pelanggan,jt,jumlah,bayar,angsuran,piutang ' +
-    'FROM penjualan ' +
-    "WHERE kode = '" + kode.replace(/'/g, "''") + "' LIMIT 1";
-
   console.log('======================================');
   console.log('AUDIT INVOICE WHATSAPP V2');
   console.log('READ-ONLY');
   console.log('KODE: ' + kode);
   console.log('======================================');
 
-  const headerResult = sidRetailQuery(headerQuery);
-  if (!headerResult || headerResult.status !== 'success') {
-    throw new Error('Gagal mengambil header invoice: ' + JSON.stringify(headerResult));
-  }
+  const header = invoiceWhatsAppAuditHeader_V2_(kode);
+  const itemAudit = invoiceWhatsAppAuditItems_V2_(kode);
+  const tableAudit = invoiceWhatsAppAuditPaymentTables_V2_();
 
-  const headerRows = Array.isArray(headerResult.data) ? headerResult.data : [];
-  if (!headerRows.length) throw new Error('Invoice tidak ditemukan: ' + kode);
-
-  const header = headerRows[0];
-  const schemaQuery = 'SHOW COLUMNS FROM itempenjualan';
-
-  console.log('--------------------------------------');
-  console.log('ITEMPENJUALAN SCHEMA QUERY');
-  console.log('QUERY: ' + schemaQuery);
-
-  const schemaResult = sidRetailQuery(schemaQuery);
-  if (!schemaResult || schemaResult.status !== 'success') {
-    throw new Error('Gagal membaca schema itempenjualan: ' + JSON.stringify(schemaResult));
-  }
-
-  const schemaRows = Array.isArray(schemaResult.data) ? schemaResult.data : [];
-  const fieldNames = schemaRows.map(function(column) {
-    return String(column.Field || column.field || '').trim();
-  }).filter(Boolean);
-
-  schemaRows.forEach(function(column, index) {
-    console.log(
-      'COLUMN ' + (index + 1) +
-      ' | FIELD=' + (column.Field || column.field || '') +
-      ' | TYPE=' + (column.Type || column.type || '') +
-      ' | NULL=' + (column.Null || column.null || '') +
-      ' | KEY=' + (column.Key || column.key || '') +
-      ' | DEFAULT=' + (column.Default == null ? '' : column.Default)
-    );
-  });
-
-  const subtotalField = fieldNames.find(function(field) {
-    return field.toLowerCase() === 'subtotal';
-  }) || '';
+  const totalInvoice = parseMoney(header.jumlah);
+  const totalItemSubtotal = itemAudit.total_subtotal;
+  const saldoHutang = parseMoney(header.piutang);
+  const impliedSettlement = totalInvoice - saldoHutang;
+  const bayarField = parseMoney(header.bayar);
+  const angsuranField = parseMoney(header.angsuran);
 
   const audit = {
     kode_transaksi: header.kode || kode,
@@ -100,30 +66,176 @@ function auditInvoiceWhatsApp_V2(kodeTransaksi) {
     nama_pelanggan: header.nama_pelanggan || '',
     jt: header.jt || '',
     penjualan: {
-      jumlah: parseMoney(header.jumlah),
-      bayar: parseMoney(header.bayar),
-      angsuran: parseMoney(header.angsuran),
-      piutang: parseMoney(header.piutang)
+      jumlah: totalInvoice,
+      bayar: bayarField,
+      angsuran: angsuranField,
+      piutang: saldoHutang,
+      bayar_plus_angsuran: bayarField + angsuranField,
+      implied_settlement_from_piutang: impliedSettlement
     },
-    itempenjualan_schema: {
-      column_count: schemaRows.length,
-      fields: fieldNames,
-      subtotal_field: subtotalField
-    },
-    next_step: subtotalField
-      ? 'Schema ditemukan. Identifikasi kolom relasi invoice sebelum query detail.'
-      : 'Kolom subtotal tidak ditemukan. Audit detail dihentikan sampai schema diperiksa.'
+    itempenjualan: itemAudit,
+    payment_table_candidates: tableAudit,
+    reconciliation: {
+      invoice_vs_items_difference: totalInvoice - totalItemSubtotal,
+      header_settlement_difference: impliedSettlement - (bayarField + angsuranField),
+      status:
+        totalInvoice === totalItemSubtotal &&
+        Math.abs(impliedSettlement - (bayarField + angsuranField)) < 0.01
+          ? 'CONSISTENT'
+          : 'NEEDS_PAYMENT_HISTORY_AUDIT'
+    }
   };
 
   console.log('--------------------------------------');
-  console.log('SCHEMA SUMMARY');
-  console.log('FIELDS: ' + JSON.stringify(fieldNames));
-  console.log('SUBTOTAL FIELD: ' + (subtotalField || 'TIDAK DITEMUKAN'));
-  console.log('======================================');
+  console.log('RECONCILIATION');
+  console.log(JSON.stringify(audit.reconciliation, null, 2));
+  console.log('--------------------------------------');
+  console.log('FULL AUDIT');
   console.log(JSON.stringify(audit, null, 2));
+  console.log('======================================');
 
-  return { status: 'success', audit: audit, schema: schemaRows };
+  return { status: 'success', audit: audit };
 }
+
+function invoiceWhatsAppAuditHeader_V2_(kode) {
+  const query =
+    'SELECT kode,tanggal,pelanggan,nama_pelanggan,jt,jumlah,bayar,angsuran,piutang ' +
+    'FROM penjualan ' +
+    "WHERE kode = '" + kode.replace(/'/g, "''") + "' LIMIT 1";
+
+  console.log('HEADER QUERY: ' + query);
+
+  const result = sidRetailQuery(query);
+  if (!result || result.status !== 'success') {
+    throw new Error('Gagal mengambil header invoice: ' + JSON.stringify(result));
+  }
+
+  const rows = Array.isArray(result.data) ? result.data : [];
+  if (!rows.length) throw new Error('Invoice tidak ditemukan: ' + kode);
+
+  const header = rows[0];
+  console.log('HEADER: ' + JSON.stringify(header, null, 2));
+  return header;
+}
+
+function invoiceWhatsAppAuditItems_V2_(kode) {
+  const safeKode = kode.replace(/'/g, "''");
+  const query =
+    'SELECT kode,kode_barang,nama_barang,satuan,qty,harga,diskon,subtotal ' +
+    'FROM itempenjualan ' +
+    "WHERE kode = '" + safeKode + "'";
+
+  console.log('--------------------------------------');
+  console.log('ITEMPENJUALAN QUERY');
+  console.log('QUERY: ' + query);
+
+  const result = sidRetailQuery(query);
+  if (!result || result.status !== 'success') {
+    throw new Error('Gagal mengambil detail itempenjualan: ' + JSON.stringify(result));
+  }
+
+  const rows = Array.isArray(result.data) ? result.data : [];
+  const totalSubtotal = rows.reduce(function(sum, row) {
+    return sum + parseMoney(row.subtotal);
+  }, 0);
+
+  rows.forEach(function(row, index) {
+    console.log(
+      'ITEM ' + (index + 1) +
+      ' | KODE=' + (row.kode_barang || '') +
+      ' | NAMA=' + (row.nama_barang || '') +
+      ' | QTY=' + (row.qty || '') +
+      ' | HARGA=' + parseMoney(row.harga) +
+      ' | DISKON=' + parseMoney(row.diskon) +
+      ' | SUBTOTAL=' + parseMoney(row.subtotal)
+    );
+  });
+
+  console.log('ITEM COUNT: ' + rows.length);
+  console.log('SUM SUBTOTAL: ' + totalSubtotal);
+
+  return {
+    row_count: rows.length,
+    total_subtotal: totalSubtotal,
+    rows: rows
+  };
+}
+
+function invoiceWhatsAppAuditPaymentTables_V2_() {
+  const showTablesQuery = 'SHOW TABLES';
+  console.log('--------------------------------------');
+  console.log('TABLE DISCOVERY QUERY');
+  console.log('QUERY: ' + showTablesQuery);
+
+  const result = sidRetailQuery(showTablesQuery);
+  if (!result || result.status !== 'success') {
+    console.log('TABLE DISCOVERY FAILED: ' + JSON.stringify(result));
+    return {
+      status: 'failed',
+      error: JSON.stringify(result)
+    };
+  }
+
+  const rows = Array.isArray(result.data) ? result.data : [];
+  const candidates = [];
+
+  rows.forEach(function(row) {
+    const keys = Object.keys(row || {});
+    if (!keys.length) return;
+
+    const tableName = String(row[keys[0]] || '').trim();
+    if (!tableName) return;
+
+    if (/(bayar|angs|piut|pelun|cicil|kas|terima|tagih|payment|receipt|settle)/i.test(tableName)) {
+      candidates.push(tableName);
+    }
+  });
+
+  console.log('CANDIDATE PAYMENT TABLES: ' + JSON.stringify(candidates));
+
+  const inspected = candidates.map(function(tableName) {
+    const safeIdentifier = tableName.replace(/\\/g, '\\\\').replace(/\`/g, '\\`');
+    const query = 'SHOW COLUMNS FROM \`' + safeIdentifier + '\`';
+    const schemaResult = sidRetailQuery(query);
+
+    if (!schemaResult || schemaResult.status !== 'success') {
+      return {
+        table: tableName,
+        status: 'schema_failed',
+        error: JSON.stringify(schemaResult)
+      };
+    }
+
+    const schemaRows = Array.isArray(schemaResult.data) ? schemaResult.data : [];
+    const fields = schemaRows.map(function(column) {
+      return {
+        field: column.Field || column.field || '',
+        type: column.Type || column.type || '',
+        key: column.Key || column.key || ''
+      };
+    });
+
+    const relationFields = fields.filter(function(column) {
+      return /^(kode|kode_transaksi|nota|no_nota|nomor_nota|invoice|kode_penjualan|referensi|reference)$/i.test(column.field);
+    });
+
+    return {
+      table: tableName,
+      status: 'success',
+      column_count: fields.length,
+      relation_fields: relationFields,
+      fields: fields
+    };
+  });
+
+  return {
+    status: 'success',
+    table_count: rows.length,
+    candidate_count: inspected.length,
+    candidates: inspected
+  };
+}
+
 
 /** Test production helper without changing data. */
 function testInvoiceWhatsApp_V2() {
