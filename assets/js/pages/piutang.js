@@ -479,7 +479,7 @@ function showPdfDiagnostic(validation, payload, attempt) {
       : "Server fingerprint tidak tersedia";
 
   panel.innerHTML =
-    "<strong>PDF Diagnostic 6D.2 — " + status + "</strong>" +
+    "<strong>PDF Diagnostic 6D.2 — " + status + "</strong>" + "<div style=\"font-size:10px;color:#667085\">BUILD: PDF-FIX-3-SHA</div>" +
     "<div>Attempt: " + attempt + "</div>" +
     "<div>Backend size: " + esc(expected) + "</div>" +
     "<div>Decoded size: " + esc(actual) + "</div>" +
