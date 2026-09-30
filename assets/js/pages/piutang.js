@@ -422,6 +422,7 @@ async function generatePdf(loader, label, options = {}) {
   const validatePdf = options.validatePdf !== false;
   const requireBackendSize = options.requireBackendSize === true;
 
+  setPdfLoading(true, "Membuat " + label + "...", "PDF sedang dibuat. Mohon tunggu.");
   for (let attempt = 0; attempt <= retryCount; attempt++) {
     try {
       showToast(
@@ -461,9 +462,11 @@ async function generatePdf(loader, label, options = {}) {
         showToast("PDF valid (" + diagnostics + "). Dibuka di tab baru.");
         setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
       }
+      setPdfLoading(false, "PDF selesai", label + " selesai dibuat.");
       return;
     } catch (error) {
       if (attempt >= retryCount) {
+        setPdfLoading(false, "PDF gagal", label + " gagal dibuat.");
         showToast("Gagal membuat PDF: " + (error.message || "Unknown error"), true);
       }
     }
