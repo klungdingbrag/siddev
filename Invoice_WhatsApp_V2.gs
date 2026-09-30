@@ -40,7 +40,7 @@ function getInvoiceWhatsAppData_V2(kodeTransaksi) {
  * Do not guess the relation column name.
  */
 function auditInvoiceWhatsApp_V2(kodeTransaksi) {
-  const kode = invoiceWhatsAppNormalizeCode_V2_(kode);
+  const kode = invoiceWhatsAppNormalizeCode_V2_(kodeTransaksi);
 
   const headerQuery =
     'SELECT kode,tanggal,pelanggan,nama_pelanggan,jt,jumlah,bayar,angsuran,piutang ' +
