@@ -212,17 +212,19 @@ function testInvoiceSettlement_V1() {
  * No database mutation.
  */
 function testInvoiceSettlementMulti_V1() {
+  // Keep candidate discovery intentionally small because SID Retail
+  // can timeout on broader ORDER BY/LIMIT queries.
   const query =
-    'SELECT kode,tanggal,pelanggan,nama_pelanggan,jumlah,bayar,angsuran,piutang ' +
+    'SELECT kode,tanggal,jumlah,piutang ' +
     'FROM penjualan ' +
     'WHERE jumlah > 0 ' +
     'AND piutang >= 0 ' +
     'ORDER BY tanggal DESC ' +
-    'LIMIT 100';
+    'LIMIT 20';
 
   console.log('======================================');
-  console.log('MULTI-INVOICE SETTLEMENT VALIDATION V1');
-  console.log('READ-ONLY');
+  console.log('MULTI-INVOICE SETTLEMENT VALIDATION V2');
+  console.log('READ-ONLY / LIGHTWEIGHT CANDIDATE SCAN');
   console.log('======================================');
   console.log('CANDIDATE QUERY: ' + query);
 
@@ -244,31 +246,31 @@ function testInvoiceSettlementMulti_V1() {
     paid: null
   };
 
-  rows.forEach(function(row) {
-    if (!row || !row.kode || candidates.partial && candidates.unpaid && candidates.paid) {
-      return;
-    }
+  rows.some(function(row) {
+    if (!row || !row.kode) return false;
 
     const totalInvoice = parseMoney(row.jumlah);
     const saldoHutang = parseMoney(row.piutang);
 
-    if (totalInvoice <= 0 || saldoHutang < 0) return;
+    if (totalInvoice <= 0 || saldoHutang < 0) return false;
 
     if (saldoHutang === totalInvoice && !candidates.unpaid) {
       candidates.unpaid = row;
-      return;
-    }
-
-    if (saldoHutang > 0 &&
-        saldoHutang < totalInvoice &&
-        !candidates.partial) {
+    } else if (
+      saldoHutang > 0 &&
+      saldoHutang < totalInvoice &&
+      !candidates.partial
+    ) {
       candidates.partial = row;
-      return;
-    }
-
-    if (saldoHutang === 0 && !candidates.paid) {
+    } else if (saldoHutang === 0 && !candidates.paid) {
       candidates.paid = row;
     }
+
+    return !!(
+      candidates.unpaid &&
+      candidates.partial &&
+      candidates.paid
+    );
   });
 
   const selected = [];
@@ -282,6 +284,7 @@ function testInvoiceSettlementMulti_V1() {
     }
   });
 
+  console.log('CANDIDATE COUNT: ' + rows.length);
   console.log('SELECTED INVOICES: ' + JSON.stringify(selected, null, 2));
 
   if (!selected.length) {
@@ -299,58 +302,74 @@ function testInvoiceSettlementMulti_V1() {
     console.log('VALIDATING TYPE: ' + item.type);
     console.log('KODE: ' + item.kode);
 
-    const settlement = getInvoiceSettlementData_V1(item.kode);
+    try {
+      const settlement = getInvoiceSettlementData_V1(item.kode);
 
-    if (!settlement || settlement.status !== 'success') {
+      if (!settlement || settlement.status !== 'success') {
+        throw new Error(JSON.stringify(settlement));
+      }
+
+      const data = settlement.data;
+      const expectedPaid =
+        Math.max(0, data.total_invoice - data.saldo_hutang);
+
+      const formulaDifference =
+        data.total_dibayar - expectedPaid;
+
+      const formulaPass =
+        Math.abs(formulaDifference) < 0.01;
+
+      const itemValidationPass =
+        data.validation.status === 'MATCH' ||
+        data.validation.status === 'NO_ITEMPIUTANG_ROW';
+
+      if (!formulaPass) allFormulaPass = false;
+      if (!itemValidationPass) allItemValidationPass = false;
+
+      results.push({
+        type: item.type,
+        kode: data.kode_transaksi,
+        tanggal: data.tanggal,
+        nama_pelanggan: data.nama_pelanggan,
+        total_invoice: data.total_invoice,
+        total_dibayar: data.total_dibayar,
+        saldo_hutang: data.saldo_hutang,
+        formula_difference: formulaDifference,
+        formula_status: formulaPass ? 'PASS' : 'FAIL',
+        itempiutang_validation: data.validation.status,
+        itempiutang_difference: data.validation.difference
+      });
+
+      console.log(
+        'RESULT: ' +
+        JSON.stringify(results[results.length - 1], null, 2)
+      );
+    } catch (error) {
       allFormulaPass = false;
       allItemValidationPass = false;
+
       results.push({
         type: item.type,
         kode: item.kode,
         status: 'ERROR',
-        error: JSON.stringify(settlement)
+        error: error && error.message
+          ? error.message
+          : String(error)
       });
-      return;
+
+      console.log(
+        'VALIDATION ERROR: ' +
+        JSON.stringify(results[results.length - 1], null, 2)
+      );
     }
-
-    const data = settlement.data;
-    const expectedPaid =
-      Math.max(0, data.total_invoice - data.saldo_hutang);
-
-    const formulaDifference =
-      data.total_dibayar - expectedPaid;
-
-    const formulaPass =
-      Math.abs(formulaDifference) < 0.01;
-
-    const itemValidationPass =
-      data.validation.status === 'MATCH' ||
-      data.validation.status === 'NO_ITEMPIUTANG_ROW';
-
-    if (!formulaPass) allFormulaPass = false;
-    if (!itemValidationPass) allItemValidationPass = false;
-
-    results.push({
-      type: item.type,
-      kode: data.kode_transaksi,
-      tanggal: data.tanggal,
-      nama_pelanggan: data.nama_pelanggan,
-      total_invoice: data.total_invoice,
-      total_dibayar: data.total_dibayar,
-      saldo_hutang: data.saldo_hutang,
-      formula_difference: formulaDifference,
-      formula_status: formulaPass ? 'PASS' : 'FAIL',
-      itempiutang_validation: data.validation.status,
-      itempiutang_difference: data.validation.difference
-    });
-
-    console.log('RESULT: ' + JSON.stringify(results[results.length - 1], null, 2));
   });
 
   const summary = {
     candidate_count: rows.length,
     selected_count: selected.length,
-    selected_types: selected.map(function(item) { return item.type; }),
+    selected_types: selected.map(function(item) {
+      return item.type;
+    }),
     formula_status: allFormulaPass ? 'PASS' : 'FAIL',
     itempiutang_validation_status:
       allItemValidationPass ? 'PASS' : 'CHECK_REQUIRED',
@@ -358,7 +377,7 @@ function testInvoiceSettlementMulti_V1() {
   };
 
   console.log('======================================');
-  console.log('MULTI-INVOICE VALIDATION SUMMARY');
+  console.log('MULTI-INVOICE VALIDATION V2 SUMMARY');
   console.log(JSON.stringify(summary, null, 2));
   console.log('======================================');
 
