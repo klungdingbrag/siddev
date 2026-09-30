@@ -285,3 +285,63 @@ function invoiceWhatsAppBuildData_V2_(row, fallbackCode) {
   console.log('HASIL INVOICE WHATSAPP V2: ' + JSON.stringify(data));
   return { status: 'success', data: data };
 }
+
+
+/**
+ * Focused read-only schema audit for invoice payment/settlement tables.
+ * Target tables are intentionally limited to avoid oversized execution logs.
+ */
+function auditInvoicePaymentSchemas_V2_() {
+  const queries = [
+    'SHOW COLUMNS FROM itempiutang',
+    'SHOW COLUMNS FROM pembayaran_angsuran',
+    'SHOW COLUMNS FROM piutang',
+    'SHOW COLUMNS FROM tabel_angsuran',
+    'SHOW COLUMNS FROM multi_payment'
+  ];
+
+  const result = [];
+
+  queries.forEach(function(query) {
+    console.log('======================================');
+    console.log('FOCUSED PAYMENT SCHEMA QUERY: ' + query);
+
+    const response = sidRetailQuery(query);
+    if (!response || response.status !== 'success') {
+      result.push({
+        query: query,
+        status: 'failed',
+        error: JSON.stringify(response)
+      });
+      return;
+    }
+
+    const rows = Array.isArray(response.data) ? response.data : [];
+    console.log(JSON.stringify(rows, null, 2));
+
+    result.push({
+      query: query,
+      status: 'success',
+      rows: rows
+    });
+  });
+
+  return result;
+}
+
+/** Test only the five focused payment schemas. */
+function testInvoicePaymentSchemas_V2() {
+  console.log('======================================');
+  console.log('FOCUSED INVOICE PAYMENT SCHEMA AUDIT');
+  console.log('READ-ONLY');
+  console.log('======================================');
+
+  const result = auditInvoicePaymentSchemas_V2_();
+
+  console.log('======================================');
+  console.log('FOCUSED AUDIT RESULT');
+  console.log(JSON.stringify(result, null, 2));
+  console.log('======================================');
+
+  return result;
+}
