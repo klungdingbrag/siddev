@@ -404,8 +404,23 @@ async function generatePdf6D2(code) {
     if (!payload.base64) throw new Error("Backend tidak mengembalikan pdf_base64.");
 
     const blob = base64ToBlob(payload.base64, "application/pdf");
+
+    console.info("[PDF 6D.2] transport check", {
+      base64Length: payload.base64.length,
+      expectedSize: payload.expectedSize,
+      decodedBlobSize: blob.size,
+      sizeMatch: payload.expectedSize ? blob.size === payload.expectedSize : null
+    });
+
     if (!(blob instanceof Blob) || blob.size < 100) {
       throw new Error("PDF yang diterima kosong atau tidak valid.");
+    }
+
+    if (payload.expectedSize && blob.size !== payload.expectedSize) {
+      throw new Error(
+        "Ukuran PDF berubah saat diterima browser: backend " +
+        payload.expectedSize + " byte, frontend " + blob.size + " byte."
+      );
     }
 
     downloadBlob(blob, payload.filename);
@@ -457,6 +472,11 @@ function extractPdfPayload(data) {
   const filename = source?.filename || "dokumen.pdf";
   const rawSize = source?.size_bytes ?? source?.size ?? source?.pdf_size ?? null;
   const expectedSize = Number(rawSize);
+  console.info("[PDF] payload received", {
+    filename,
+    base64Length: base64.length,
+    expectedSize: Number.isFinite(expectedSize) && expectedSize > 0 ? expectedSize : null
+  });
   return {
     base64,
     filename,
@@ -469,6 +489,10 @@ function base64ToBlob(base64, mime) {
     .replace(/^data:.*?;base64,/, "")
     .replace(/\s+/g, "");
 
+  if (!clean) {
+    throw new Error("pdf_base64 kosong.");
+  }
+
   let binary;
   try {
     binary = atob(clean);
@@ -476,15 +500,14 @@ function base64ToBlob(base64, mime) {
     throw new Error("pdf_base64 tidak dapat didekode: " + (error.message || "base64 invalid"));
   }
 
-  const chunkSize = 1024 * 64;
-  const parts = [];
-  for (let i = 0; i < binary.length; i += chunkSize) {
-    const chunk = binary.slice(i, i + chunkSize);
-    const bytes = new Uint8Array(chunk.length);
-    for (let j = 0; j < chunk.length; j++) bytes[j] = binary.charCodeAt(j);
-    parts.push(bytes);
+  // PDF 6D.2 hanya sekitar puluhan KB. Satu Uint8Array lebih sederhana
+  // dan menghindari pemecahan data menjadi beberapa Blob parts.
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
   }
-  return new Blob(parts, { type: mime });
+
+  return new Blob([bytes], { type: mime });
 }
 
 function setPdfLoading(active, title = "Membuat PDF...", message = "PDF sedang dibuat. Mohon tunggu.") {
