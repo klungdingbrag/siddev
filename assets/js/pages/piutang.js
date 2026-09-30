@@ -397,130 +397,24 @@ async function handlePdfAction(type, code) {
 }
 
 async function generatePdf6D2(code) {
-  const maxAttempts = 3;
+  setPdfLoading(true, "Membuat Laporan Detail PDF 6D.2...", "PDF sedang dibuat. Mohon tunggu.");
+  try {
+    const data = await api.pdfSemuaDetailPiutang6D2(code);
+    const payload = extractPdfPayload(data);
+    if (!payload.base64) throw new Error("Backend tidak mengembalikan pdf_base64.");
 
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
-      showToast(
-        attempt === 0
-          ? "Membuat Laporan Detail PDF 6D.2..."
-          : "Mencoba ulang PDF 6D.2 (" + (attempt + 1) + "/" + maxAttempts + ")..."
-      );
-
-      const data = await api.pdfSemuaDetailPiutang6D2(
-        code,
-        attempt > 0 ? { _pdf_retry: Date.now() } : {}
-      );
-      const payload = extractPdfPayload(data);
-
-      if (!payload.base64) {
-        throw new Error("Backend tidak mengembalikan pdf_base64.");
-      }
-
-      const base64Diagnostic = await inspectBase64Transport(payload.base64, payload.transportFingerprint);
-      const blob = base64ToBlob(payload.base64, "application/pdf");
-      const validation = await validatePdfBlob(blob, payload.expectedSize, true);
-      validation.base64Diagnostic = base64Diagnostic;
-
-      showPdfDiagnostic(validation, payload, attempt + 1);
-
-      if (!validation.valid) {
-        if (attempt < maxAttempts - 1) continue;
-        throw new Error("PDF 6D.2 tidak valid: " + validation.reason);
-      }
-
-      // 6D.2 sementara menggunakan direct download, bukan PDF viewer.
-      downloadBlob(blob, payload.filename);
-      showToast(
-        "PDF 6D.2 valid. " +
-        validation.size + " byte. File langsung diunduh."
-      );
-      return;
-    } catch (error) {
-      if (attempt >= maxAttempts - 1) {
-        showToast("Gagal membuat PDF 6D.2: " + (error.message || "Unknown error"), true);
-      }
+    const blob = base64ToBlob(payload.base64, "application/pdf");
+    if (!(blob instanceof Blob) || blob.size < 100) {
+      throw new Error("PDF yang diterima kosong atau tidak valid.");
     }
+
+    downloadBlob(blob, payload.filename);
+    setPdfLoading(false, "PDF selesai", "Laporan Detail PDF 6D.2 selesai dibuat dan diunduh.");
+    showToast("Laporan Detail PDF 6D.2 selesai dibuat.");
+  } catch (error) {
+    setPdfLoading(false, "PDF gagal", "Laporan Detail PDF 6D.2 gagal dibuat.");
+    showToast("Gagal membuat PDF 6D.2: " + (error.message || "Unknown error"), true);
   }
-}
-
-function showPdfDiagnostic(validation, payload, attempt) {
-  let panel = document.querySelector("#pdf-diagnostic");
-  if (!panel) {
-    panel = document.createElement("div");
-    panel.id = "pdf-diagnostic";
-    panel.style.cssText =
-      "position:fixed;right:18px;bottom:18px;z-index:99999;max-width:460px;" +
-      "padding:14px 16px;border:1px solid #d7dce5;border-radius:12px;" +
-      "background:#fff;color:#172033;box-shadow:0 10px 30px rgba(0,0,0,.14);" +
-      "font:13px/1.5 system-ui,sans-serif;";
-    document.body.appendChild(panel);
-  }
-
-  const expected = payload.expectedSize ? payload.expectedSize + " byte" : "tidak dikirim";
-  const actual = validation.size + " byte";
-  const status = validation.valid ? "VALID" : "TIDAK VALID";
-  const fp = payload.transportFingerprint;
-
-  const serverBytes = Number(fp?.decoded_size_bytes);
-  const sizeDelta = Number.isFinite(serverBytes) ? validation.size - serverBytes : null;
-  const shaMatch =
-    fp?.sha256 && validation.clientSha256
-      ? String(fp.sha256).toLowerCase() === String(validation.clientSha256).toLowerCase()
-      : null;
-  const b64 = validation.base64Diagnostic;
-  const serverMarkers =
-    fp
-      ? "Server fingerprint: size=" + esc(String(fp.reported_size_bytes ?? "?")) +
-        ", decoded=" + esc(String(fp.decoded_size_bytes ?? "?")) +
-        ", startxref=" + (fp.startxref_present ? "OK" : "NO") +
-        ", EOF=" + (fp.eof_present ? "OK" : "NO") +
-        (fp.sha256 ? ", SHA-256=" + esc(String(fp.sha256)) : "")
-      : "Server fingerprint tidak tersedia";
-
-  panel.innerHTML =
-    "<strong>PDF Diagnostic 6D.2 — " + status + "</strong>" + "<div style=\"font-size:10px;color:#667085\">BUILD: PDF-FIX-3-SHA</div>" +
-    "<div>Attempt: " + attempt + "</div>" +
-    "<div>Backend size: " + esc(expected) + "</div>" +
-    "<div>Decoded size: " + esc(actual) + "</div>" +
-    "<div>Header: " + (validation.hasHeader ? "OK" : "GAGAL") + "</div>" +
-    "<div>startxref: " + (validation.hasStartXref ? "OK" : "GAGAL") + "</div>" +
-    "<div>%%EOF: " + (validation.hasEof ? "OK" : "GAGAL") + "</div>" +
-    "<div style=\"margin-top:6px;font-size:11px;color:#667085\">" + serverMarkers + "</div>" +
-    (Number.isFinite(sizeDelta)
-      ? "<div style=\"margin-top:4px;font-size:11px;color:" + (sizeDelta === 0 ? "#027a48" : "#b42318") + "\">Selisih byte client vs server: " + sizeDelta + "</div>"
-      : "") +
-    (shaMatch !== null
-      ? "<div style=\"margin-top:4px;font-size:11px;color:" + (shaMatch ? "#027a48" : "#b42318") + "\">SHA-256 client/server: " + (shaMatch ? "MATCH" : "BERBEDA") + "</div>"
-      : "") +
-    (validation.clientSha256
-      ? "<div style=\"margin-top:4px;font-size:10px;word-break:break-all;color:#667085\">Client PDF SHA-256: " + esc(validation.clientSha256) + "</div>"
-      : "") +
-    (b64
-      ? "<div style=\"margin-top:4px;font-size:11px;color:" + (b64.headMatch && b64.tailMatch ? "#027a48" : "#b42318") + "\">Base64 head/tail server-client: " + (b64.headMatch ? "HEAD MATCH" : "HEAD BERBEDA") + " · " + (b64.tailMatch ? "TAIL MATCH" : "TAIL BERBEDA") + "</div>"
-      : "") +
-    (b64?.clientSha256
-      ? "<div style=\"margin-top:4px;font-size:10px;word-break:break-all;color:#667085\">Client Base64 SHA-256: " + esc(b64.clientSha256) + "</div>"
-      : "") +
-    (b64?.serverHead
-      ? "<div style=\"margin-top:4px;font-size:10px;word-break:break-all;color:#667085\">Server Base64 head: " + esc(b64.serverHead) + "</div>"
-      : "") +
-    (b64?.clientHead
-      ? "<div style=\"margin-top:4px;font-size:10px;word-break:break-all;color:#667085\">Client Base64 head: " + esc(b64.clientHead) + "</div>"
-      : "") +
-    (b64?.serverTail
-      ? "<div style=\"margin-top:4px;font-size:10px;word-break:break-all;color:#667085\">Server Base64 tail: " + esc(b64.serverTail) + "</div>"
-      : "") +
-    (b64?.clientTail
-      ? "<div style=\"margin-top:4px;font-size:10px;word-break:break-all;color:#667085\">Client Base64 tail: " + esc(b64.clientTail) + "</div>"
-      : "") +
-    (validation.tailHex
-      ? "<div style=\"margin-top:4px;font-size:10px;word-break:break-all;color:#667085\">Client tail HEX: " + esc(validation.tailHex) + "</div>"
-      : "") +
-    (validation.tailText
-      ? "<div style=\"margin-top:4px;font-size:10px;white-space:pre-wrap;word-break:break-all;color:#667085\">Client tail text: " + esc(validation.tailText) + "</div>"
-      : "") +
-    (validation.reason ? "<div style=\"margin-top:6px;color:#b42318\">" + esc(validation.reason) + "</div>" : "");
 }
 
 async function generatePdf(loader, label, options = {}) {
@@ -580,184 +474,12 @@ function extractPdfPayload(data) {
   const source = data?.data && typeof data.data === "object" ? data.data : data;
   const base64 = source?.pdf_base64 || "";
   const filename = source?.filename || "dokumen.pdf";
-  const rawSize =
-    source?.size_bytes ??
-    source?.size ??
-    source?.pdf_size ??
-    null;
+  const rawSize = source?.size_bytes ?? source?.size ?? source?.pdf_size ?? null;
   const expectedSize = Number(rawSize);
-
   return {
     base64,
     filename,
-    expectedSize: Number.isFinite(expectedSize) && expectedSize > 0
-      ? expectedSize
-      : null,
-    transportFingerprint: source?.pdf_transport_fingerprint || null
-  };
-}
-
-async function sha256HexFromText(text) {
-  const encoded = new TextEncoder().encode(String(text));
-  return sha256HexFromBytes(encoded);
-}
-
-function cleanBase64ForDiagnostic(base64) {
-  return String(base64 || "")
-    .replace(/^data:.*?;base64,/, "")
-    .replace(/\s+/g, "");
-}
-
-async function inspectBase64Transport(base64, fingerprint = null) {
-  const client = cleanBase64ForDiagnostic(base64);
-  const headLength = 80;
-  const tailLength = 120;
-  const clientHead = client.slice(0, headLength);
-  const clientTail = client.slice(Math.max(0, client.length - tailLength));
-
-  const serverHead = fingerprint?.base64_head || "";
-  const serverTail = fingerprint?.base64_tail || "";
-
-  return {
-    clientSha256: await sha256HexFromText(client),
-    clientLength: client.length,
-    serverHead,
-    serverTail,
-    clientHead,
-    clientTail,
-    headMatch: !!serverHead && clientHead === serverHead,
-    tailMatch: !!serverTail && clientTail === serverTail
-  };
-}
-
-async function sha256HexFromBytes(bytes) {
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-function bytesToHex(bytes, maxBytes = 96) {
-  return Array.from(bytes.slice(Math.max(0, bytes.length - maxBytes)))
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join(" ");
-}
-
-function bytesToLatin1(bytes, maxBytes = 160) {
-  const tail = bytes.slice(Math.max(0, bytes.length - maxBytes));
-  return Array.from(tail)
-    .map(b => (b >= 32 && b <= 126) || b === 9 || b === 10 || b === 13 ? String.fromCharCode(b) : ".")
-    .join("");
-}
-
-async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = false) {
-  if (!(blob instanceof Blob) || blob.size < 100) {
-    return {
-      valid: false,
-      size: blob?.size || 0,
-      expectedSize,
-      hasHeader: false,
-      hasStartXref: false,
-      hasEof: false,
-      clientSha256: null,
-      tailHex: "",
-      tailText: "",
-      reason: "ukuran file tidak valid (" + (blob?.size || 0) + " byte)"
-    };
-  }
-
-  const buffer = await blob.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  const clientSha256 = await sha256HexFromBytes(bytes);
-
-  const header = new TextDecoder("latin1").decode(bytes.slice(0, 8));
-  const hasHeader = header.startsWith("%PDF-");
-
-  const tailStart = Math.max(0, bytes.length - 4096);
-  const tail = new TextDecoder("latin1").decode(bytes.slice(tailStart));
-
-  // Jangan mengandalkan regex yang hanya cocok jika tidak ada whitespace tertentu.
-  // Cari marker EOF yang benar-benar berada di bagian akhir dokumen.
-  const eofMatch = /%%EOF\s*$/.exec(tail);
-  const hasEof = !!eofMatch;
-
-  // startxref harus berada sebelum EOF dan diikuti offset numerik.
-  const startxrefMatch = /startxref\s+(\d+)\s+%%EOF\s*$/.exec(tail);
-  const hasStartXref = !!startxrefMatch;
-  const tailHex = bytesToHex(bytes);
-  const tailText = bytesToLatin1(bytes);
-
-  if (!hasHeader) {
-    return {
-      valid: false,
-      size: bytes.length,
-      expectedSize,
-      hasHeader,
-      hasStartXref,
-      hasEof,
-      clientSha256,
-      tailHex,
-      tailText,
-      reason: "header %PDF tidak ditemukan"
-    };
-  }
-
-  if (requireExpectedSize && expectedSize && bytes.length !== expectedSize) {
-    return {
-      valid: false,
-      size: bytes.length,
-      expectedSize,
-      hasHeader,
-      hasStartXref,
-      hasEof,
-      clientSha256,
-      tailHex,
-      tailText,
-      reason: "ukuran hasil decoding " + bytes.length + " byte, backend melaporkan " + expectedSize + " byte"
-    };
-  }
-
-  if (!hasEof) {
-    return {
-      valid: false,
-      size: bytes.length,
-      expectedSize,
-      hasHeader,
-      hasStartXref,
-      hasEof,
-      clientSha256,
-      tailHex,
-      tailText,
-      reason: "penanda %%EOF tidak ditemukan di akhir file"
-    };
-  }
-
-  if (!hasStartXref) {
-    return {
-      valid: false,
-      size: bytes.length,
-      expectedSize,
-      hasHeader,
-      hasStartXref,
-      hasEof,
-      clientSha256,
-      tailHex,
-      tailText,
-      reason: "struktur startxref/%%EOF tidak lengkap"
-    };
-  }
-
-  return {
-    valid: true,
-    size: bytes.length,
-    expectedSize,
-    hasHeader,
-    hasStartXref,
-    hasEof,
-    clientSha256,
-    tailHex,
-    tailText,
-    startxrefOffset: Number(startxrefMatch[1])
+    expectedSize: Number.isFinite(expectedSize) && expectedSize > 0 ? expectedSize : null
   };
 }
 
@@ -782,6 +504,48 @@ function base64ToBlob(base64, mime) {
     parts.push(bytes);
   }
   return new Blob(parts, { type: mime });
+}
+
+function setPdfLoading(active, title = "Membuat PDF...", message = "PDF sedang dibuat. Mohon tunggu.") {
+  let overlay = document.querySelector("#pdf-loading-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "pdf-loading-overlay";
+    overlay.innerHTML =
+      '<div class="pdf-loading-card" role="status" aria-live="polite">' +
+        '<div id="pdf-loading-spinner" class="pdf-loading-spinner" aria-hidden="true"></div>' +
+        '<div id="pdf-loading-title" class="pdf-loading-title"></div>' +
+        '<div id="pdf-loading-message" class="pdf-loading-message"></div>' +
+      '</div>';
+    overlay.style.cssText = "position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.42);backdrop-filter:blur(2px);padding:20px;";
+    document.body.appendChild(overlay);
+    const style = document.createElement("style");
+    style.id = "pdf-loading-style";
+    style.textContent =
+      "#pdf-loading-overlay .pdf-loading-card{min-width:280px;max-width:420px;padding:28px 30px;border-radius:16px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.2);text-align:center;font-family:system-ui,sans-serif}" +
+      "#pdf-loading-overlay .pdf-loading-spinner{width:42px;height:42px;margin:0 auto 16px;border:4px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;animation:pdfLoadingSpin .8s linear infinite}" +
+      "#pdf-loading-overlay .pdf-loading-title{font-size:17px;font-weight:700;color:#172033}" +
+      "#pdf-loading-overlay .pdf-loading-message{margin-top:7px;font-size:13px;color:#667085}" +
+      "@keyframes pdfLoadingSpin{to{transform:rotate(360deg)}}" +
+      "#pdf-loading-overlay.pdf-done .pdf-loading-spinner{border:0;width:42px;height:42px;background:#16a34a;border-radius:50%;position:relative;animation:none}" +
+      "#pdf-loading-overlay.pdf-done .pdf-loading-spinner:after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:25px;font-weight:700}" +
+      "#pdf-loading-overlay.pdf-error .pdf-loading-spinner{border:0;width:42px;height:42px;background:#dc2626;border-radius:50%;position:relative;animation:none}" +
+      "#pdf-loading-overlay.pdf-error .pdf-loading-spinner:after{content:'!';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:25px;font-weight:700}";
+    document.head.appendChild(style);
+  }
+  const spinner = overlay.querySelector("#pdf-loading-spinner");
+  overlay.querySelector("#pdf-loading-title").textContent = title;
+  overlay.querySelector("#pdf-loading-message").textContent = message;
+  overlay.classList.remove("pdf-done", "pdf-error");
+  if (active) {
+    overlay.style.display = "flex";
+    spinner.style.display = "block";
+    return;
+  }
+  overlay.classList.add(/gagal/i.test(title) ? "pdf-error" : "pdf-done");
+  overlay.style.display = "flex";
+  spinner.style.display = "block";
+  setTimeout(() => { overlay.style.display = "none"; }, 1400);
 }
 
 function downloadBlob(blob, filename) {
