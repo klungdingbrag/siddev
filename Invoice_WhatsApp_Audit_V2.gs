@@ -4,16 +4,13 @@
  * ============================================================
  * READ-ONLY diagnostic module.
  *
- * Tujuan:
- * Audit struktur nilai invoice yang memiliki angsuran:
+ * Audit target:
  * R43-261225003
  *
- * Membandingkan:
- * - penjualan.jumlah
- * - penjualan.bayar
- * - penjualan.angsuran
- * - penjualan.piutang
- * - SUM(itempenjualan.subtotal)
+ * Tahap audit:
+ * 1. Baca header penjualan.
+ * 2. Inspeksi schema itempenjualan agar nama kolom tidak ditebak.
+ * 3. Jika schema sudah diketahui, baru lanjutkan rekonsiliasi detail.
  *
  * Modul ini TIDAK mengubah data.
  * Modul ini BELUM menjadi API/production module.
@@ -33,11 +30,6 @@ function auditInvoiceWhatsApp_V2(kodeTransaksi) {
     'SELECT kode,tanggal,pelanggan,nama_pelanggan,jt,jumlah,bayar,angsuran,piutang ' +
     'FROM penjualan ' +
     "WHERE kode = '" + escapedKode + "' LIMIT 1";
-
-  const detailQuery =
-    'SELECT kode_transaksi,subtotal ' +
-    'FROM itempenjualan ' +
-    "WHERE kode_transaksi = '" + escapedKode + "'";
 
   console.log('======================================');
   console.log('AUDIT INVOICE WHATSAPP V2');
@@ -59,31 +51,52 @@ function auditInvoiceWhatsApp_V2(kodeTransaksi) {
 
   const header = headerRows[0];
 
-  console.log('DETAIL QUERY: ' + detailQuery);
-  const detailResult = sidRetailQuery(detailQuery);
+  /*
+   * Diagnostic schema:
+   * Jangan menebak nama kolom itempenjualan.
+   * Kita minta database mengembalikan struktur tabel terlebih dahulu.
+   */
+  const schemaQuery = 'SHOW COLUMNS FROM itempenjualan';
 
-  if (!detailResult || detailResult.status !== 'success') {
-    throw new Error('Gagal mengambil detail invoice: ' + JSON.stringify(detailResult));
+  console.log('--------------------------------------');
+  console.log('ITEMPENJUALAN SCHEMA QUERY');
+  console.log('QUERY: ' + schemaQuery);
+
+  const schemaResult = sidRetailQuery(schemaQuery);
+
+  if (!schemaResult || schemaResult.status !== 'success') {
+    throw new Error(
+      'Gagal membaca schema itempenjualan: ' + JSON.stringify(schemaResult)
+    );
   }
 
-  const detailRows = Array.isArray(detailResult.data) ? detailResult.data : [];
+  const schemaRows = Array.isArray(schemaResult.data) ? schemaResult.data : [];
 
-  const jumlah = parseMoney(header.jumlah);
-  const bayar = parseMoney(header.bayar);
-  const angsuran = parseMoney(header.angsuran);
-  const piutang = parseMoney(header.piutang);
+  console.log('COLUMN COUNT: ' + schemaRows.length);
 
-  let subtotalItem = 0;
-  detailRows.forEach(function(row) {
-    subtotalItem += parseMoney(row.subtotal);
+  schemaRows.forEach(function(column, index) {
+    console.log(
+      'COLUMN ' + (index + 1) +
+      ' | FIELD=' + (column.Field || column.field || '') +
+      ' | TYPE=' + (column.Type || column.type || '') +
+      ' | NULL=' + (column.Null || column.null || '') +
+      ' | KEY=' + (column.Key || column.key || '') +
+      ' | DEFAULT=' + (column.Default == null ? '' : column.Default)
+    );
   });
 
-  const calculatedPaid = Math.max(0, jumlah - piutang);
-  const headerVsItem = jumlah - subtotalItem;
-  const jumlahVsPiutang = jumlah - piutang;
-  const bayarPlusAngsuran = bayar + angsuran;
-  const paidVsBayarAngsuran = calculatedPaid - bayarPlusAngsuran;
-  const accountingCheck = jumlah - piutang;
+  const fieldNames = schemaRows.map(function(column) {
+    return String(column.Field || column.field || '').trim();
+  }).filter(Boolean);
+
+  const subtotalField = fieldNames.find(function(field) {
+    return field.toLowerCase() === 'subtotal';
+  }) || '';
+
+  console.log('--------------------------------------');
+  console.log('SCHEMA SUMMARY');
+  console.log('FIELDS: ' + JSON.stringify(fieldNames));
+  console.log('SUBTOTAL FIELD: ' + (subtotalField || 'TIDAK DITEMUKAN'));
 
   const audit = {
     kode_transaksi: header.kode || kode,
@@ -93,53 +106,32 @@ function auditInvoiceWhatsApp_V2(kodeTransaksi) {
     jt: header.jt || '',
 
     penjualan: {
-      jumlah: jumlah,
-      bayar: bayar,
-      angsuran: angsuran,
-      piutang: piutang
+      jumlah: parseMoney(header.jumlah),
+      bayar: parseMoney(header.bayar),
+      angsuran: parseMoney(header.angsuran),
+      piutang: parseMoney(header.piutang)
     },
 
-    itempenjualan: {
-      item_count: detailRows.length,
-      subtotal: subtotalItem
+    itempenjualan_schema: {
+      column_count: schemaRows.length,
+      fields: fieldNames,
+      subtotal_field: subtotalField
     },
 
-    rekonsiliasi: {
-      jumlah_minus_subtotal_item: headerVsItem,
-      jumlah_minus_piutang: jumlahVsPiutang,
-      bayar_plus_angsuran: bayarPlusAngsuran,
-      calculated_sudah_dibayar: calculatedPaid,
-      calculated_paid_minus_bayar_plus_angsuran: paidVsBayarAngsuran,
-      accounting_saldo_check: accountingCheck
-    },
-
-    raw_header: header,
-    raw_items: detailRows
+    next_step: subtotalField
+      ? 'Schema ditemukan. Jangan gunakan nama kolom relasi sebelum teridentifikasi dari schema.'
+      : 'Kolom subtotal tidak ditemukan. Audit detail harus dihentikan sampai schema diperiksa.'
   };
 
-  console.log('--------------------------------------');
-  console.log('PENJUALAN');
-  console.log('JUMLAH   : ' + jumlah);
-  console.log('BAYAR    : ' + bayar);
-  console.log('ANGSURAN : ' + angsuran);
-  console.log('PIUTANG  : ' + piutang);
-  console.log('--------------------------------------');
-  console.log('ITEM PENJUALAN');
-  console.log('ITEM COUNT : ' + detailRows.length);
-  console.log('SUBTOTAL   : ' + subtotalItem);
-  console.log('--------------------------------------');
-  console.log('REKONSILIASI');
-  console.log('JUMLAH - SUBTOTAL ITEM : ' + headerVsItem);
-  console.log('JUMLAH - PIUTANG       : ' + jumlahVsPiutang);
-  console.log('BAYAR + ANGSURAN       : ' + bayarPlusAngsuran);
-  console.log('CALCULATED DIBAYAR     : ' + calculatedPaid);
-  console.log('SELISIH DIBAYAR        : ' + paidVsBayarAngsuran);
   console.log('======================================');
-  console.log('AUDIT RESULT: ' + JSON.stringify(audit, null, 2));
+  console.log('HEADER AUDIT');
+  console.log(JSON.stringify(audit, null, 2));
+  console.log('======================================');
 
   return {
     status: 'success',
-    audit: audit
+    audit: audit,
+    schema: schemaRows
   };
 }
 
