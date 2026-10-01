@@ -403,26 +403,40 @@ async function generatePdf6D2(code) {
     const payload = extractPdfPayload(data);
     if (!payload.base64) throw new Error("Backend tidak mengembalikan pdf_base64.");
 
-    const blob = base64ToBlob(payload.base64, "application/pdf");
+    const bytes = base64ToBytes(payload.base64);
+    const transportCheck = validatePdfBytes(bytes);
 
     console.info("[PDF 6D.2] transport check", {
       base64Length: payload.base64.length,
       expectedSize: payload.expectedSize,
-      decodedBlobSize: blob.size,
-      sizeMatch: payload.expectedSize ? blob.size === payload.expectedSize : null
+      decodedSize: bytes.length,
+      sizeMatch: payload.expectedSize ? bytes.length === payload.expectedSize : null,
+      header: transportCheck.header,
+      startxref: transportCheck.startxref,
+      eof: transportCheck.eof
     });
 
-    if (!(blob instanceof Blob) || blob.size < 100) {
-      throw new Error("PDF yang diterima kosong atau tidak valid.");
+    if (bytes.length < 100 || !transportCheck.header) {
+      throw new Error("PDF yang diterima kosong atau header PDF tidak valid.");
     }
 
-    if (payload.expectedSize && blob.size !== payload.expectedSize) {
+    if (!transportCheck.startxref || !transportCheck.eof) {
       throw new Error(
-        "Ukuran PDF berubah saat diterima browser: backend " +
-        payload.expectedSize + " byte, frontend " + blob.size + " byte."
+        "PDF 6D.2 diterima lengkap (" + bytes.length +
+        " byte), tetapi pemeriksaan marker PDF gagal: " +
+        "startxref=" + (transportCheck.startxref ? "OK" : "GAGAL") +
+        ", %%EOF=" + (transportCheck.eof ? "OK" : "GAGAL") + "."
       );
     }
 
+    if (payload.expectedSize && bytes.length !== payload.expectedSize) {
+      throw new Error(
+        "Ukuran PDF berubah saat diterima browser: backend " +
+        payload.expectedSize + " byte, frontend " + bytes.length + " byte."
+      );
+    }
+
+    const blob = new Blob([bytes], { type: "application/pdf" });
     downloadBlob(blob, payload.filename);
     setPdfLoading(false, "PDF selesai", "Laporan Detail PDF 6D.2 selesai dibuat dan diunduh.");
     showToast("Laporan Detail PDF 6D.2 selesai dibuat.");
@@ -484,7 +498,7 @@ function extractPdfPayload(data) {
   };
 }
 
-function base64ToBlob(base64, mime) {
+function base64ToBytes(base64) {
   const clean = String(base64)
     .replace(/^data:.*?;base64,/, "")
     .replace(/\s+/g, "");
@@ -500,14 +514,45 @@ function base64ToBlob(base64, mime) {
     throw new Error("pdf_base64 tidak dapat didekode: " + (error.message || "base64 invalid"));
   }
 
-  // PDF 6D.2 hanya sekitar puluhan KB. Satu Uint8Array lebih sederhana
-  // dan menghindari pemecahan data menjadi beberapa Blob parts.
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
+  return bytes;
+}
 
-  return new Blob([bytes], { type: mime });
+function base64ToBlob(base64, mime) {
+  return new Blob([base64ToBytes(base64)], { type: mime });
+}
+
+function containsAscii(bytes, text) {
+  const target = new TextEncoder().encode(text);
+  if (!target.length || target.length > bytes.length) return false;
+
+  outer:
+  for (let i = 0; i <= bytes.length - target.length; i++) {
+    for (let j = 0; j < target.length; j++) {
+      if (bytes[i + j] !== target[j]) continue outer;
+    }
+    return true;
+  }
+  return false;
+}
+
+function validatePdfBytes(bytes) {
+  const header = bytes.length >= 5 &&
+    bytes[0] === 0x25 && bytes[1] === 0x50 &&
+    bytes[2] === 0x44 && bytes[3] === 0x46 &&
+    bytes[4] === 0x2D;
+
+  const tailStart = Math.max(0, bytes.length - 4096);
+  const tail = bytes.subarray(tailStart);
+
+  return {
+    header,
+    startxref: containsAscii(tail, "startxref"),
+    eof: containsAscii(tail, "%%EOF")
+  };
 }
 
 function setPdfLoading(active, title = "Membuat PDF...", message = "PDF sedang dibuat. Mohon tunggu.") {
