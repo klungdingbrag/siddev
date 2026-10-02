@@ -381,6 +381,310 @@ Grafik Laba POS September 2026 menghasilkan **Rp84.787.006,74**, sama dengan has
 Fungsi audit dipertahankan sebagai alat validasi dan tidak menjadi sumber business logic baru. Penggabungan file hanya merapikan organisasi source code; fungsi yang telah berhasil diuji tidak dihapus atau diubah perilakunya.
 
 
+---
+
+## 9B. Dashboard Architecture V1
+
+Dashboard diperlakukan sebagai modul SPA yang memiliki state, cache, lifecycle, dan asynchronous request isolation sendiri.
+
+### Data Dashboard
+
+    Dashboard
+       |
+       +-- Omzet Harian
+       |      |
+       |      +-- penjualan.jumlah
+       |      +-- jumlah transaksi
+       |
+       +-- Laba Bulanan
+       |      |
+       |      +-- SUM(labarugi.labarugi)
+       |
+       +-- Piutang Berjalan
+              |
+              +-- API Piutang V1
+
+Frontend menggunakan endpoint:
+- dashboardSalesDaily
+- dashboardProfitMonthly
+- dashboardSummary
+
+Backend implementation berada di:
+code/Dashboard_Analytics_V1.gs
+
+Omzet harian menggunakan bulan yang sedang dipilih. Laba bulanan menggunakan rentang Januari sampai bulan terpilih pada tahun yang dipilih.
+
+Grafik omzet harian memiliki hover/pointer interaction, vertical crosshair, focus point, tooltip tanggal, nilai omzet, dan jumlah transaksi. Chart dibangun di frontend tanpa library chart eksternal.
+
+---
+
+## 9C. Dashboard Cache
+
+Dashboard menggunakan cache sessionStorage dengan TTL 5 menit.
+
+Cache disimpan per periode:
+
+    sidretail:dashboard:v1:YYYY-MM
+
+Contoh:
+
+    sidretail:dashboard:v1:2026-09
+
+Perilaku:
+
+    Masuk Dashboard
+           |
+           v
+       Ada cache?
+        /       \
+      Tidak      Ya
+       |          |
+       |       Umur < 5 menit?
+       |        /        \
+       |      Ya          Tidak
+       |       |            |
+       |   Render cepat   Render cache
+       |                  + refresh
+       v
+    Fetch backend
+       |
+       v
+    Render + cache
+
+Tombol Refresh selalu memaksa request backend terbaru.
+
+Cache tidak pernah menjadi source of truth. Ia hanya mempercepat UX dan mengurangi request berulang.
+
+---
+
+## 9D. SPA Lifecycle dan Stale Request Protection
+
+Aplikasi menggunakan satu #page-content sebagai mount point untuk halaman.
+
+Karena request backend bersifat asynchronous, request dari halaman lama dapat selesai setelah user sudah pindah halaman.
+
+Contoh masalah yang pernah terjadi:
+
+    Piutang dibuka
+          |
+          +---- api.piutang() berjalan
+          |
+          v
+    User pindah ke Dashboard
+          |
+          v
+    DOM Piutang sudah dihancurkan
+          |
+          v
+    Request Piutang selesai
+          |
+          v
+    Kode lama mencoba:
+    #sum-customers.textContent = ...
+          |
+          X
+    Cannot set properties of null
+
+### Solusi
+
+Setiap mount Piutang mendapatkan mount ID.
+
+Sebelum hasil asynchronous request digunakan, frontend memeriksa apakah request tersebut masih berasal dari halaman yang aktif.
+
+Konsep:
+
+    const mountId = piutangMountId;
+
+    const result = await api.piutang();
+
+    if (!isPiutangMounted(mountId)) return;
+
+Dengan demikian request lama tidak boleh memodifikasi DOM halaman baru.
+
+Dashboard juga memiliki dashboardIsMounted() dan helper setDashboardText(selector, value) untuk mencegah akses langsung ke elemen DOM yang sudah tidak tersedia.
+
+### Lifecycle rule
+
+    Async request
+         |
+         v
+    Apakah halaman masih aktif?
+         |
+       +---+---+
+       |       |
+      Ya     Tidak
+       |       |
+       v       v
+    Render   Ignore
+
+Ini adalah bagian arsitektur SPA, bukan sekadar workaround error.
+
+---
+
+## 9E. Route Isolation
+
+Routing frontend dikendalikan oleh app.js.
+
+Route saat ini:
+
+    #dashboard
+    #piutang
+    #pelanggan
+    #barang
+    #kalkulator
+
+Setiap route memiliki renderer sendiri:
+
+    #dashboard  -> renderDashboardPage()
+    #piutang    -> renderPiutangPage()
+    #pelanggan  -> coming soon
+    #barang     -> coming soon
+    #kalkulator -> coming soon
+
+Halaman yang belum aktif tidak menjalankan request Dashboard atau Piutang.
+
+Module halaman tidak boleh menganggap DOM halaman lain masih tersedia.
+
+Untuk operasi DOM asynchronous, gunakan null guard. Untuk request yang lebih kompleks, gunakan mount/lifecycle guard.
+
+---
+
+## 9F. Piutang Cache + Refresh Architecture
+
+Piutang menggunakan SWR dengan TTL 2 menit.
+
+### Automatic/background refresh
+
+    Cache stale
+       |
+       +-- tampilkan cache
+       |
+       +-- request backend di background
+       |
+       +-- berhasil -> update
+       |
+       +-- gagal -> pertahankan data lama + toast
+
+### Manual Refresh
+
+Tombol Refresh selalu meminta data terbaru dari backend.
+
+Data lama tetap dipertahankan selama proses refresh sehingga UI tidak perlu kembali kosong.
+
+---
+
+## 9G. Prinsip Asynchronous UI
+
+Semua halaman yang melakukan request asynchronous harus mempertimbangkan:
+
+1. Request masih berjalan.
+2. User berpindah halaman.
+3. Request selesai setelah DOM berubah.
+
+Pattern:
+
+    START REQUEST
+         |
+         v
+    REQUEST RUNNING
+         |
+         +---- route berubah ----> OLD REQUEST
+         |                            |
+         |                            v
+         |                       IGNORE RESULT
+         |
+         v
+    REQUEST SELESAI
+         |
+         v
+    CHECK MOUNT
+         |
+         v
+       RENDER
+
+Tujuannya mencegah:
+- Cannot set properties of null
+- stale data masuk ke halaman lain
+- loading state halaman lama memengaruhi halaman baru
+- response lama menimpa state baru
+
+---
+
+## 9H. Frontend State vs Backend Source of Truth
+
+Frontend mempunyai state sementara seperti dashboardState, state Piutang, sessionStorage cache, loading state, filter state, dan pagination state.
+
+Semua state tersebut bukan sumber kebenaran transaksi.
+
+    SID Retail
+        |
+        | source of truth
+        v
+    GAS Backend
+        |
+        | API contract
+        v
+    Frontend State
+        |
+        v
+    UI / Cache
+
+Jika cache dan server berbeda, server tetap menjadi referensi utama.
+
+---
+
+## 9I. Riwayat Perbaikan Frontend Penting
+
+| Masalah | Solusi |
+|---|---|
+| Dashboard tampil pada route lain | Route isolation di app.js |
+| Response Dashboard terlambat menyentuh halaman lain | Dashboard mount guard |
+| textContent Dashboard pada elemen yang sudah hilang | Safe DOM setter |
+| Piutang selalu request ulang | SWR cache |
+| Refresh Piutang tidak selalu memaksa request | Manual refresh path |
+| Loading spinner tidak terlihat/berputar | Dedicated spinner CSS |
+| Icon action tampil sebagai karakter kotak | Inline SVG |
+| Modal detail tertutup ketika backdrop diklik | Close hanya melalui tombol |
+| Loading detail tidak berputar | Dedicated detail spinner |
+| Request Piutang lama menyentuh Dashboard setelah route berubah | Piutang mount ID / stale request guard |
+
+Perbaikan terakhir untuk stale Piutang request:
+
+    0d2390f742a583642f40419ce25b0f5c28cc3c52
+
+Commit:
+
+    fix: isolate stale piutang requests across routes
+
+---
+
+## 9J. Development Pattern yang Sekarang Dipakai
+
+Untuk membuat halaman baru:
+
+    1. Route
+       |
+    2. Page renderer
+       |
+    3. Page state
+       |
+    4. API endpoint
+       |
+    5. Loading state
+       |
+    6. Async request
+       |
+    7. Mount/lifecycle guard
+       |
+    8. Render result
+       |
+    9. Error state
+       |
+    10. Cache bila diperlukan
+
+Jangan langsung membuat pola request asynchronous yang mengasumsikan elemen DOM pasti masih ada setelah await.
+
+
 ## 10. Prinsip Data
 
 Beberapa prinsip yang harus dijaga:
