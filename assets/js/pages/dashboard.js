@@ -436,17 +436,39 @@ async function loadDashboard() {
   const profitRange = yearRange(dashboardState.year, dashboardState.month);
 
   try {
-    const [salesResult, profitResult, piutangResult] = await Promise.all([
+    // Dashboard utama tidak boleh menunggu modul Piutang.
+    // Sales + profit adalah sumber grafik Dashboard; Piutang dimuat terpisah
+    // agar keterlambatan/masalah endpoint Piutang tidak membuat seluruh Dashboard blank.
+    const [salesResult, profitResult] = await Promise.all([
       api.dashboardSalesDaily(selectedRange.start, selectedRange.end),
-      api.dashboardProfitMonthly(profitRange.start, profitRange.end),
-      api.piutang()
+      api.dashboardProfitMonthly(profitRange.start, profitRange.end)
     ]);
 
     dashboardState.sales = extractData(salesResult);
     dashboardState.profit = extractData(profitResult);
-    dashboardState.piutang = piutangResult;
 
+    // Render segera setelah dua sumber utama tersedia.
     renderDashboardData();
+    setDashboardLoading(false);
+
+    // KPI piutang bersifat tambahan dan tidak memblokir grafik.
+    api.piutang()
+      .then((piutangResult) => {
+        dashboardState.piutang = piutangResult;
+        const piutangTotal = extractPiutangTotal(piutangResult);
+        const value = document.querySelector("#dashboard-piutang");
+        const meta = document.querySelector("#dashboard-piutang-meta");
+
+        if (value && piutangTotal !== null) {
+          value.textContent = formatCompactRupiah(piutangTotal);
+        }
+        if (meta && piutangTotal !== null) {
+          meta.textContent = "Saldo piutang berjalan";
+        }
+      })
+      .catch((error) => {
+        console.warn("[Dashboard] piutang KPI gagal dimuat:", error);
+      });
   } catch (error) {
     dashboardState.error = error;
     const state = document.querySelector("#dashboard-state");
