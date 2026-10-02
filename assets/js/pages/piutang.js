@@ -55,7 +55,7 @@ export function renderPiutangPage() {
     '<div id="piutang-table-wrap" class="table-scroll hidden"><table class="data-table"><thead><tr><th>Pelanggan</th><th>Belum Jatuh Tempo</th><th>1–30</th><th>31–60</th><th>61–90</th><th>91–120</th><th>≥121</th><th>Total Piutang</th><th></th></tr></thead><tbody id="piutang-body"></tbody></table></div>' +
     '<div id="piutang-cards" class="mobile-data-cards hidden"></div>' +
     '<div id="piutang-pagination" class="pagination hidden"><button id="piutang-prev" class="btn btn-light">← Sebelumnya</button><span id="piutang-page-info">Halaman 1 / 1</span><button id="piutang-next" class="btn btn-light">Berikutnya →</button></div></section>' +
-    '<div id="piutang-modal" class="modal hidden" aria-hidden="true"><div class="modal-backdrop" data-close-detail></div><section class="modal-panel modal-panel-detail" role="dialog" aria-modal="true"><div class="modal-header"><div><p class="eyebrow">Detail</p><h3 id="detail-title">Detail</h3><span id="detail-code" class="modal-code"></span></div><button id="detail-close" class="modal-close" aria-label="Tutup">×</button></div><div id="detail-content" class="modal-body"></div><div id="detail-footer" class="detail-footer hidden"></div></section></div>' +
+    '<div id="piutang-modal" class="modal hidden" aria-hidden="true"><div class="modal-backdrop" data-close-detail></div><section class="modal-panel modal-panel-detail" role="dialog" aria-modal="true"><div class="modal-header"><div><h3 id="detail-title">Detail Pelanggan</h3><span id="detail-code" class="modal-code"></span></div><button id="detail-close" class="modal-close" aria-label="Tutup">×</button></div><div id="detail-content" class="modal-body"></div><div id="detail-footer" class="detail-footer hidden"></div></section></div>' +
     '<div id="action-modal" class="modal hidden" aria-hidden="true"><div class="modal-backdrop" data-close-action></div><section class="modal-panel action-modal-panel" role="dialog" aria-modal="true"><div class="modal-header"><div><p class="eyebrow">WhatsApp</p><h3>Pilih kontak tujuan</h3></div><button id="action-close" class="modal-close" aria-label="Tutup">×</button></div><div id="action-content" class="modal-body"></div></section></div>';
 
   bindEvents();
@@ -85,7 +85,8 @@ function bindEvents() {
   document.querySelector("#piutang-cards").addEventListener("click", detailClick);
   document.querySelector("#detail-close").addEventListener("click", closeDetail);
   document.querySelector("#piutang-modal").addEventListener("click", (e) => {
-    if (e.target.matches("[data-close-detail]")) closeDetail();
+    // Popup detail hanya ditutup melalui tombol Tutup (atau Escape), bukan klik backdrop.
+
     const btn = e.target.closest("[data-pdf-action]");
     if (btn) handlePdfAction(btn.dataset.pdfAction, btn.dataset.code);
     const wa = e.target.closest("[data-wa-action]");
@@ -229,7 +230,7 @@ async function openDetail(code) {
   state.tabungan = 0;
 
   const modal = document.querySelector("#piutang-modal");
-  document.querySelector("#detail-title").textContent = "Detail";
+  document.querySelector("#detail-title").textContent = "Detail Pelanggan";
   document.querySelector("#detail-code").textContent = code;
   document.querySelector("#detail-content").innerHTML = '<div class="detail-loading">Mengambil detail pelanggan, piutang, dan saldo tabungan...</div>';
   document.querySelector("#detail-footer").classList.add("hidden");
