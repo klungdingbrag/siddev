@@ -397,130 +397,86 @@ async function handlePdfAction(type, code) {
 }
 
 async function generatePdf6D2(code) {
-  const maxAttempts = 3;
+  setPdfLoading(true, "Membuat Laporan Detail PDF 6D.2...", "PDF sedang dibuat. Mohon tunggu.");
+  try {
+    const data = await api.pdfSemuaDetailPiutang6D2(code);
+    const payload = extractPdfPayload(data);
+    if (!payload.base64) throw new Error("Backend tidak mengembalikan pdf_base64.");
 
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
-      showToast(
-        attempt === 0
-          ? "Membuat Laporan Detail PDF 6D.2..."
-          : "Mencoba ulang PDF 6D.2 (" + (attempt + 1) + "/" + maxAttempts + ")..."
+    const bytes = base64ToBytes(payload.base64);
+    const transportCheck = validatePdfBytes(bytes);
+
+    console.info("[PDF 6D.2] transport check", {
+      base64Length: payload.base64.length,
+      expectedSize: payload.expectedSize,
+      decodedSize: bytes.length,
+      sizeMatch: payload.expectedSize ? bytes.length === payload.expectedSize : null,
+      header: transportCheck.header,
+      startxref: transportCheck.startxref,
+      eof: transportCheck.eof
+    });
+
+    if (bytes.length < 100 || !transportCheck.header) {
+      throw new Error("PDF yang diterima kosong atau header PDF tidak valid.");
+    }
+
+    if (!transportCheck.startxref || !transportCheck.eof) {
+      throw new Error(
+        "PDF 6D.2 diterima lengkap (" + bytes.length +
+        " byte), tetapi pemeriksaan marker PDF gagal: " +
+        "startxref=" + (transportCheck.startxref ? "OK" : "GAGAL") +
+        ", %%EOF=" + (transportCheck.eof ? "OK" : "GAGAL") + "."
       );
+    }
 
-      const data = await api.pdfSemuaDetailPiutang6D2(
-        code,
-        attempt > 0 ? { _pdf_retry: Date.now() } : {}
+    if (payload.expectedSize && bytes.length !== payload.expectedSize) {
+      throw new Error(
+        "Ukuran PDF berubah saat diterima browser: backend " +
+        payload.expectedSize + " byte, frontend " + bytes.length + " byte."
       );
-      const payload = extractPdfPayload(data);
+    }
 
-      if (!payload.base64) {
-        throw new Error("Backend tidak mengembalikan pdf_base64.");
-      }
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    downloadBlob(blob, payload.filename);
+    setPdfLoading(false, "PDF selesai", "Laporan Detail PDF 6D.2 selesai dibuat dan diunduh.");
+    showToast("Laporan Detail PDF 6D.2 selesai dibuat.");
+  } catch (error) {
+    setPdfLoading(false, "PDF gagal", "Laporan Detail PDF 6D.2 gagal dibuat.");
+    showToast("Gagal membuat PDF 6D.2: " + (error.message || "Unknown error"), true);
+  }
+}
 
-      const blob = base64ToBlob(payload.base64, "application/pdf");
-      const validation = await validatePdfBlob(blob, payload.expectedSize, true);
+async function generatePdf(loader, label) {
+  setPdfLoading(true, "Membuat " + label + "...", "PDF sedang dibuat. Mohon tunggu.");
+  try {
+    const data = await loader();
+    const payload = extractPdfPayload(data);
 
-      if (!validation.valid) {
-        showPdfDiagnostic(validation, payload, attempt + 1);
-        if (attempt < maxAttempts - 1) continue;
-        throw new Error("PDF 6D.2 tidak valid: " + validation.reason);
-      }
+    if (!payload.base64) {
+      throw new Error("Backend tidak mengembalikan pdf_base64.");
+    }
 
-      showPdfDiagnostic(validation, payload, attempt + 1);
+    const blob = base64ToBlob(payload.base64, "application/pdf");
 
-      // 6D.2 sementara menggunakan direct download, bukan PDF viewer.
+    if (!(blob instanceof Blob) || blob.size < 100) {
+      throw new Error("PDF yang diterima kosong atau tidak valid.");
+    }
+
+    const url = URL.createObjectURL(blob);
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+
+    if (!opened) {
       downloadBlob(blob, payload.filename);
-      showToast(
-        "PDF 6D.2 valid. " +
-        validation.size + " byte. File langsung diunduh."
-      );
-      return;
-    } catch (error) {
-      if (attempt >= maxAttempts - 1) {
-        showToast("Gagal membuat PDF 6D.2: " + (error.message || "Unknown error"), true);
-      }
+      showToast(label + " selesai dibuat. Popup diblokir, file diunduh.");
+    } else {
+      showToast(label + " selesai dibuat.");
+      setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
     }
-  }
-}
 
-function showPdfDiagnostic(validation, payload, attempt) {
-  let panel = document.querySelector("#pdf-diagnostic");
-  if (!panel) {
-    panel = document.createElement("div");
-    panel.id = "pdf-diagnostic";
-    panel.style.cssText =
-      "position:fixed;right:18px;bottom:18px;z-index:99999;max-width:420px;" +
-      "padding:14px 16px;border:1px solid #d7dce5;border-radius:12px;" +
-      "background:#fff;color:#172033;box-shadow:0 10px 30px rgba(0,0,0,.14);" +
-      "font:13px/1.5 system-ui,sans-serif;";
-    document.body.appendChild(panel);
-  }
-
-  const expected = payload.expectedSize ? payload.expectedSize + " byte" : "tidak dikirim";
-  const actual = validation.size + " byte";
-  const status = validation.valid ? "VALID" : "TIDAK VALID";
-
-  panel.innerHTML =
-    "<strong>PDF Diagnostic 6D.2 — " + status + "</strong>" +
-    "<div>Attempt: " + attempt + "</div>" +
-    "<div>Backend size: " + esc(expected) + "</div>" +
-    "<div>Decoded size: " + esc(actual) + "</div>" +
-    "<div>Header: " + (validation.hasHeader ? "OK" : "GAGAL") + "</div>" +
-    "<div>startxref: " + (validation.hasStartXref ? "OK" : "GAGAL") + "</div>" +
-    "<div>%%EOF: " + (validation.hasEof ? "OK" : "GAGAL") + "</div>" +
-    (validation.reason ? "<div style=\"margin-top:6px;color:#b42318\">" + esc(validation.reason) + "</div>" : "");
-}
-
-async function generatePdf(loader, label, options = {}) {
-  const retryCount = Number(options.retry || 0);
-  const validatePdf = options.validatePdf !== false;
-  const requireBackendSize = options.requireBackendSize === true;
-
-  for (let attempt = 0; attempt <= retryCount; attempt++) {
-    try {
-      showToast(
-        attempt === 0
-          ? "Membuat " + label + "..."
-          : "PDF terdeteksi tidak lengkap. Mencoba ulang " + attempt + "/" + retryCount + "..."
-      );
-
-      const data = await loader(attempt);
-      const payload = extractPdfPayload(data);
-
-      if (!payload.base64) {
-        throw new Error("Backend tidak mengembalikan pdf_base64.");
-      }
-
-      const blob = base64ToBlob(payload.base64, "application/pdf");
-      const validation = validatePdf
-        ? await validatePdfBlob(blob, payload.expectedSize, requireBackendSize)
-        : { valid: true, size: blob.size };
-
-      if (!validation.valid) {
-        throw new Error("PDF tidak lengkap: " + validation.reason);
-      }
-
-      const diagnostics =
-        "size=" + validation.size +
-        (validation.expectedSize ? "/" + validation.expectedSize : "") +
-        ", EOF=" + (validation.hasEof ? "OK" : "NO");
-
-      const url = URL.createObjectURL(blob);
-      const opened = window.open(url, "_blank", "noopener,noreferrer");
-
-      if (!opened) {
-        downloadBlob(blob, payload.filename);
-        showToast("PDF valid (" + diagnostics + "). Popup diblokir, file diunduh.");
-      } else {
-        showToast("PDF valid (" + diagnostics + "). Dibuka di tab baru.");
-        setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
-      }
-      return;
-    } catch (error) {
-      if (attempt >= retryCount) {
-        showToast("Gagal membuat PDF: " + (error.message || "Unknown error"), true);
-      }
-    }
+    setPdfLoading(false, "PDF selesai", label + " selesai dibuat.");
+  } catch (error) {
+    setPdfLoading(false, "PDF gagal", label + " gagal dibuat.");
+    showToast("Gagal membuat PDF: " + (error.message || "Unknown error"), true);
   }
 }
 
@@ -528,107 +484,28 @@ function extractPdfPayload(data) {
   const source = data?.data && typeof data.data === "object" ? data.data : data;
   const base64 = source?.pdf_base64 || "";
   const filename = source?.filename || "dokumen.pdf";
-  const rawSize =
-    source?.size_bytes ??
-    source?.size ??
-    source?.pdf_size ??
-    null;
+  const rawSize = source?.size_bytes ?? source?.size ?? source?.pdf_size ?? null;
   const expectedSize = Number(rawSize);
-
+  console.info("[PDF] payload received", {
+    filename,
+    base64Length: base64.length,
+    expectedSize: Number.isFinite(expectedSize) && expectedSize > 0 ? expectedSize : null
+  });
   return {
     base64,
     filename,
-    expectedSize: Number.isFinite(expectedSize) && expectedSize > 0
-      ? expectedSize
-      : null
+    expectedSize: Number.isFinite(expectedSize) && expectedSize > 0 ? expectedSize : null
   };
 }
 
-async function validatePdfBlob(blob, expectedSize = null, requireExpectedSize = false) {
-  if (!(blob instanceof Blob) || blob.size < 100) {
-    return {
-      valid: false,
-      size: blob?.size || 0,
-      expectedSize,
-      hasHeader: false,
-      hasStartXref: false,
-      hasEof: false,
-      reason: "ukuran file tidak valid (" + (blob?.size || 0) + " byte)"
-    };
-  }
-
-  if (requireExpectedSize && expectedSize && blob.size !== expectedSize) {
-    return {
-      valid: false,
-      size: blob.size,
-      expectedSize,
-      hasHeader: false,
-      hasStartXref: false,
-      hasEof: false,
-      reason: "ukuran hasil decoding " + blob.size + " byte, backend melaporkan " + expectedSize + " byte"
-    };
-  }
-
-  const buffer = await blob.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  const header = new TextDecoder("latin1").decode(bytes.slice(0, 8));
-  const hasHeader = header.startsWith("%PDF-");
-
-  if (!hasHeader) {
-    return {
-      valid: false,
-      size: bytes.length,
-      expectedSize,
-      hasHeader,
-      hasStartXref: false,
-      hasEof: false,
-      reason: "header %PDF tidak ditemukan"
-    };
-  }
-
-  const tailStart = Math.max(0, bytes.length - 2048);
-  const tail = new TextDecoder("latin1").decode(bytes.slice(tailStart));
-  const hasEof = /%%EOF\s*$/.test(tail);
-  const hasStartXref = /startxref\s+\d+\s+%%EOF\s*$/.test(tail);
-
-  if (!hasEof) {
-    return {
-      valid: false,
-      size: bytes.length,
-      expectedSize,
-      hasHeader,
-      hasStartXref,
-      hasEof,
-      reason: "penanda %%EOF tidak ditemukan di akhir file"
-    };
-  }
-
-  if (!hasStartXref) {
-    return {
-      valid: false,
-      size: bytes.length,
-      expectedSize,
-      hasHeader,
-      hasStartXref,
-      hasEof,
-      reason: "struktur startxref/%%EOF tidak lengkap"
-    };
-  }
-
-  return {
-    valid: true,
-    size: bytes.length,
-    expectedSize,
-    hasHeader,
-    hasStartXref,
-    hasEof
-  };
-}
-
-function base64ToBlob(base64, mime) {
+function base64ToBytes(base64) {
   const clean = String(base64)
     .replace(/^data:.*?;base64,/, "")
     .replace(/\s+/g, "");
+
+  if (!clean) {
+    throw new Error("pdf_base64 kosong.");
+  }
 
   let binary;
   try {
@@ -637,15 +514,87 @@ function base64ToBlob(base64, mime) {
     throw new Error("pdf_base64 tidak dapat didekode: " + (error.message || "base64 invalid"));
   }
 
-  const chunkSize = 1024 * 64;
-  const parts = [];
-  for (let i = 0; i < binary.length; i += chunkSize) {
-    const chunk = binary.slice(i, i + chunkSize);
-    const bytes = new Uint8Array(chunk.length);
-    for (let j = 0; j < chunk.length; j++) bytes[j] = binary.charCodeAt(j);
-    parts.push(bytes);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
   }
-  return new Blob(parts, { type: mime });
+  return bytes;
+}
+
+function base64ToBlob(base64, mime) {
+  return new Blob([base64ToBytes(base64)], { type: mime });
+}
+
+function containsAscii(bytes, text) {
+  const target = new TextEncoder().encode(text);
+  if (!target.length || target.length > bytes.length) return false;
+
+  outer:
+  for (let i = 0; i <= bytes.length - target.length; i++) {
+    for (let j = 0; j < target.length; j++) {
+      if (bytes[i + j] !== target[j]) continue outer;
+    }
+    return true;
+  }
+  return false;
+}
+
+function validatePdfBytes(bytes) {
+  const header = bytes.length >= 5 &&
+    bytes[0] === 0x25 && bytes[1] === 0x50 &&
+    bytes[2] === 0x44 && bytes[3] === 0x46 &&
+    bytes[4] === 0x2D;
+
+  const tailStart = Math.max(0, bytes.length - 4096);
+  const tail = bytes.subarray(tailStart);
+
+  return {
+    header,
+    startxref: containsAscii(tail, "startxref"),
+    eof: containsAscii(tail, "%%EOF")
+  };
+}
+
+function setPdfLoading(active, title = "Membuat PDF...", message = "PDF sedang dibuat. Mohon tunggu.") {
+  let overlay = document.querySelector("#pdf-loading-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "pdf-loading-overlay";
+    overlay.innerHTML =
+      '<div class="pdf-loading-card" role="status" aria-live="polite">' +
+        '<div id="pdf-loading-spinner" class="pdf-loading-spinner" aria-hidden="true"></div>' +
+        '<div id="pdf-loading-title" class="pdf-loading-title"></div>' +
+        '<div id="pdf-loading-message" class="pdf-loading-message"></div>' +
+      '</div>';
+    overlay.style.cssText = "position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.42);backdrop-filter:blur(2px);padding:20px;";
+    document.body.appendChild(overlay);
+    const style = document.createElement("style");
+    style.id = "pdf-loading-style";
+    style.textContent =
+      "#pdf-loading-overlay .pdf-loading-card{min-width:280px;max-width:420px;padding:28px 30px;border-radius:16px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.2);text-align:center;font-family:system-ui,sans-serif}" +
+      "#pdf-loading-overlay .pdf-loading-spinner{width:42px;height:42px;margin:0 auto 16px;border:4px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;animation:pdfLoadingSpin .8s linear infinite}" +
+      "#pdf-loading-overlay .pdf-loading-title{font-size:17px;font-weight:700;color:#172033}" +
+      "#pdf-loading-overlay .pdf-loading-message{margin-top:7px;font-size:13px;color:#667085}" +
+      "@keyframes pdfLoadingSpin{to{transform:rotate(360deg)}}" +
+      "#pdf-loading-overlay.pdf-done .pdf-loading-spinner{border:0;width:42px;height:42px;background:#16a34a;border-radius:50%;position:relative;animation:none}" +
+      "#pdf-loading-overlay.pdf-done .pdf-loading-spinner:after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:25px;font-weight:700}" +
+      "#pdf-loading-overlay.pdf-error .pdf-loading-spinner{border:0;width:42px;height:42px;background:#dc2626;border-radius:50%;position:relative;animation:none}" +
+      "#pdf-loading-overlay.pdf-error .pdf-loading-spinner:after{content:'!';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:25px;font-weight:700}";
+    document.head.appendChild(style);
+  }
+  const spinner = overlay.querySelector("#pdf-loading-spinner");
+  overlay.querySelector("#pdf-loading-title").textContent = title;
+  overlay.querySelector("#pdf-loading-message").textContent = message;
+  overlay.classList.remove("pdf-done", "pdf-error");
+  if (active) {
+    overlay.style.display = "flex";
+    spinner.style.display = "block";
+    return;
+  }
+  overlay.classList.add(/gagal/i.test(title) ? "pdf-error" : "pdf-done");
+  overlay.style.display = "flex";
+  spinner.style.display = "block";
+  setTimeout(() => { overlay.style.display = "none"; }, 1400);
 }
 
 function downloadBlob(blob, filename) {
@@ -660,134 +609,117 @@ function downloadBlob(blob, filename) {
 }
 
 function openWhatsAppPicker(type, code, name) {
-  const modal = document.querySelector("#action-modal");
-  const title = type === "invoice" ? "Bagikan Invoice ke WhatsApp" : "Bagikan Laporan ke WhatsApp";
-  const customerPhone = state.detailData
-    ? customerValue(state.detailData, state.detailRow, ["telp", "telepon", "no_wa", "nomor_wa", "whatsapp"], "")
-    : "";
-
-  const documentOptions = type === "invoice"
-    ? '<option value="invoice">PDF Invoice</option>'
-    : '<option value="summary">Ringkasan Piutang PDF</option><option value="detail">Laporan Detail Piutang PDF</option><option value="none">Tanpa PDF</option>';
-
-  document.querySelector("#action-content").innerHTML =
-    '<div class="contact-picker">' +
-      '<p class="contact-description">' + esc(title) + '</p>' +
-      '<label class="field-label">Dokumen yang dibagikan</label>' +
-      '<select id="wa-document" class="contact-input">' + documentOptions + '</select>' +
-      '<div class="contact-actions">' +
-        '<button id="contact-whatsapp" class="btn btn-light">▣ Pilih Kontak di WhatsApp</button>' +
-        '<button id="contact-device" class="btn btn-light">▣ Kontak Perangkat</button>' +
-      '</div>' +
-      '<label class="field-label">Nomor tujuan (opsional)</label>' +
-      '<input id="wa-number" class="contact-input" type="tel" inputmode="tel" placeholder="Kosongkan untuk memilih kontak di WhatsApp" value="' + esc(customerPhone) + '">' +
-      '<small class="contact-hint">Jika nomor dikosongkan, WhatsApp akan membuka pilihan kontak. Jika nomor diisi, chat langsung dibuka ke nomor tersebut.</small>' +
-      '<label class="field-label">Pesan</label>' +
-      '<textarea id="wa-message" class="contact-message" rows="6">' + esc(buildWhatsAppMessage(type, code, name)) + '</textarea>' +
-      '<div class="contact-footer">' +
-        '<button id="wa-cancel" class="btn btn-light">Batal</button>' +
-        '<button id="wa-send" class="btn btn-whatsapp">Bagikan</button>' +
-      '</div>' +
-    '</div>';
-
-  modal.classList.remove("hidden");
-  modal.setAttribute("aria-hidden", "false");
-
-  document.querySelector("#contact-whatsapp").addEventListener("click", async () => {
-    const message = document.querySelector("#wa-message").value.trim();
-    const phone = normalizePhone(document.querySelector("#wa-number").value);
-    const documentType = document.querySelector("#wa-document").value;
-    await sendWhatsAppShare(documentType, code, phone, message);
-  });
-
-  document.querySelector("#contact-device").addEventListener("click", selectDeviceContact);
-  document.querySelector("#wa-cancel").addEventListener("click", closeActionModal);
-  document.querySelector("#wa-send").addEventListener("click", async () => {
-    const phone = normalizePhone(document.querySelector("#wa-number").value);
-    const message = document.querySelector("#wa-message").value.trim();
-    const documentType = document.querySelector("#wa-document").value;
-    await sendWhatsAppShare(documentType, code, phone, message);
-  });
-}
-
-async function sendWhatsAppShare(documentType, code, phone, message) {
-  try {
-    closeActionModal();
-
-    if (documentType === "none") {
-      openWhatsApp(phone, message);
-      return;
-    }
-
-    showToast("Menyiapkan PDF untuk WhatsApp...");
-    const loader = documentType === "invoice"
-      ? () => api.pdfInvoice(code)
-      : documentType === "summary"
-        ? () => api.pdfRingkasanPiutang({ kode_pelanggan: code })
-        : () => api.pdfSemuaDetailPiutang6D2(code);
-
-    const data = await loader();
-    const base64 = data?.pdf_base64 || data?.data?.pdf_base64;
-    const filename = data?.filename || data?.data?.filename || "dokumen-piutang.pdf";
-    if (!base64) throw new Error("Backend tidak mengembalikan PDF.");
-
-    const blob = base64ToBlob(base64, "application/pdf");
-    const file = new File([blob], filename, { type: "application/pdf" });
-
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({
-        title: filename,
-        text: message,
-        files: [file]
-      });
-      showToast("PDF siap dibagikan melalui menu share perangkat.");
-      return;
-    }
-
-    downloadBlob(blob, filename);
-    openWhatsApp(phone, message);
-    showToast("PDF diunduh. WhatsApp dibuka; lampirkan PDF tersebut di chat.");
-  } catch (error) {
-    if (error?.name === "AbortError") return;
-    showToast("Gagal membagikan PDF: " + (error.message || "Unknown error"), true);
-  }
-}
-
-async function selectDeviceContact() {
-  if (!("contacts" in navigator) || typeof navigator.contacts.select !== "function") {
-    showToast("Pemilih kontak perangkat tidak didukung browser ini. Kosongkan nomor untuk memilih kontak langsung di WhatsApp.", true);
-    return;
-  }
-
-  try {
-    const contacts = await navigator.contacts.select(["name", "tel"], { multiple: false });
-    const tel = contacts?.[0]?.tel?.[0];
-    if (tel) document.querySelector("#wa-number").value = tel;
-    else showToast("Kontak yang dipilih tidak memiliki nomor telepon.", true);
-  } catch (error) {
-    if (error?.name !== "AbortError") showToast("Kontak tidak dapat dipilih.", true);
-  }
-}
-
-function normalizePhone(value) {
-  let phone = String(value || "").replace(/[^0-9]/g, "");
-  if (!phone) return "";
-  if (phone.startsWith("0")) phone = "62" + phone.slice(1);
-  return /^62\d{8,15}$/.test(phone) ? phone : "";
+  // WhatsApp Share hanya mengirim pesan teks.
+  // Tidak membuat, mengunduh, atau melampirkan PDF.
+  const message = buildWhatsAppMessage(type, code, name);
+  openWhatsApp("", message);
 }
 
 function buildWhatsAppMessage(type, code, name) {
-  if (type === "invoice") {
-    return "Halo, berikut invoice " + code + " untuk " + (name || "pelanggan") + ".";
+  const customerName = name || "Bapak/Ibu";
+
+  if (type === "customer") {
+    const row = state.detailRow || {};
+    const total = money(
+      customerValue(
+        state.detailData,
+        row,
+        ["total_piutang", "saldo_hutang", "total_outstanding"],
+        row.total_piutang
+      )
+    );
+
+    return [
+      "Halo Bapak/Ibu *" + customerName + "*",
+      "",
+      "Kami dari *TB NUSANTARA* ingin menginformasikan posisi piutang berdasarkan data kami.",
+      "",
+      "*KODE PELANGGAN: " + code + "*",
+      "",
+      "*SALDO TABUNGAN: " + formatMoney(state.tabungan) + "*",
+      "",
+      "*TOTAL NOTA PIUTANG: " + formatMoney(total) + "*",
+      "",
+      "*Pembayaran dapat dilakukan melalui transfer:*",
+      "",
+      "*BRI*",
+      "a.n. Wasimun",
+      "No. Rekening: 003201105050505",
+      "",
+      "Mohon dapat melakukan pengecekan. Apabila pembayaran sudah dilakukan, silakan informasikan kepada kami.",
+      "",
+      "Terima kasih atas perhatian dan kerja samanya.",
+      "",
+      "*TB NUSANTARA*"
+    ].join("\n");
   }
-  return "Halo, berikut laporan piutang pelanggan " + (name || "pelanggan") + ".";
+
+  if (type === "invoice") {
+    const tx = (extractTransactions(state.detailData) || []).find((item) => {
+      const invoiceCode = item?.kode_transaksi || item?.kode || "";
+      return String(invoiceCode) === String(code);
+    }) || {};
+
+    const totalInvoice = money(
+      tx.jumlah ??
+      tx.total_invoice ??
+      tx.total ??
+      tx.total_nota ??
+      tx.nilai_invoice ??
+      0
+    );
+
+    const saldoHutang = money(
+      tx.piutang ??
+      tx.saldo_hutang ??
+      tx.saldo ??
+      0
+    );
+
+    const sudahDibayar = Math.max(0, totalInvoice - saldoHutang);
+    const tanggal = tx.tanggal || "—";
+    const jatuhTempo = tx.jatuh_tempo || tx.jatuhTempo || "—";
+
+    return [
+      "Halo Bapak/Ibu *" + customerName + "*",
+      "",
+      "Berikut informasi nota yang dimaksud dari *TB NUSANTARA*.",
+      "",
+      "*NO. NOTA: " + code + "*",
+      "Tanggal: " + tanggal,
+      "Jatuh Tempo: " + jatuhTempo,
+      "",
+      "*TOTAL INVOICE: " + formatMoney(totalInvoice) + "*",
+      "*SUDAH DIBAYAR: " + formatMoney(sudahDibayar) + "*",
+      "*SALDO HUTANG: " + formatMoney(saldoHutang) + "*",
+      "",
+      "Apabila pembayaran atas nota tersebut sudah dilakukan, silakan informasikan kepada kami.",
+      "",
+      "Terima kasih atas perhatian dan kerja samanya.",
+      "",
+      "*TB NUSANTARA*"
+    ].join("\n");
+  }
+
+  return [
+    "Halo Bapak/Ibu *" + customerName + "*",
+    "",
+    "Kami dari *TB NUSANTARA* ingin menginformasikan invoice *" + code + "*.",
+    "",
+    "Mohon dapat melakukan pengecekan.",
+    "",
+    "Terima kasih atas perhatian dan kerja samanya.",
+    "",
+    "*TB NUSANTARA*"
+  ].join("\n");
 }
 
 function openWhatsApp(phone, message) {
   const base = phone
     ? "https://wa.me/" + phone
-    : "https://wa.me/";
-  const url = base + "?text=" + encodeURIComponent(message);
+    : "https://api.whatsapp.com/send/";
+  const separator = base.includes("?") ? "&" : "?";
+  const url = base + separator + "text=" + encodeURIComponent(message);
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
