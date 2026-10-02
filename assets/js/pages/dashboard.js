@@ -475,6 +475,11 @@ function dashboardIsMounted() {
   return Boolean(document.querySelector("#dashboard-sales-chart"));
 }
 
+function setDashboardText(selector, value) {
+  const element = document.querySelector(selector);
+  if (element) element.textContent = value;
+}
+
 function renderDashboardData() {
   if (!dashboardIsMounted()) return;
 
@@ -485,36 +490,49 @@ function renderDashboardData() {
   const salesSummary = sales?.summary || {};
   const profitSummary = profit?.summary || {};
 
-  document.querySelector("#dashboard-omzet").textContent = formatCompactRupiah(salesSummary.total_omzet);
-  document.querySelector("#dashboard-omzet-meta").textContent =
-    `${salesSummary.jumlah_hari_berdata || 0} hari · ${salesSummary.total_transaksi || 0} transaksi`;
+  setDashboardText("#dashboard-omzet", formatCompactRupiah(salesSummary.total_omzet));
+  setDashboardText(
+    "#dashboard-omzet-meta",
+    `${salesSummary.jumlah_hari_berdata || 0} hari · ${salesSummary.total_transaksi || 0} transaksi`
+  );
 
-  document.querySelector("#dashboard-laba").textContent = formatCompactRupiah(profitSummary.total_laba);
-  document.querySelector("#dashboard-laba-meta").textContent =
-    `${profitSummary.jumlah_bulan_berdata || 0} bulan pada rentang laporan`;
+  setDashboardText("#dashboard-laba", formatCompactRupiah(profitSummary.total_laba));
+  setDashboardText(
+    "#dashboard-laba-meta",
+    `${profitSummary.jumlah_bulan_berdata || 0} bulan pada rentang laporan`
+  );
 
-  document.querySelector("#dashboard-transaksi").textContent =
-    new Intl.NumberFormat("id-ID").format(salesSummary.total_transaksi || 0);
+  setDashboardText(
+    "#dashboard-transaksi",
+    new Intl.NumberFormat("id-ID").format(salesSummary.total_transaksi || 0)
+  );
 
-  document.querySelector("#dashboard-transaksi-meta").textContent =
-    `Bulan ${monthLabel(dashboardState.month)} ${dashboardState.year}`;
+  setDashboardText(
+    "#dashboard-transaksi-meta",
+    `Bulan ${monthLabel(dashboardState.month)} ${dashboardState.year}`
+  );
 
   const piutangTotal = extractPiutangTotal(piutang);
-  document.querySelector("#dashboard-piutang").textContent =
-    piutangTotal === null ? "—" : formatCompactRupiah(piutangTotal);
+  setDashboardText(
+    "#dashboard-piutang",
+    piutangTotal === null ? "—" : formatCompactRupiah(piutangTotal)
+  );
 
   if (piutangTotal !== null) {
-    document.querySelector("#dashboard-piutang-meta").textContent = "Saldo piutang berjalan";
+    setDashboardText("#dashboard-piutang-meta", "Saldo piutang berjalan");
   }
 
-  document.querySelector("#dashboard-sales-total").textContent =
-    formatRupiah(salesSummary.total_omzet);
+  setDashboardText("#dashboard-sales-total", formatRupiah(salesSummary.total_omzet));
+  setDashboardText("#dashboard-profit-total", formatRupiah(profitSummary.total_laba));
 
-  document.querySelector("#dashboard-profit-total").textContent =
-    formatRupiah(profitSummary.total_laba);
-
-  renderLineChart(document.querySelector("#dashboard-sales-chart"), normalizeSalesRows(sales?.data));
-  renderProfitChart(document.querySelector("#dashboard-profit-chart"), normalizeProfitRows(profit?.data));
+  renderLineChart(
+    document.querySelector("#dashboard-sales-chart"),
+    normalizeSalesRows(sales?.data)
+  );
+  renderProfitChart(
+    document.querySelector("#dashboard-profit-chart"),
+    normalizeProfitRows(profit?.data)
+  );
 }
 
 async function loadDashboard({ force = false } = {}) {
