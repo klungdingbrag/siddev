@@ -685,6 +685,100 @@ Untuk membuat halaman baru:
 Jangan langsung membuat pola request asynchronous yang mengasumsikan elemen DOM pasti masih ada setelah await.
 
 
+---
+
+## 9K. Responsive UI Foundation V1
+
+Responsive behavior menggunakan **DOM dan route yang sama** untuk desktop dan mobile. Tidak dibuat aplikasi mobile terpisah.
+
+### Desktop
+
+Sidebar bersifat persistent:
+
+    Sidebar
+       |
+       +---- App Shell
+                |
+                +---- Topbar
+                +---- Page Content
+
+### Mobile
+
+Sidebar berubah menjadi **off-canvas navigation drawer**:
+
+    Mobile Topbar
+       |
+       +-- Menu button
+       |
+       v
+    Navigation Drawer
+       |
+       +-- Dashboard
+       +-- Pelanggan
+       +-- Piutang
+       +-- Data Barang
+       +-- Kalkulator
+
+Drawer dapat ditutup melalui:
+- tombol X,
+- overlay,
+- pemilihan menu,
+- tombol Escape.
+
+### Prinsip responsive
+
+Responsive bukan sekadar mengecilkan ukuran desktop.
+
+Yang berubah pada mobile adalah **interaction model**, sementara halaman, route, state, dan API tetap sama.
+
+    Desktop
+    Persistent Sidebar
+          |
+          v
+       Content
+
+    Mobile
+    Menu Button
+          |
+          v
+    Temporary Drawer
+          |
+          v
+       Content
+
+### Komponen yang sudah dipersiapkan
+
+- mobile navigation drawer,
+- mobile topbar,
+- touch-friendly navigation,
+- responsive KPI cards,
+- responsive Dashboard controls,
+- responsive Dashboard charts,
+- responsive Piutang cards,
+- responsive modal,
+- responsive search/filter,
+- touch target minimum sekitar 44px pada kontrol utama,
+- pencegahan horizontal overflow pada app shell,
+- reduced-motion support.
+
+### Prinsip kompatibilitas
+
+Perubahan responsive tidak mengubah:
+
+- API contract,
+- accounting logic,
+- PDF generation,
+- WhatsApp behavior,
+- Piutang caching,
+- Dashboard caching,
+- route architecture,
+- backend GAS.
+
+Responsive layer hanya mengubah presentasi dan interaction shell.
+
+---
+
+
 ## 10. Prinsip Data
 
 Beberapa prinsip yang harus dijaga:
