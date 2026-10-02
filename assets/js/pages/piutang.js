@@ -136,8 +136,6 @@ async function loadPiutang(force = false) {
 }
 
 async function refreshPiutangFromBackend(isManualRefresh) {
-  if (state.loading && !isManualRefresh) return;
-
   if (isManualRefresh) state.loading = true;
 
   try {
