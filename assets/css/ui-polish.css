@@ -305,12 +305,18 @@ input:focus-visible {
 
 .detail-loading::before {
   content: "";
-  width: 34px;
-  height: 34px;
-  border: 3px solid #e5e7eb;
-  border-top-color: var(--ui-primary);
+  display: block !important;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px;
+  min-height: 34px;
+  border: 3px solid #e5e7eb !important;
+  border-top-color: var(--ui-primary) !important;
+  border-right-color: #93b4f8 !important;
   border-radius: 50%;
-  animation: uiSpin .8s linear infinite;
+  animation: uiDetailLoadingSpin .72s linear infinite !important;
+  transform-origin: center center;
+  box-sizing: border-box;
 }
 
 .detail-error {
@@ -483,6 +489,11 @@ button.ui-busy::after {
     padding-left: 17px;
     padding-right: 17px;
   }
+}
+
+@keyframes uiDetailLoadingSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 @keyframes uiSpin {
