@@ -107,12 +107,8 @@ function normalizeProfitRows(rows) {
   });
 }
 
-function extractData(result) {
-  return result?.data ?? result ?? null;
-}
-
 function extractPiutangTotal(result) {
-  const data = extractData(result);
+  const data = result;
   if (!data) return null;
 
   const candidates = [
@@ -444,8 +440,11 @@ async function loadDashboard() {
       api.dashboardProfitMonthly(profitRange.start, profitRange.end)
     ]);
 
-    dashboardState.sales = extractData(salesResult);
-    dashboardState.profit = extractData(profitResult);
+    // apiRequest() sudah mengembalikan result.data.
+    // Jangan mengambil .data sekali lagi karena payload Dashboard V1
+    // memiliki struktur { summary, data, query_metadata, ... }.
+    dashboardState.sales = salesResult;
+    dashboardState.profit = profitResult;
 
     // Render segera setelah dua sumber utama tersedia.
     renderDashboardData();
