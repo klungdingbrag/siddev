@@ -2,6 +2,8 @@ import { api } from "../api/endpoints.js";
 
 const DASHBOARD_DEFAULT_YEAR = 2026;
 const DASHBOARD_DEFAULT_MONTH = 9;
+const DASHBOARD_CACHE_KEY = "sidretail:dashboard:v1";
+const DASHBOARD_CACHE_TTL_MS = 5 * 60 * 1000;
 
 let dashboardState = {
   year: DASHBOARD_DEFAULT_YEAR,
@@ -53,6 +55,50 @@ function formatCompactRupiah(value) {
     return `Rp ${(number / 1000).toFixed(0)} rb`;
   }
   return formatRupiah(number);
+}
+
+function dashboardCacheKey() {
+  return DASHBOARD_CACHE_KEY + ":" + dashboardState.year + "-" + pad2(dashboardState.month);
+}
+
+function readDashboardCache() {
+  try {
+    const raw = sessionStorage.getItem(dashboardCacheKey());
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    if (!cached?.savedAt || !cached?.state) return null;
+    return { state: cached.state, ageMs: Date.now() - Number(cached.savedAt) };
+  } catch (error) {
+    console.warn("[Dashboard] cache read gagal:", error);
+    return null;
+  }
+}
+
+function writeDashboardCache() {
+  try {
+    sessionStorage.setItem(dashboardCacheKey(), JSON.stringify({
+      version: 1,
+      savedAt: Date.now(),
+      state: {
+        year: dashboardState.year,
+        month: dashboardState.month,
+        sales: dashboardState.sales,
+        profit: dashboardState.profit,
+        piutang: dashboardState.piutang
+      }
+    }));
+  } catch (error) {
+    console.warn("[Dashboard] cache write gagal:", error);
+  }
+}
+
+function restoreDashboardCache(cached) {
+  if (!cached?.state) return false;
+  dashboardState.sales = cached.state.sales || null;
+  dashboardState.profit = cached.state.profit || null;
+  dashboardState.piutang = cached.state.piutang || null;
+  renderDashboardData();
+  return true;
 }
 
 function escapeHtml(value) {
@@ -268,7 +314,8 @@ function renderLineChart(container, rows) {
   });
 
   container.innerHTML = `
-    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Grafik omzet harian">
+    <div class="dashboard-chart-stage">
+      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Grafik omzet harian">
       <defs>
         <linearGradient id="dashboardSalesArea" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stop-color="rgba(37,99,235,.24)"></stop>
@@ -291,6 +338,48 @@ function renderLineChart(container, rows) {
       `).join("")}
     </svg>
   `;
+  container.querySelector("svg")?.insertAdjacentHTML("beforeend", `
+    <line class="dashboard-crosshair" data-crosshair x1="-10" y1="${pad.top}" x2="-10" y2="${pad.top + plotH}"></line>
+    <circle class="dashboard-focus-point" data-focus cx="-10" cy="-10" r="5"></circle>
+    <rect class="dashboard-chart-hitarea" data-hitarea x="${pad.left}" y="${pad.top}" width="${plotW}" height="${plotH}"></rect>
+  `);
+  const stage = container.querySelector(".dashboard-chart-stage");
+  const hitarea = container.querySelector("[data-hitarea]");
+  const crosshair = container.querySelector("[data-crosshair]");
+  const focus = container.querySelector("[data-focus]");
+  let tooltip = container.querySelector(".dashboard-chart-tooltip");
+  if (!tooltip) {
+    tooltip = document.createElement("div");
+    tooltip.className = "dashboard-chart-tooltip";
+    tooltip.setAttribute("role", "status");
+    tooltip.setAttribute("aria-live", "polite");
+    stage.appendChild(tooltip);
+  }
+  const showPoint = (clientX) => {
+    if (!hitarea || !stage) return;
+    const rect = hitarea.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const index = Math.min(points.length - 1, Math.max(0, Math.round(ratio * (points.length - 1))));
+    const point = points[index];
+    crosshair?.setAttribute("x1", point.x);
+    crosshair?.setAttribute("x2", point.x);
+    focus?.setAttribute("cx", point.x);
+    focus?.setAttribute("cy", point.y);
+    tooltip.innerHTML = "<strong>" + escapeHtml(point.tanggal) + "</strong><span>" + escapeHtml(formatRupiah(point.total_omzet)) + "</span><small>" + point.jumlah_transaksi + " transaksi</small>";
+    tooltip.classList.add("is-visible");
+    const stageRect = stage.getBoundingClientRect();
+    const left = ((point.x - pad.left) / plotW) * stageRect.width + (pad.left / width) * stageRect.width;
+    tooltip.style.left = Math.max(8, Math.min(stageRect.width - tooltip.offsetWidth - 8, left + 8)) + "px";
+  };
+  hitarea?.addEventListener("pointermove", (event) => showPoint(event.clientX));
+  hitarea?.addEventListener("pointerdown", (event) => showPoint(event.clientX));
+  hitarea?.addEventListener("pointerleave", () => {
+    crosshair?.setAttribute("x1", "-10");
+    crosshair?.setAttribute("x2", "-10");
+    focus?.setAttribute("cx", "-10");
+    focus?.setAttribute("cy", "-10");
+    tooltip?.classList.remove("is-visible");
+  });
 }
 
 function renderProfitChart(container, rows) {
@@ -356,7 +445,7 @@ function populatePeriodControls() {
 
   monthSelect.addEventListener("change", () => {
     dashboardState.month = Number(monthSelect.value);
-    loadDashboard();
+    loadDashboard({ force: true });
   });
 
   yearSelect.addEventListener("change", () => {
@@ -364,7 +453,7 @@ function populatePeriodControls() {
     loadDashboard();
   });
 
-  document.querySelector("#dashboard-refresh")?.addEventListener("click", loadDashboard);
+  document.querySelector("#dashboard-refresh")?.addEventListener("click", () => loadDashboard({ force: true }));
 }
 
 function setDashboardLoading(isLoading) {
@@ -428,9 +517,19 @@ function renderDashboardData() {
   renderProfitChart(document.querySelector("#dashboard-profit-chart"), normalizeProfitRows(profit?.data));
 }
 
-async function loadDashboard() {
+async function loadDashboard({ force = false } = {}) {
   if (dashboardState.loading) return;
 
+  if (!force) {
+    const cache = readDashboardCache();
+    if (cache && cache.ageMs < DASHBOARD_CACHE_TTL_MS) {
+      restoreDashboardCache(cache);
+      setDashboardLoading(false);
+      return;
+    }
+  }
+
+  if (!dashboardIsMounted()) return;
   setDashboardLoading(true);
   dashboardState.error = null;
 
@@ -438,46 +537,38 @@ async function loadDashboard() {
   const profitRange = yearRange(dashboardState.year, dashboardState.month);
 
   try {
-    // Dashboard utama tidak boleh menunggu modul Piutang.
-    // Sales + profit adalah sumber grafik Dashboard; Piutang dimuat terpisah
-    // agar keterlambatan/masalah endpoint Piutang tidak membuat seluruh Dashboard blank.
     const [salesResult, profitResult] = await Promise.all([
       api.dashboardSalesDaily(selectedRange.start, selectedRange.end),
       api.dashboardProfitMonthly(profitRange.start, profitRange.end)
     ]);
 
-    // apiRequest() sudah mengembalikan result.data.
-    // Jangan mengambil .data sekali lagi karena payload Dashboard V1
-    // memiliki struktur { summary, data, query_metadata, ... }.
     dashboardState.sales = salesResult;
     dashboardState.profit = profitResult;
 
     if (!dashboardIsMounted()) return;
 
-    // Render segera setelah dua sumber utama tersedia.
     renderDashboardData();
+    writeDashboardCache();
     setDashboardLoading(false);
 
-    // KPI piutang bersifat tambahan dan tidak memblokir grafik.
+    const cachedPiutang = dashboardState.piutang;
+    if (cachedPiutang) return;
+
     api.piutang()
       .then((piutangResult) => {
         dashboardState.piutang = piutangResult;
+        writeDashboardCache();
+        if (!dashboardIsMounted()) return;
         const piutangTotal = extractPiutangTotal(piutangResult);
         const value = document.querySelector("#dashboard-piutang");
         const meta = document.querySelector("#dashboard-piutang-meta");
-
-        if (value && piutangTotal !== null) {
-          value.textContent = formatCompactRupiah(piutangTotal);
-        }
-        if (meta && piutangTotal !== null) {
-          meta.textContent = "Saldo piutang berjalan";
-        }
+        if (value && piutangTotal !== null) value.textContent = formatCompactRupiah(piutangTotal);
+        if (meta && piutangTotal !== null) meta.textContent = "Saldo piutang berjalan";
       })
-      .catch((error) => {
-        console.warn("[Dashboard] piutang KPI gagal dimuat:", error);
-      });
+      .catch((error) => console.warn("[Dashboard] piutang KPI gagal dimuat:", error));
   } catch (error) {
     dashboardState.error = error;
+    if (!dashboardIsMounted()) return;
     const state = document.querySelector("#dashboard-state");
     if (state) {
       state.className = "dashboard-state is-error";
@@ -486,7 +577,7 @@ async function loadDashboard() {
         <span>${escapeHtml(error?.message || String(error))}</span>
         <button class="btn btn-light" id="dashboard-retry" type="button">Coba lagi</button>
       `;
-      document.querySelector("#dashboard-retry")?.addEventListener("click", loadDashboard);
+      document.querySelector("#dashboard-retry")?.addEventListener("click", () => loadDashboard({ force: true }));
     }
   } finally {
     setDashboardLoading(false);
@@ -499,5 +590,13 @@ export function renderDashboardPage() {
 
   root.innerHTML = buildDashboardShell();
   populatePeriodControls();
-  loadDashboard();
+  const cache = readDashboardCache();
+  if (cache) {
+    restoreDashboardCache(cache);
+    if (cache.ageMs >= DASHBOARD_CACHE_TTL_MS) {
+      loadDashboard({ force: true });
+    }
+  } else {
+    loadDashboard();
+  }
 }
