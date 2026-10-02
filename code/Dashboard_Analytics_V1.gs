@@ -212,8 +212,6 @@ function dashboardAnalyticsValidateDate_V1_(value, fieldName) {
   ) {
     throw new Error(fieldName + ' harus menggunakan format YYYY-MM-DD.');
   }
-    throw new Error(fieldName + ' harus menggunakan format YYYY-MM-DD.');
-  }
 
   const parts = valueText.split('-');
   const year = Number(parts[0]);
