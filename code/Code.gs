@@ -7818,6 +7818,25 @@ function apiV1Dispatch_(action, request) {
     case 'piutang':
       return getPiutangPelangganLaporan();
 
+    /*
+     * DASHBOARD ANALYTICS V1
+     * ----------------------
+     * Adapter HTTP only.
+     * Business logic tetap berada di Dashboard_Analytics_V1.gs.
+     * Tidak mengubah fungsi Piutang/PDF yang sudah stable.
+     */
+    case 'dashboardSalesDaily':
+      return getDashboardSalesDaily_V1(
+        apiV1Required_(request, 'tanggalAwal'),
+        apiV1Required_(request, 'tanggalAkhir')
+      );
+
+    case 'dashboardSummary':
+      return getDashboardSummary_V1(
+        apiV1Required_(request, 'tanggalAwal'),
+        apiV1Required_(request, 'tanggalAkhir')
+      );
+
     case 'customerPiutangDetail':
       return getDetailPiutangPelanggan(
         apiV1Required_(request, 'kode_pelanggan')
