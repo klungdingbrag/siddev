@@ -21,11 +21,14 @@ function closeMobileNav() {
 
 sidebar.innerHTML = `
   <div class="brand">
-    <div class="brand-mark">SN</div>
-    <div>
-      <strong>SID Retail Pro</strong>
-      <span>TB Nusantara</span>
+    <div class="brand-identity">
+      <div class="brand-mark">SN</div>
+      <div>
+        <strong>SID Retail Pro</strong>
+        <span>TB Nusantara</span>
+      </div>
     </div>
+    <button class="sidebar-close" id="sidebar-close" type="button" aria-label="Tutup menu">×</button>
   </div>
 
   <nav class="nav">
@@ -43,9 +46,14 @@ sidebar.innerHTML = `
 `;
 
 topbar.innerHTML = `
-  <div>
-    <p class="eyebrow">TB Nusantara</p>
-    <h1>Dashboard</h1>
+  <div class="topbar-left">
+    <button class="mobile-menu-toggle" id="mobile-menu-toggle" type="button" aria-label="Buka menu" aria-controls="sidebar" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <div>
+      <p class="eyebrow">TB Nusantara</p>
+      <h1>Dashboard</h1>
+    </div>
   </div>
   <div class="environment-badge">${APP_CONFIG.environment}</div>
 `;
