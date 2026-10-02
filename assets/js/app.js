@@ -28,7 +28,6 @@ sidebar.innerHTML = `
         <span>TB Nusantara</span>
       </div>
     </div>
-    <button class="sidebar-close" id="sidebar-close" type="button" aria-label="Tutup menu">×</button>
   </div>
 
   <nav class="nav">
@@ -124,8 +123,6 @@ function route() {
 
 function initMobileNavigation() {
   const menuButton = document.querySelector("#mobile-menu-toggle");
-  const closeButton = document.querySelector("#sidebar-close");
-
   if (menuButton) {
     menuButton.addEventListener("click", () => {
       const isOpen = document.body.classList.contains("mobile-nav-open");
@@ -133,9 +130,6 @@ function initMobileNavigation() {
     });
   }
 
-  if (closeButton) {
-    closeButton.addEventListener("click", closeMobileNav);
-  }
 
   let backdrop = document.querySelector("#mobile-nav-backdrop");
   if (!backdrop) {
