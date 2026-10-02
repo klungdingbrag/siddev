@@ -383,6 +383,56 @@ Fungsi audit dipertahankan sebagai alat validasi dan tidak menjadi sumber busine
 
 ---
 
+## 9B. Dashboard Sales View Roadmap (Planned)
+
+Pengembangan berikutnya yang **direncanakan, tetapi belum menjadi pekerjaan aktif**, adalah memperluas grafik **Aktivitas Penjualan / Omzet** agar dapat melihat data pada beberapa tingkat waktu.
+
+Konsep yang disimpan sebagai roadmap:
+
+```text
+Aktivitas Penjualan
+        |
+        +-- Harian
+        |     +-- default: bulan berjalan
+        |     +-- bulan sebelumnya / pilih bulan
+        |
+        +-- Bulanan
+        |     +-- 3 bulan
+        |     +-- 6 bulan
+        |     +-- 12 bulan
+        |
+        +-- Tahunan
+              +-- beberapa tahun
+```
+
+### Rencana backend
+
+Fungsi yang sudah ada dan telah diuji:
+
+- `getDashboardSalesDaily_V1()` — tetap menjadi sumber untuk tampilan harian.
+
+Jika roadmap ini direalisasikan, pendekatan yang direncanakan adalah menambahkan fungsi terpisah:
+
+- `getDashboardSalesMonthly_V1()`
+- `getDashboardSalesYearly_V1()`
+
+Beserta endpoint API yang sesuai.
+
+**Fungsi `getDashboardSalesDaily_V1()` tidak perlu diganti.** Tampilan 3 bulan, 6 bulan, atau 12 bulan dapat menggunakan agregasi bulanan; tidak perlu membuat fungsi khusus untuk setiap jumlah bulan.
+
+### Prinsip implementasi
+
+- Tidak mengubah definisi omzet yang sudah diaudit.
+- Tidak mengubah accounting logic.
+- Tidak mengganggu Dashboard harian yang sudah stabil.
+- Backend tetap menjadi tempat agregasi data.
+- Frontend hanya memilih periode dan menampilkan hasil.
+- Implementasi hanya dilakukan jika kebutuhan bisnisnya sudah jelas dan memang diperlukan.
+
+Roadmap ini **belum merupakan commitment implementasi**. Untuk saat ini Dashboard yang sudah stabil tetap dipertahankan tanpa penambahan fungsi tersebut.
+
+---
+
 ## 9B. Dashboard Architecture V1
 
 Dashboard diperlakukan sebagai modul SPA yang memiliki state, cache, lifecycle, dan asynchronous request isolation sendiri.
