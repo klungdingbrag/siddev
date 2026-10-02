@@ -1,23 +1,37 @@
 import { APP_CONFIG } from "./config.js";
 import { apiHealth } from "./api/client.js";
 import { renderPiutangPage } from "./pages/piutang.js?v=20260930-pdf-transport-5";
-import { renderDashboardPage } from "./pages/dashboard.js";
+import { renderDashboardPage } from "./pages/dashboard.js?v=20261002-dashboard-v4";
 
 const sidebar = document.querySelector("#sidebar");
 const topbar = document.querySelector("#topbar");
 const content = document.querySelector("#page-content");
 
+function setMobileNav(open) {
+  document.body.classList.toggle("mobile-nav-open", open);
+  const menuButton = document.querySelector("#mobile-menu-toggle");
+  const sidebar = document.querySelector("#sidebar");
+  if (menuButton) menuButton.setAttribute("aria-expanded", open ? "true" : "false");
+  if (sidebar) sidebar.setAttribute("aria-hidden", open ? "false" : "true");
+}
+
+function closeMobileNav() {
+  setMobileNav(false);
+}
+
 sidebar.innerHTML = `
   <div class="brand">
-    <div class="brand-mark">SN</div>
-    <div>
-      <strong>SID Retail Pro</strong>
-      <span>TB Nusantara</span>
+    <div class="brand-identity">
+      <div class="brand-mark">SN</div>
+      <div>
+        <strong>SID Retail Pro</strong>
+        <span>TB Nusantara</span>
+      </div>
     </div>
   </div>
 
   <nav class="nav">
-    <a class="nav-item active" href="#dashboard">Dashboard</a>
+    <a class="nav-item" href="#dashboard">Dashboard</a>
     <a class="nav-item" href="#pelanggan">Pelanggan</a>
     <a class="nav-item" href="#piutang">Piutang</a>
     <a class="nav-item" href="#barang">Data Barang</a>
@@ -31,42 +45,16 @@ sidebar.innerHTML = `
 `;
 
 topbar.innerHTML = `
-  <div>
-    <p class="eyebrow">TB Nusantara</p>
-    <h1>Dashboard</h1>
+  <div class="topbar-left">
+    <button class="mobile-menu-toggle" id="mobile-menu-toggle" type="button" aria-label="Buka menu" aria-controls="sidebar" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <div>
+      <p class="eyebrow">TB Nusantara</p>
+      <h1>Dashboard</h1>
+    </div>
   </div>
   <div class="environment-badge">${APP_CONFIG.environment}</div>
-`;
-
-content.innerHTML = `
-  <section class="welcome-card">
-    <div>
-      <p class="eyebrow">SID Retail Pro</p>
-      <h2>Frontend baru sedang disiapkan.</h2>
-      <p>
-        Struktur aplikasi sudah terpisah dari backend GAS.
-        Tahap berikutnya adalah menghubungkan halaman dengan API V1.
-      </p>
-    </div>
-  </section>
-
-  <section class="card-grid">
-    <article class="stat-card">
-      <span>API</span>
-      <strong id="api-card-status">Checking...</strong>
-      <small>Development backend</small>
-    </article>
-    <article class="stat-card">
-      <span>Environment</span>
-      <strong>${APP_CONFIG.environment}</strong>
-      <small>Production belum disentuh</small>
-    </article>
-    <article class="stat-card">
-      <span>Version</span>
-      <strong>Frontend V1</strong>
-      <small>API contract V1</small>
-    </article>
-  </section>
 `;
 
 function setActiveNav(hash) {
@@ -75,25 +63,99 @@ function setActiveNav(hash) {
   });
 }
 
-function route() {
-  const hash = window.location.hash || "#dashboard";
-  const title = hash === "#piutang" ? "Piutang Pelanggan" : "Dashboard";
-  const titleElement = document.querySelector(".topbar h1");
-
-  if (titleElement) {
-    titleElement.textContent = title;
-  }
-
-  if (hash === "#piutang") {
-    renderPiutangPage();
-  } else {
-    renderDashboardPage();
-  }
-
-  setActiveNav(hash);
+function renderComingSoonPage(title, description) {
+  content.innerHTML = `
+    <section class="welcome-card">
+      <div>
+        <p class="eyebrow">SID Retail Pro</p>
+        <h2>${title}</h2>
+        <p>${description}</p>
+      </div>
+    </section>
+  `;
 }
 
-window.addEventListener("hashchange", route);
+function route() {
+  const hash = window.location.hash || "#dashboard";
+  const titleElement = document.querySelector(".topbar h1");
+
+  const routes = {
+    "#dashboard": {
+      title: "Dashboard",
+      render: () => renderDashboardPage()
+    },
+    "#piutang": {
+      title: "Piutang Pelanggan",
+      render: () => renderPiutangPage()
+    },
+    "#pelanggan": {
+      title: "Pelanggan",
+      render: () => renderComingSoonPage(
+        "Pelanggan",
+        "Modul Pelanggan belum diaktifkan. Halaman ini tidak menjalankan request Dashboard."
+      )
+    },
+    "#barang": {
+      title: "Data Barang",
+      render: () => renderComingSoonPage(
+        "Data Barang",
+        "Modul Data Barang belum diaktifkan. Halaman ini tidak menjalankan request Dashboard."
+      )
+    },
+    "#kalkulator": {
+      title: "Kalkulator",
+      render: () => renderComingSoonPage(
+        "Kalkulator",
+        "Modul Kalkulator belum diaktifkan. Halaman ini tidak menjalankan request Dashboard."
+      )
+    }
+  };
+
+  const routeConfig = routes[hash] || routes["#dashboard"];
+
+  if (titleElement) {
+    titleElement.textContent = routeConfig.title;
+  }
+
+  routeConfig.render();
+  setActiveNav(routes[hash] ? hash : "#dashboard");
+}
+
+function initMobileNavigation() {
+  const menuButton = document.querySelector("#mobile-menu-toggle");
+  if (menuButton) {
+    menuButton.addEventListener("click", () => {
+      const isOpen = document.body.classList.contains("mobile-nav-open");
+      setMobileNav(!isOpen);
+    });
+  }
+
+
+  let backdrop = document.querySelector("#mobile-nav-backdrop");
+  if (!backdrop) {
+    backdrop = document.createElement("button");
+    backdrop.type = "button";
+    backdrop.id = "mobile-nav-backdrop";
+    backdrop.className = "mobile-nav-backdrop";
+    backdrop.setAttribute("aria-label", "Tutup menu");
+    document.body.appendChild(backdrop);
+  }
+
+  backdrop.addEventListener("click", closeMobileNav);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMobileNav();
+    }
+  });
+}
+
+window.addEventListener("hashchange", () => {
+  closeMobileNav();
+  route();
+});
+
+initMobileNavigation();
 route();
 
 async function checkApi() {
@@ -102,27 +164,15 @@ async function checkApi() {
     const online = data?.status === "ok";
 
     const status = document.querySelector("#api-status");
-    const card = document.querySelector("#api-card-status");
-
     if (status) {
       status.textContent = online ? "API Online" : "API Response";
-    }
-
-    if (card) {
-      card.textContent = online ? "ONLINE" : "READY";
     }
 
     console.info("[API] health:", data);
   } catch (error) {
     const status = document.querySelector("#api-status");
-    const card = document.querySelector("#api-card-status");
-
     if (status) {
       status.textContent = "API Offline";
-    }
-
-    if (card) {
-      card.textContent = "OFFLINE";
     }
 
     console.warn("[API] health check failed:", error);

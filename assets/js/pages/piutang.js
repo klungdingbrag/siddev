@@ -43,8 +43,14 @@ const root = () => document.querySelector("#page-content");
 
 const PIUTANG_CACHE_KEY = "sidretail:piutang:v1";
 const PIUTANG_CACHE_TTL_MS = 2 * 60 * 1000;
+let piutangMountId = 0;
+
+function isPiutangMounted(mountId) {
+  return mountId === piutangMountId && Boolean(document.querySelector("#piutang-page-info"));
+}
 
 export function renderPiutangPage() {
+  piutangMountId += 1;
   root().innerHTML =
     '<section class="page-heading"><div><p class="eyebrow">Laporan</p><h2>Piutang Pelanggan</h2><p class="page-description">Aging piutang berdasarkan transaksi outstanding dari Development backend.</p></div><button id="piutang-refresh" class="btn btn-primary">↻ Refresh</button></section>' +
     '<section class="summary-grid">' +
@@ -136,12 +142,14 @@ async function loadPiutang(force = false) {
 }
 
 async function refreshPiutangFromBackend(isManualRefresh) {
+  const mountId = piutangMountId;
   if (isManualRefresh) state.loading = true;
 
   try {
     if (isManualRefresh) setRefreshState(true);
 
     const result = await api.piutang();
+    if (!isPiutangMounted(mountId)) return;
     const rows = extractPiutangRows(result);
 
     if (!rows) {
@@ -161,6 +169,7 @@ async function refreshPiutangFromBackend(isManualRefresh) {
     updateSummary(result);
     filterAndRender();
   } catch (error) {
+    if (!isPiutangMounted(mountId)) return;
     if (!state.loaded) {
       state.loaded = false;
       state.rows = [];
@@ -172,7 +181,7 @@ async function refreshPiutangFromBackend(isManualRefresh) {
       showToast("Refresh piutang gagal: " + (error.message || "Unknown error"), true);
     }
   } finally {
-    if (isManualRefresh) {
+    if (isManualRefresh && isPiutangMounted(mountId)) {
       state.loading = false;
       setRefreshState(false);
     }
