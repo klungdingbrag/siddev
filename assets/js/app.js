@@ -7,6 +7,18 @@ const sidebar = document.querySelector("#sidebar");
 const topbar = document.querySelector("#topbar");
 const content = document.querySelector("#page-content");
 
+function setMobileNav(open) {
+  document.body.classList.toggle("mobile-nav-open", open);
+  const menuButton = document.querySelector("#mobile-menu-toggle");
+  const sidebar = document.querySelector("#sidebar");
+  if (menuButton) menuButton.setAttribute("aria-expanded", open ? "true" : "false");
+  if (sidebar) sidebar.setAttribute("aria-hidden", open ? "false" : "true");
+}
+
+function closeMobileNav() {
+  setMobileNav(false);
+}
+
 sidebar.innerHTML = `
   <div class="brand">
     <div class="brand-mark">SN</div>
