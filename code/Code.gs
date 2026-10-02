@@ -7837,6 +7837,12 @@ function apiV1Dispatch_(action, request) {
         apiV1Required_(request, 'tanggalAkhir')
       );
 
+    case 'dashboardProfitMonthly':
+      return getDashboardProfitMonthly_V1(
+        apiV1Required_(request, 'tanggalAwal'),
+        apiV1Required_(request, 'tanggalAkhir')
+      );
+
     case 'customerPiutangDetail':
       return getDetailPiutangPelanggan(
         apiV1Required_(request, 'kode_pelanggan')
