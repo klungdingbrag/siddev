@@ -337,12 +337,12 @@ function renderDetail(result, row) {
 
   document.querySelector("#detail-footer").innerHTML =
     '<div class="detail-footer-left">' +
-      '<button class="btn btn-light" data-pdf-action="summary" data-code="' + esc(state.detailCode) + '">▣ Ringkasan PDF</button>' +
-      '<button class="btn btn-light" data-pdf-action="detail" data-code="' + esc(state.detailCode) + '">▤ Laporan Detail PDF</button>' +
+      '<button class="btn btn-light" data-pdf-action="summary" data-code="' + esc(state.detailCode) + '"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h5"></path><path d="M9 13h6M9 17h6"></path></svg></span>Ringkasan PDF</button>' +
+      '<button class="btn btn-light" data-pdf-action="detail" data-code="' + esc(state.detailCode) + '"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M6 3h12v18H6z"></path><path d="M9 8h6M9 12h6M9 16h4"></path></svg></span>Laporan Detail PDF</button>' +
     '</div>' +
     '<div class="detail-footer-right">' +
       '<button class="btn btn-light" id="detail-footer-close">Tutup</button>' +
-      '<button class="btn btn-whatsapp" data-wa-action="customer" data-code="' + esc(state.detailCode) + '" data-name="' + esc(name) + '">▣ Share WhatsApp</button>' +
+      '<button class="btn btn-whatsapp" data-wa-action="customer" data-code="' + esc(state.detailCode) + '" data-name="' + esc(name) + '"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z"></path><path d="M9 8.5c.2 1.6 1.4 3.4 3.2 4.4 1.4.8 2.5.9 3.2.5"></path></svg></span>Share WhatsApp</button>' +
     '</div>';
   document.querySelector("#detail-footer").classList.remove("hidden");
   document.querySelector("#detail-footer-close").addEventListener("click", closeDetail);
@@ -366,8 +366,8 @@ function invoiceRowHtml(t, name) {
     '<td>' + esc(age) + '</td>' +
     '<td><strong>' + formatMoney(balance) + '</strong></td>' +
     '<td><div class="invoice-actions">' +
-      '<button class="mini-action" data-pdf-action="invoice" data-code="' + esc(code) + '" title="Buka PDF Invoice">▣ PDF</button>' +
-      '<button class="mini-action whatsapp-mini" data-wa-action="invoice" data-code="' + esc(code) + '" data-name="' + esc(name) + '" title="Bagikan Invoice ke WhatsApp">▢ WhatsApp</button>' +
+      '<button class="mini-action" data-pdf-action="invoice" data-code="' + esc(code) + '" title="Buka PDF Invoice"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h5"></path><path d="M9 13h6M9 17h6"></path></svg></span>PDF</button>' +
+      '<button class="mini-action whatsapp-mini" data-wa-action="invoice" data-code="' + esc(code) + '" data-name="' + esc(name) + '" title="Bagikan Invoice ke WhatsApp"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z"></path><path d="M9 8.5c.2 1.6 1.4 3.4 3.2 4.4 1.4.8 2.5.9 3.2.5"></path></svg></span>WhatsApp</button>' +
     '</div></td>' +
   '</tr>';
 }
