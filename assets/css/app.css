@@ -815,7 +815,7 @@ button, input, select {
   border: 2px solid #dbe4f2;
   border-top-color: var(--accent);
   border-radius: 50%;
-  animation: dashboardSpin .7s linear infinite;
+  animation: dashboardSpin .7s linear infinite !important;
 }
 
 @keyframes dashboardSpin {
