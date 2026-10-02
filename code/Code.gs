@@ -7302,16 +7302,18 @@ function stage6d2BuildReportHtml_(data) {
   });
 
   let totalInvoice = 0;
-  let totalBayar = 0;
-  let totalAngsuran = 0;
+  let totalDibayar = 0;
   let totalSaldoHutang = 0;
 
   invoices.forEach(function(nota) {
     const summary = nota.summary || {};
-    totalInvoice += Number(summary.jumlah || 0);
-    totalBayar += Number(summary.bayar || 0);
-    totalAngsuran += Number(summary.angsuran || 0);
-    totalSaldoHutang += Number(summary.piutang || 0);
+    const invoice = Number(summary.jumlah || 0);
+    const saldoHutang = Number(summary.piutang || 0);
+    const dibayar = invoice - saldoHutang;
+
+    totalInvoice += invoice;
+    totalDibayar += dibayar;
+    totalSaldoHutang += saldoHutang;
   });
 
   const ringkasanSaldo = Number(data.total_outstanding || 0);
@@ -7445,11 +7447,10 @@ function stage6d2BuildReportHtml_(data) {
   html += '<div class="summary-wrap">';
   html += '<table class="summary-table"><tr>';
   html += '<td colspan="2" class="summary-title">RINGKASAN</td>';
-  html += '<td rowspan="5" class="signature">TTD<div class="signature-space"></div><div class="signature-line"></div><div>Wasimun</div></td>';
+  html += '<td rowspan="4" class="signature">TTD<div class="signature-space"></div><div class="signature-line"></div><div>Wasimun</div></td>';
   html += '</tr>';
   html += '<tr><td class="summary-label">TOTAL INVOICE</td><td class="summary-value">' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(totalInvoice)) + '</td></tr>';
-  html += '<tr><td class="summary-label">TOTAL BAYAR</td><td class="summary-value">' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(totalBayar)) + '</td></tr>';
-  html += '<tr><td class="summary-label">TOTAL ANGSURAN</td><td class="summary-value">' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(totalAngsuran)) + '</td></tr>';
+  html += '<tr><td class="summary-label">TOTAL DIBAYAR</td><td class="summary-value">' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(totalDibayar)) + '</td></tr>';
   html += '<tr><td class="summary-label">TOTAL SALDO HUTANG</td><td class="summary-value">' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(totalSaldoHutang)) + '</td></tr>';
   html += '</table>';
 
@@ -7467,8 +7468,7 @@ function stage6d2BuildReportHtml_(data) {
     html: html,
     invoice_count: invoices.length,
     total_invoice: totalInvoice,
-    total_bayar: totalBayar,
-    total_angsuran: totalAngsuran,
+    total_dibayar: totalDibayar,
     total_saldo_hutang: totalSaldoHutang,
     tanggal_awal: tanggalAwal ? formatSidDate(tanggalAwal) : '',
     tanggal_akhir: tanggalAkhir ? formatSidDate(tanggalAkhir) : '',
