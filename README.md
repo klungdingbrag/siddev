@@ -344,6 +344,43 @@ Jika refresh background gagal tetapi cache tersedia, data terakhir tetap dapat d
 
 ---
 
+## 9A. Dashboard Analytics V1
+
+Dashboard Analytics V1 kini dikonsolidasikan menjadi satu file backend:
+
+`code/Dashboard_Analytics_V1.gs`
+
+File ini memuat dua kelompok fungsi:
+
+### Analytics
+
+- `getDashboardSalesDaily_V1()`
+- `getDashboardSummary_V1()`
+- `inspectDashboardProfitSource_V1()`
+- `testDashboardAnalytics_V1()`
+
+### Audit / Rekonsiliasi
+
+- `testDashboardSalesMapping()`
+- `testDashboardProfitMapping()`
+- `testDashboardAnalyticsAudit()`
+- `auditDashboardProfitSeptember_V1()`
+
+Mapping Dashboard yang telah direkonsiliasi dengan SID Retail untuk September 2026:
+
+```text
+Omzet harian
+    -> penjualan.jumlah
+
+Laba bulanan
+    -> SUM(labarugi.labarugi)
+```
+
+Grafik Laba POS September 2026 menghasilkan **Rp84.787.006,74**, sama dengan hasil `SUM(labarugi.labarugi)` pada periode yang sama.
+
+Fungsi audit dipertahankan sebagai alat validasi dan tidak menjadi sumber business logic baru. Penggabungan file hanya merapikan organisasi source code; fungsi yang telah berhasil diuji tidak dihapus atau diubah perilakunya.
+
+
 ## 10. Prinsip Data
 
 Beberapa prinsip yang harus dijaga:
@@ -507,7 +544,7 @@ Contoh penting: PDF yang berhasil dibuat tetapi byte PDF rusak tetap dianggap ga
 | Frontend GitHub | Stable |
 | Development GAS API | Stable |
 | SID Retail connection | Tested |
-| Dashboard foundation | Stable |
+| Dashboard Analytics V1 | Audited / mapped |
 | Piutang | Stable |
 | Customer Piutang Detail | Stable |
 | Tabungan integration | Stable |
