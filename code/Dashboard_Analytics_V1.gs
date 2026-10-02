@@ -205,7 +205,13 @@ function dashboardAnalyticsQuery_V1_(query) {
 function dashboardAnalyticsValidateDate_V1_(value, fieldName) {
   const valueText = String(value || '').trim();
 
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(valueText)) {
+  if (
+    valueText.length !== 10 ||
+    valueText.charAt(4) !== '-' ||
+    valueText.charAt(7) !== '-'
+  ) {
+    throw new Error(fieldName + ' harus menggunakan format YYYY-MM-DD.');
+  }
     throw new Error(fieldName + ' harus menggunakan format YYYY-MM-DD.');
   }
 
@@ -252,7 +258,7 @@ function dashboardAnalyticsNormalizeDate_V1_(value) {
 
   const text = String(value).trim();
 
-  if (/^\\d{4}-\\d{2}-\\d{2}/.test(text)) {
+  if (text.length >= 10 && text.charAt(4) === '-' && text.charAt(7) === '-') {
     return text.substring(0, 10);
   }
 
