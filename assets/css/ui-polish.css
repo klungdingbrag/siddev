@@ -175,6 +175,69 @@ input:focus-visible {
   background: var(--ui-primary);
 }
 
+/* ---------- Reliable action icons ---------- */
+
+.action-icon {
+  width: 17px;
+  height: 17px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 17px;
+  vertical-align: -3px;
+  margin-right: 7px;
+}
+
+.action-icon svg {
+  width: 17px;
+  height: 17px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mini-action .action-icon {
+  width: 15px;
+  height: 15px;
+  flex-basis: 15px;
+  margin-right: 5px;
+}
+
+.mini-action .action-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ---------- Reliable data loading spinner ---------- */
+
+.table-state.loading {
+  position: relative;
+}
+
+.table-state.loading::before {
+  display: block !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px;
+  min-height: 32px;
+  margin: 0 0 2px;
+  border: 3px solid #e5e7eb !important;
+  border-top-color: var(--ui-primary) !important;
+  border-right-color: #93b4f8 !important;
+  border-radius: 50%;
+  animation: uiDataLoadingSpin .72s linear infinite !important;
+  transform-origin: center center;
+  box-sizing: border-box;
+}
+
+@keyframes uiDataLoadingSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* ---------- Data loading / empty / error states ---------- */
 
 .table-state {
