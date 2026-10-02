@@ -382,7 +382,13 @@ function setDashboardLoading(isLoading) {
   }
 }
 
+function dashboardIsMounted() {
+  return Boolean(document.querySelector("#dashboard-sales-chart"));
+}
+
 function renderDashboardData() {
+  if (!dashboardIsMounted()) return;
+
   const sales = dashboardState.sales;
   const profit = dashboardState.profit;
   const piutang = dashboardState.piutang;
@@ -445,6 +451,8 @@ async function loadDashboard() {
     // memiliki struktur { summary, data, query_metadata, ... }.
     dashboardState.sales = salesResult;
     dashboardState.profit = profitResult;
+
+    if (!dashboardIsMounted()) return;
 
     // Render segera setelah dua sumber utama tersedia.
     renderDashboardData();
