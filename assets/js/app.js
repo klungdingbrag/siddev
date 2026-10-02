@@ -122,7 +122,46 @@ function route() {
   setActiveNav(routes[hash] ? hash : "#dashboard");
 }
 
-window.addEventListener("hashchange", route);
+function initMobileNavigation() {
+  const menuButton = document.querySelector("#mobile-menu-toggle");
+  const closeButton = document.querySelector("#sidebar-close");
+
+  if (menuButton) {
+    menuButton.addEventListener("click", () => {
+      const isOpen = document.body.classList.contains("mobile-nav-open");
+      setMobileNav(!isOpen);
+    });
+  }
+
+  if (closeButton) {
+    closeButton.addEventListener("click", closeMobileNav);
+  }
+
+  let backdrop = document.querySelector("#mobile-nav-backdrop");
+  if (!backdrop) {
+    backdrop = document.createElement("button");
+    backdrop.type = "button";
+    backdrop.id = "mobile-nav-backdrop";
+    backdrop.className = "mobile-nav-backdrop";
+    backdrop.setAttribute("aria-label", "Tutup menu");
+    document.body.appendChild(backdrop);
+  }
+
+  backdrop.addEventListener("click", closeMobileNav);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMobileNav();
+    }
+  });
+}
+
+window.addEventListener("hashchange", () => {
+  closeMobileNav();
+  route();
+});
+
+initMobileNavigation();
 route();
 
 async function checkApi() {
