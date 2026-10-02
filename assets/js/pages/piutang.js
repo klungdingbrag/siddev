@@ -41,6 +41,9 @@ function esc(v) {
 
 const root = () => document.querySelector("#page-content");
 
+const PIUTANG_CACHE_KEY = "sidretail:piutang:v1";
+const PIUTANG_CACHE_TTL_MS = 2 * 60 * 1000;
+
 export function renderPiutangPage() {
   root().innerHTML =
     '<section class="page-heading"><div><p class="eyebrow">Laporan</p><h2>Piutang Pelanggan</h2><p class="page-description">Aging piutang berdasarkan transaksi outstanding dari Development backend.</p></div><button id="piutang-refresh" class="btn btn-primary">↻ Refresh</button></section>' +
@@ -97,10 +100,49 @@ function bindEvents() {
 }
 
 async function loadPiutang(force = false) {
-  if (state.loading || (state.loaded && !force)) return;
+  if (state.loading) return;
+
+  const cached = readPiutangCache();
+
+  // Cache fresh: tampilkan langsung tanpa request ulang ke backend.
+  if (!force && cached && cached.ageMs < PIUTANG_CACHE_TTL_MS) {
+    applyPiutangData(cached.result, cached.savedAt);
+    return;
+  }
+
+  // Cache stale: tampilkan data yang ada terlebih dahulu, lalu refresh
+  // di background agar perpindahan menu tetap terasa ringan.
+  if (!force && cached) {
+    applyPiutangData(cached.result, cached.savedAt);
+    refreshPiutangFromBackend(false);
+    return;
+  }
+
+  // Manual Refresh tetap memaksa request terbaru. Jika data lama sudah
+  // tampil, jangan mengosongkan tabel dan jangan menampilkan loading penuh.
+  if (force && state.loaded) {
+    setRefreshState(true);
+    await refreshPiutangFromBackend(true);
+    return;
+  }
+
   state.loading = true;
   setState("loading", "Mengambil data piutang dari Development backend...");
   try {
+    await refreshPiutangFromBackend(false);
+  } finally {
+    state.loading = false;
+  }
+}
+
+async function refreshPiutangFromBackend(isManualRefresh) {
+  if (state.loading && !isManualRefresh) return;
+
+  if (isManualRefresh) state.loading = true;
+
+  try {
+    if (isManualRefresh) setRefreshState(true);
+
     const result = await api.piutang();
     const rows = extractPiutangRows(result);
 
@@ -111,21 +153,104 @@ async function loadPiutang(force = false) {
       );
     }
 
-    state.rows = rows.filter(r => money(r.total_piutang) > 0);
+    const normalizedRows = rows.filter(r => money(r.total_piutang) > 0);
+    const savedAt = Date.now();
+
+    writePiutangCache(result, savedAt);
+    state.rows = normalizedRows;
     state.loaded = true;
     state.page = 1;
     updateSummary(result);
     filterAndRender();
   } catch (error) {
-    state.loaded = false;
-    state.rows = [];
-    state.filtered = [];
-    updateSummary(null);
-    renderTable();
-    setState("error", error.message || "Gagal mengambil data piutang.");
+    if (!state.loaded) {
+      state.loaded = false;
+      state.rows = [];
+      state.filtered = [];
+      updateSummary(null);
+      renderTable();
+      setState("error", error.message || "Gagal mengambil data piutang.");
+    } else {
+      showToast("Refresh piutang gagal: " + (error.message || "Unknown error"), true);
+    }
   } finally {
-    state.loading = false;
+    if (isManualRefresh) {
+      state.loading = false;
+      setRefreshState(false);
+    }
   }
+}
+
+function applyPiutangData(result, savedAt) {
+  const rows = extractPiutangRows(result);
+  if (!rows) return false;
+
+  state.rows = rows.filter(r => money(r.total_piutang) > 0);
+  state.loaded = true;
+  state.page = 1;
+  updateSummary(result);
+  filterAndRender();
+
+  const age = Date.now() - Number(savedAt || Date.now());
+  setRefreshState(false, age);
+  return true;
+}
+
+function readPiutangCache() {
+  try {
+    const raw = sessionStorage.getItem(PIUTANG_CACHE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.result || !Array.isArray(extractPiutangRows(parsed.result))) {
+      sessionStorage.removeItem(PIUTANG_CACHE_KEY);
+      return null;
+    }
+
+    const savedAt = Number(parsed.savedAt);
+    if (!Number.isFinite(savedAt) || savedAt <= 0) {
+      sessionStorage.removeItem(PIUTANG_CACHE_KEY);
+      return null;
+    }
+
+    return {
+      result: parsed.result,
+      savedAt,
+      ageMs: Math.max(0, Date.now() - savedAt)
+    };
+  } catch (error) {
+    console.warn("[PIUTANG CACHE] read failed:", error);
+    return null;
+  }
+}
+
+function writePiutangCache(result, savedAt = Date.now()) {
+  try {
+    sessionStorage.setItem(
+      PIUTANG_CACHE_KEY,
+      JSON.stringify({ version: 1, savedAt, result })
+    );
+  } catch (error) {
+    // Cache adalah optimasi saja. Kegagalan storage tidak boleh mengganggu aplikasi.
+    console.warn("[PIUTANG CACHE] write failed:", error);
+  }
+}
+
+function setRefreshState(active, ageMs = null) {
+  const button = document.querySelector("#piutang-refresh");
+  if (!button) return;
+
+  if (active) {
+    button.disabled = true;
+    button.classList.add("ui-busy");
+    button.dataset.originalText = button.dataset.originalText || button.textContent;
+    button.textContent = "Memperbarui...";
+    return;
+  }
+
+  button.disabled = false;
+  button.classList.remove("ui-busy");
+  button.textContent = button.dataset.originalText || "↻ Refresh";
 }
 
 function extractPiutangRows(result) {
