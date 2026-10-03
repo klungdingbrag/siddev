@@ -38,7 +38,15 @@ function auditCustomerTabunganV1() {
   Logger.log('==============================================');
   Logger.log('TB NUSANTARA - CUSTOMER + TABUNGAN AUDIT V1');
   Logger.log('==============================================');
-  Logger.log(JSON.stringify(result, null, 2));
+  Logger.log('CUSTOMER MASTER');
+  Logger.log(JSON.stringify(result.customer, null, 2));
+  Logger.log('TABUNGAN SOURCE');
+  Logger.log(JSON.stringify(result.tabungan, null, 2));
+  Logger.log('SALDO VALIDATION');
+  Logger.log(JSON.stringify(result.saldo_validation, null, 2));
+  Logger.log('==============================================');
+  Logger.log('FOKUS FIKA 2606030');
+  Logger.log(JSON.stringify(auditCustomerFikaV1(), null, 2));
   Logger.log('==============================================');
 
   return result;
@@ -136,6 +144,44 @@ function auditTabunganSourceV1() {
     schema: auditRowsV1(schemaResult),
     sample_latest: auditRowsV1(sampleResult),
     duration_ms: new Date().getTime() - started
+  };
+}
+
+function auditCustomerFikaV1() {
+  var result = sidRetailQuery(
+    'SELECT ' +
+    'p.kode,' +
+    'p.nama,' +
+    'COALESCE(p.saldo_tabungan,0) AS saldo_tabungan,' +
+    'COALESCE(t.jumlah_transaksi,0) AS jumlah_transaksi,' +
+    'COALESCE(t.total_jumlah,0) AS total_jumlah_tabungan,' +
+    'COALESCE(t.total_positif,0) AS total_positif,' +
+    'COALESCE(t.total_negatif,0) AS total_negatif ' +
+    'FROM pelanggan p ' +
+    'LEFT JOIN (' +
+      'SELECT pelanggan,COUNT(*) AS jumlah_transaksi,' +
+      'SUM(COALESCE(jumlah,0)) AS total_jumlah,' +
+      'SUM(CASE WHEN COALESCE(jumlah,0) > 0 THEN jumlah ELSE 0 END) AS total_positif,' +
+      'SUM(CASE WHEN COALESCE(jumlah,0) < 0 THEN jumlah ELSE 0 END) AS total_negatif ' +
+      'FROM tabungan ' +
+      'WHERE pelanggan = \'2606030\' ' +
+      'GROUP BY pelanggan' +
+    ') t ON t.pelanggan = p.kode ' +
+    'WHERE p.kode = \'2606030\' ' +
+    'LIMIT 1'
+  );
+
+  var transactionResult = sidRetailQuery(
+    'SELECT kode,tanggal,jam,pelanggan,jumlah,jenis,keterangan,kode_kas,sumber,sumber_faktur ' +
+    'FROM tabungan ' +
+    'WHERE pelanggan = \'2606030\' ' +
+    'ORDER BY tanggal ASC,jam ASC,kode ASC'
+  );
+
+  return {
+    customer_master: auditRowsV1(result),
+    transactions: auditRowsV1(transactionResult),
+    note: 'FIKA dipakai sebagai customer pembanding karena test Production Tabungan V1 sebelumnya mengharapkan Rp97.000.000 sementara saldo master SID Retail terbaca Rp92.000.000.'
   };
 }
 
