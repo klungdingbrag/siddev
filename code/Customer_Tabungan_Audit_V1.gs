@@ -51,6 +51,9 @@ function auditCustomerTabunganV1() {
   Logger.log('AUDIT DEBET');
   Logger.log(JSON.stringify(auditTabunganDebetV1(), null, 2));
   Logger.log('==============================================');
+  Logger.log('HISTORI CUSTOMER DEBET');
+  Logger.log(JSON.stringify(auditDebetCustomerHistoryV1(), null, 2));
+  Logger.log('==============================================');
 
   return result;
 }
@@ -146,6 +149,24 @@ function auditTabunganSourceV1() {
     jenis_summary: auditRowsV1(jenisResult),
     schema: auditRowsV1(schemaResult),
     sample_latest: auditRowsV1(sampleResult),
+    duration_ms: new Date().getTime() - started
+  };
+}
+
+function auditDebetCustomerHistoryV1() {
+  var started = new Date().getTime();
+
+  var result = sidRetailQuery(
+    'SELECT kode,tanggal,jam,pelanggan,jumlah,jenis,keterangan,kode_kas,sumber,sumber_faktur ' +
+    'FROM tabungan ' +
+    'WHERE pelanggan IN (\'2108003\',\'MUSHOLA\') ' +
+    'ORDER BY pelanggan ASC,tanggal ASC,jam ASC,kode ASC'
+  );
+
+  return {
+    purpose: 'Verifikasi akhir histori customer yang memiliki DEBET Tabungan Awal Pelanggan.',
+    customers: ['2108003', 'MUSHOLA'],
+    transactions: auditRowsV1(result),
     duration_ms: new Date().getTime() - started
   };
 }
