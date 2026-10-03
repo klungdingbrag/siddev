@@ -163,13 +163,129 @@ function auditDebetCustomerHistoryV1() {
     'ORDER BY pelanggan ASC,tanggal ASC,jam ASC,kode ASC'
   );
 
+  var rows = result.data || result.rows || [];
+  var grouped = {};
+
+  rows.forEach(function(row) {
+    var customer = String(row.pelanggan || '').trim();
+    if (!grouped[customer]) {
+      grouped[customer] = {
+        kode_pelanggan: customer,
+        total_debet: 0,
+        total_setoran: 0,
+        total_ambil: 0,
+        total_lainnya: 0,
+        transaksi: []
+      };
+    }
+
+    var item = grouped[customer];
+    var jumlah = Number(row.jumlah || 0);
+    var jenis = String(row.jenis || '').trim().toUpperCase();
+
+    if (jenis === 'DEBET') {
+      item.total_debet += jumlah;
+    } else if (jenis === 'SETORAN') {
+      item.total_setoran += jumlah;
+    } else if (jenis === 'AMBIL' || jenis === 'TARIKAN' || jenis === 'PENARIKAN' || jenis === 'PENGAMBILAN') {
+      item.total_ambil += jumlah;
+    } else {
+      item.total_lainnya += jumlah;
+    }
+
+    item.transaksi.push({
+      kode: String(row.kode || ''),
+      tanggal: String(row.tanggal || ''),
+      jam: String(row.jam || ''),
+      jumlah: jumlah,
+      jenis: jenis,
+      keterangan: String(row.keterangan || '')
+    });
+  });
+
+  var customerCodes = Object.keys(grouped);
+  customerCodes.forEach(function(kode) {
+    var item = grouped[kode];
+    item.saldo_setoran_minus_ambil = item.total_setoran - item.total_ambil;
+    item.saldo_plus_debet = item.total_setoran - item.total_ambil + item.total_debet;
+    item.saldo_minus_debet = item.total_setoran - item.total_ambil - item.total_debet;
+  });
+
+  var masterResult = sidRetailQuery(
+    'SELECT kode,nama,COALESCE(saldo_tabungan,0) AS saldo_tabungan ' +
+    'FROM pelanggan ' +
+    'WHERE kode IN (\'2108003\',\'MUSHOLA\') ' +
+    'ORDER BY kode ASC'
+  );
+
+  var masterRows = masterResult.data || masterResult.rows || [];
+  var masterMap = {};
+  masterRows.forEach(function(row) {
+    masterMap[String(row.kode || '').trim()] = {
+      kode_pelanggan: String(row.kode || '').trim(),
+      nama: String(row.nama || '').trim(),
+      saldo_tabungan: Number(row.saldo_tabungan || 0)
+    };
+  });
+
+  customerCodes.forEach(function(kode) {
+    var item = grouped[kode];
+    var master = masterMap[kode] || {
+      kode_pelanggan: kode,
+      nama: '',
+      saldo_tabungan: 0
+    };
+
+    item.nama = master.nama;
+    item.saldo_master = master.saldo_tabungan;
+    item.selisih_dengan_setoran_minus_ambil =
+      master.saldo_tabungan - item.saldo_setoran_minus_ambil;
+    item.selisih_dengan_plus_debet =
+      master.saldo_tabungan - item.saldo_plus_debet;
+    item.selisih_dengan_minus_debet =
+      master.saldo_tabungan - item.saldo_minus_debet;
+  });
+
+  Logger.log('==============================================');
+  Logger.log('HISTORI CUSTOMER DEBET');
+  Logger.log('==============================================');
+
+  customerCodes.forEach(function(kode) {
+    var item = grouped[kode];
+
+    Logger.log('CUSTOMER: ' + item.kode_pelanggan + ' - ' + item.nama);
+    Logger.log('SALDO MASTER: Rp ' + item.saldo_master.toLocaleString('id-ID'));
+    Logger.log('TOTAL DEBET: Rp ' + item.total_debet.toLocaleString('id-ID'));
+    Logger.log('TOTAL SETORAN: Rp ' + item.total_setoran.toLocaleString('id-ID'));
+    Logger.log('TOTAL AMBIL: Rp ' + item.total_ambil.toLocaleString('id-ID'));
+    Logger.log('SALDO SETORAN - AMBIL: Rp ' + item.saldo_setoran_minus_ambil.toLocaleString('id-ID'));
+    Logger.log('SALDO + DEBET: Rp ' + item.saldo_plus_debet.toLocaleString('id-ID'));
+    Logger.log('SALDO - DEBET: Rp ' + item.saldo_minus_debet.toLocaleString('id-ID'));
+    Logger.log('SELISIH MASTER vs SETORAN-AMBIL: Rp ' + item.selisih_dengan_setoran_minus_ambil.toLocaleString('id-ID'));
+    Logger.log('SELISIH MASTER vs +DEBET: Rp ' + item.selisih_dengan_plus_debet.toLocaleString('id-ID'));
+    Logger.log('SELISIH MASTER vs -DEBET: Rp ' + item.selisih_dengan_minus_debet.toLocaleString('id-ID'));
+
+    item.transaksi.forEach(function(tx) {
+      Logger.log(
+        tx.tanggal + ' | ' +
+        tx.jam + ' | ' +
+        tx.jenis + ' | Rp ' +
+        tx.jumlah.toLocaleString('id-ID') + ' | ' +
+        tx.kode + ' | ' +
+        tx.keterangan
+      );
+    });
+
+    Logger.log('----------------------------------------------');
+  });
+
   return {
-    purpose: 'Verifikasi akhir histori customer yang memiliki DEBET Tabungan Awal Pelanggan.',
-    customers: ['2108003', 'MUSHOLA'],
-    transactions: auditRowsV1(result),
+    purpose: 'Verifikasi akhir perlakuan DEBET terhadap saldo_tabungan tanpa mengubah production.',
+    customers: grouped,
     duration_ms: new Date().getTime() - started
   };
 }
+
 
 function auditTabunganDebetV1() {
   var started = new Date().getTime();
