@@ -441,6 +441,133 @@ function auditRowsV1(result) {
     count: (result.data || result.rows || []).length
   };
 }
+function auditCustomerPiutangV1() {
+  var started = new Date().getTime();
+
+  var master = sidRetailQuery(
+    'SELECT kode,nama,COALESCE(saldo_tabungan,0) AS saldo_tabungan,COALESCE(saldo_piutang,0) AS saldo_piutang ' +
+    'FROM pelanggan ORDER BY kode ASC'
+  );
+  var masterRows = master.data || master.rows || [];
+
+  var piutang = sidRetailQuery(
+    'SELECT pelanggan,COUNT(*) AS jumlah_transaksi,SUM(COALESCE(piutang,0)) AS total_piutang ' +
+    'FROM penjualan ' +
+    'WHERE pelanggan IS NOT NULL AND TRIM(pelanggan) <> \'\' ' +
+    'GROUP BY pelanggan ORDER BY pelanggan ASC'
+  );
+  var piutangRows = piutang.data || piutang.rows || [];
+
+  var masterMap = {};
+  masterRows.forEach(function(row) {
+    var kode = String(row.kode || '').trim();
+    if (kode) {
+      masterMap[kode] = {
+        kode_pelanggan: kode,
+        nama: String(row.nama || '').trim(),
+        saldo_tabungan: Number(row.saldo_tabungan || 0),
+        saldo_piutang_master: Number(row.saldo_piutang || 0)
+      };
+    }
+  });
+
+  var piutangMap = {};
+  piutangRows.forEach(function(row) {
+    var kode = String(row.pelanggan || '').trim();
+    if (kode) {
+      piutangMap[kode] = {
+        jumlah_transaksi: Number(row.jumlah_transaksi || 0),
+        total_piutang_penjualan: Number(row.total_piutang || 0)
+      };
+    }
+  });
+
+  var onlyTabungan = [];
+  var onlyPiutang = [];
+  var both = [];
+  var neither = [];
+  var piutangMismatch = [];
+
+  Object.keys(masterMap).forEach(function(kode) {
+    var m = masterMap[kode];
+    var p = piutangMap[kode] || {jumlah_transaksi: 0, total_piutang_penjualan: 0};
+    var hasTabungan = m.saldo_tabungan > 0;
+    var hasMasterPiutang = m.saldo_piutang_master > 0;
+    var hasPenjualanPiutang = p.total_piutang_penjualan > 0;
+
+    if (hasTabungan && (hasMasterPiutang || hasPenjualanPiutang)) {
+      both.push(kode);
+    } else if (hasTabungan) {
+      onlyTabungan.push(kode);
+    } else if (hasMasterPiutang || hasPenjualanPiutang) {
+      onlyPiutang.push(kode);
+    } else {
+      neither.push(kode);
+    }
+
+    if (Math.abs(m.saldo_piutang_master - p.total_piutang_penjualan) > 0.01) {
+      piutangMismatch.push({
+        kode_pelanggan: kode,
+        nama: m.nama,
+        saldo_piutang_master: m.saldo_piutang_master,
+        total_piutang_penjualan: p.total_piutang_penjualan,
+        selisih: m.saldo_piutang_master - p.total_piutang_penjualan,
+        jumlah_transaksi_piutang_source: p.jumlah_transaksi
+      });
+    }
+  });
+
+  Logger.log('==============================================');
+  Logger.log('CUSTOMER + PIUTANG AUDIT V1');
+  Logger.log('==============================================');
+  Logger.log('CUSTOMER MASTER: ' + masterRows.length);
+  Logger.log('ONLY TABUNGAN: ' + onlyTabungan.length);
+  Logger.log('ONLY PIUTANG: ' + onlyPiutang.length);
+  Logger.log('BOTH TABUNGAN + PIUTANG: ' + both.length);
+  Logger.log('NEITHER: ' + neither.length);
+  Logger.log('MASTER PIUTANG vs SUM penjualan.piutang MISMATCH: ' + piutangMismatch.length);
+
+  Logger.log('----------------------------------------------');
+  Logger.log('PIUTANG MISMATCH TERBESAR');
+  piutangMismatch
+    .sort(function(a, b) {
+      return Math.abs(b.selisih) - Math.abs(a.selisih);
+    })
+    .slice(0, 30)
+    .forEach(function(item) {
+      Logger.log(
+        item.kode_pelanggan + ' | ' + item.nama +
+        ' | MASTER Rp ' + item.saldo_piutang_master.toLocaleString('id-ID') +
+        ' | PENJUALAN Rp ' + item.total_piutang_penjualan.toLocaleString('id-ID') +
+        ' | SELISIH Rp ' + item.selisih.toLocaleString('id-ID') +
+        ' | TX ' + item.jumlah_transaksi_piutang_source
+      );
+    });
+
+  return {
+    source: {
+      customer_master: 'pelanggan',
+      piutang_transaction_source: 'penjualan.piutang'
+    },
+    summary: {
+      customer_master: masterRows.length,
+      only_tabungan: onlyTabungan.length,
+      only_piutang: onlyPiutang.length,
+      both_tabungan_piutang: both.length,
+      neither: neither.length,
+      piutang_mismatch: piutangMismatch.length
+    },
+    categories: {
+      only_tabungan: onlyTabungan,
+      only_piutang: onlyPiutang,
+      both_tabungan_piutang: both,
+      neither: neither
+    },
+    mismatches: piutangMismatch,
+    duration_ms: new Date().getTime() - started
+  };
+}
+
 
 function testCustomerTabunganAuditV1() {
   var result = auditCustomerTabunganV1();
