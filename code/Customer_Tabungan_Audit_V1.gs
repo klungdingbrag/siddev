@@ -48,6 +48,9 @@ function auditCustomerTabunganV1() {
   Logger.log('FOKUS FIKA 2606030');
   Logger.log(JSON.stringify(auditCustomerFikaV1(), null, 2));
   Logger.log('==============================================');
+  Logger.log('AUDIT DEBET');
+  Logger.log(JSON.stringify(auditTabunganDebetV1(), null, 2));
+  Logger.log('==============================================');
 
   return result;
 }
@@ -143,6 +146,45 @@ function auditTabunganSourceV1() {
     jenis_summary: auditRowsV1(jenisResult),
     schema: auditRowsV1(schemaResult),
     sample_latest: auditRowsV1(sampleResult),
+    duration_ms: new Date().getTime() - started
+  };
+}
+
+function auditTabunganDebetV1() {
+  var started = new Date().getTime();
+
+  var debetResult = sidRetailQuery(
+    'SELECT kode,tanggal,jam,pelanggan,jumlah,jenis,keterangan,kode_kas,sumber,sumber_faktur ' +
+    'FROM tabungan ' +
+    'WHERE UPPER(TRIM(jenis)) = \'DEBET\' ' +
+    'ORDER BY tanggal ASC,jam ASC,kode ASC'
+  );
+
+  var comparisonResult = sidRetailQuery(
+    'SELECT ' +
+    'p.kode,p.nama,COALESCE(p.saldo_tabungan,0) AS saldo_tabungan,' +
+    'COALESCE(SUM(CASE WHEN UPPER(TRIM(t.jenis)) = \'SETORAN\' THEN COALESCE(t.jumlah,0) ELSE 0 END),0) AS total_setoran,' +
+    'COALESCE(SUM(CASE WHEN UPPER(TRIM(t.jenis)) IN (\'AMBIL\',\'TARIKAN\',\'PENARIKAN\',\'PENGAMBILAN\') THEN COALESCE(t.jumlah,0) ELSE 0 END),0) AS total_pengambilan,' +
+    'COALESCE(SUM(CASE WHEN UPPER(TRIM(t.jenis)) = \'DEBET\' THEN COALESCE(t.jumlah,0) ELSE 0 END),0) AS total_debet,' +
+    'COALESCE(SUM(CASE WHEN UPPER(TRIM(t.jenis)) = \'SETORAN\' THEN COALESCE(t.jumlah,0) ELSE 0 END),0) - ' +
+    'COALESCE(SUM(CASE WHEN UPPER(TRIM(t.jenis)) IN (\'AMBIL\',\'TARIKAN\',\'PENARIKAN\',\'PENGAMBILAN\') THEN COALESCE(t.jumlah,0) ELSE 0 END),0) AS saldo_setoran_minus_ambil,' +
+    'COALESCE(SUM(CASE WHEN UPPER(TRIM(t.jenis)) = \'SETORAN\' THEN COALESCE(t.jumlah,0) ELSE 0 END),0) - ' +
+    'COALESCE(SUM(CASE WHEN UPPER(TRIM(t.jenis)) IN (\'AMBIL\',\'TARIKAN\',\'PENARIKAN\',\'PENGAMBILAN\') THEN COALESCE(t.jumlah,0) ELSE 0 END),0) + ' +
+    'COALESCE(SUM(CASE WHEN UPPER(TRIM(t.jenis)) = \'DEBET\' THEN COALESCE(t.jumlah,0) ELSE 0 END),0) AS saldo_plus_debet,' +
+    'COALESCE(SUM(CASE WHEN UPPER(TRIM(t.jenis)) = \'SETORAN\' THEN COALESCE(t.jumlah,0) ELSE 0 END),0) - ' +
+    'COALESCE(SUM(CASE WHEN UPPER(TRIM(t.jenis)) IN (\'AMBIL\',\'TARIKAN\',\'PENARIKAN\',\'PENGAMBILAN\') THEN COALESCE(t.jumlah,0) ELSE 0 END),0) - ' +
+    'COALESCE(SUM(CASE WHEN UPPER(TRIM(t.jenis)) = \'DEBET\' THEN COALESCE(t.jumlah,0) ELSE 0 END),0) AS saldo_minus_debet ' +
+    'FROM pelanggan p ' +
+    'INNER JOIN tabungan t ON t.pelanggan = p.kode ' +
+    'WHERE UPPER(TRIM(t.jenis)) = \'DEBET\' ' +
+    'GROUP BY p.kode,p.nama,p.saldo_tabungan ' +
+    'ORDER BY p.kode ASC'
+  );
+
+  return {
+    purpose: 'Menentukan perlakuan transaksi DEBET terhadap saldo_tabungan tanpa mengubah production.',
+    debet_transactions: auditRowsV1(debetResult),
+    customer_comparison: auditRowsV1(comparisonResult),
     duration_ms: new Date().getTime() - started
   };
 }
