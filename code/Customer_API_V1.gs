@@ -247,6 +247,48 @@ function getPelangganAktifFinansialSemuaV1() {
   };
 }
 
+function testPelangganAktifFinansialSemuaV1() {
+  Logger.log('==============================================');
+  Logger.log('CUSTOMER AKTIF FINANSIAL SEMUA V1 TEST');
+  Logger.log('==============================================');
+
+  var result = getPelangganAktifFinansialSemuaV1();
+  var rows = result.data || [];
+  var invalid = rows.filter(function(row) {
+    return Number(row.saldo_tabungan || 0) <= 0 &&
+      Number(row.saldo_piutang || 0) <= 0;
+  });
+
+  var ordered = true;
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i - 1].kode_pelanggan) >= String(rows[i].kode_pelanggan)) {
+      ordered = false;
+      break;
+    }
+  }
+
+  var validation = {
+    status: result.status,
+    count: rows.length,
+    invalid_financial_rows: invalid.length,
+    ordered_by_code: ordered,
+    pagination_mode: result.pagination && result.pagination.mode,
+    validation: result.status === 'success' &&
+      rows.length > 0 &&
+      invalid.length === 0 &&
+      ordered === true
+  };
+
+  Logger.log(JSON.stringify(validation, null, 2));
+
+  if (!validation.validation) {
+    throw new Error('CUSTOMER AKTIF FINANSIAL SEMUA V1 TEST: FAIL');
+  }
+
+  Logger.log('CUSTOMER AKTIF FINANSIAL SEMUA V1 TEST: PASS');
+  return validation;
+}
+
 function testPelangganAktifFinansialV1() {
   Logger.log('==============================================');
   Logger.log('CUSTOMER AKTIF FINANSIAL V1 TEST');
