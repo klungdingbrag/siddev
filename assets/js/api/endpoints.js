@@ -4,6 +4,15 @@ export const api = Object.freeze({
   health: () => apiRequest("health"),
   validateConfig: () => apiRequest("validateConfig"),
   piutang: (params = {}) => apiRequest("piutang", params),
+  pelanggan: (limit = 50, cursor = null) =>
+    apiRequest("pelanggan", { limit, cursor }),
+  pelangganDetail: (kodePelanggan) =>
+    apiRequest("pelangganDetail", { kode_pelanggan: kodePelanggan }),
+  pelangganTabunganHistory: (kodePelanggan, limit = 100) =>
+    apiRequest("pelangganTabunganHistory", {
+      kode_pelanggan: kodePelanggan,
+      limit
+    }),
   dashboardSalesDaily: (tanggalAwal, tanggalAkhir) =>
     apiRequest("dashboardSalesDaily", { tanggalAwal, tanggalAkhir }),
   dashboardProfitMonthly: (tanggalAwal, tanggalAkhir) =>
