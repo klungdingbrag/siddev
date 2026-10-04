@@ -272,6 +272,7 @@ function bindEvents(mountId) {
     if (pending && typeof pending.then === "function") {
       pending.then(() => {
         if (mountId !== state.mountId) return;
+        if (state.page !== nextPage - 1) return;
         if (!state.pages[String(nextPage)]) return;
         state.page = nextPage;
         syncCurrentPage();
@@ -279,6 +280,7 @@ function bindEvents(mountId) {
         prefetchNextPage(mountId, state.page);
       }).catch(() => {
         if (mountId !== state.mountId) return;
+        if (state.page !== nextPage - 1) return;
         // Prefetch gagal: klik Next tetap boleh mencoba request normal.
         loadCustomers(mountId, nextPage, false);
       });
