@@ -5,20 +5,15 @@
  *
  * Data contract:
  * - Customer = satu entitas di frontend. Tidak membedakan cabang/toko lain.
- * - saldo_tabungan = pelanggan.saldo_tabungan (master SID Retail).
- * - saldo_piutang = agregasi penjualan.piutang > 0, mengikuti transaction-first.
- * - Detail transaksi tetap tersedia di SID Retail; frontend tidak melakukan accounting.
- * - Tidak mengubah fungsi Production yang sudah ada.
+ * - saldo_tabungan = pelanggan.saldo_tabungan.
+ * - saldo_piutang = agregasi outstanding penjualan.piutang, transaction-first.
+ * - Frontend tidak melakukan accounting.
  */
 
-/**
- * Daftar customer untuk frontend.
- *
- * Pagination berbasis kode customer (keyset), bukan OFFSET.
- * Parameter:
- * - limit: 1..200, default 50
- * - cursor: kode customer terakhir dari halaman sebelumnya
- */
+function customerSqlQuoteV1(value) {
+  return "'" + String(value == null ? '' : value).replace(/'/g, "''") + "'";
+}
+
 function getPelangganLaporanV1(limit, cursor) {
   var pageSize = Number(limit || 50);
   if (!isFinite(pageSize)) pageSize = 50;
@@ -29,10 +24,9 @@ function getPelangganLaporanV1(limit, cursor) {
   var masterQuery =
     'SELECT kode,nama,alamat,telp,COALESCE(saldo_tabungan,0) AS saldo_tabungan ' +
     'FROM pelanggan ' +
-    'WHERE kode IS NOT NULL AND TRIM(kode) <> ''' +
-    (lastKode
-      ? ' AND kode > ''' + lastKode.replace(/'/g, "''") + '\'''
-      : '') +
+    'WHERE kode IS NOT NULL AND TRIM(kode) <> ' +
+    customerSqlQuoteV1('') +
+    (lastKode ? ' AND kode > ' + customerSqlQuoteV1(lastKode) : '') +
     ' ORDER BY kode ASC LIMIT ' + pageSize;
 
   var masterResult = sidRetailQuery(masterQuery);
@@ -61,11 +55,12 @@ function getPelangganLaporanV1(limit, cursor) {
   }).filter(Boolean);
 
   var escapedCodes = codes.map(function(kode) {
-    return "'" + kode.replace(/'/g, "''") + "'";
+    return customerSqlQuoteV1(kode);
   }).join(',');
 
   var piutangQuery =
-    'SELECT pelanggan,SUM(CASE WHEN COALESCE(piutang,0) > 0 THEN piutang ELSE 0 END) AS saldo_piutang,' +
+    'SELECT pelanggan,' +
+    'SUM(CASE WHEN COALESCE(piutang,0) > 0 THEN piutang ELSE 0 END) AS saldo_piutang,' +
     'COUNT(CASE WHEN COALESCE(piutang,0) > 0 THEN 1 ELSE NULL END) AS jumlah_nota_outstanding ' +
     'FROM penjualan ' +
     'WHERE pelanggan IN (' + escapedCodes + ') ' +
@@ -125,22 +120,13 @@ function getPelangganLaporanV1(limit, cursor) {
   };
 }
 
-/**
- * Detail customer on demand.
- *
- * Tidak menggantikan getDetailPiutangPelanggan().
- * Fungsi ini hanya menyatukan ringkasan customer, tabungan, dan piutang
- * untuk kebutuhan halaman Detail Pelanggan.
- */
 function getPelangganDetailV1(kodePelanggan) {
   var kode = String(kodePelanggan || '').trim();
   if (!kode) throw new Error('Kode pelanggan wajib diisi.');
 
-  var safeKode = kode.replace(/'/g, "''");
-
   var masterResult = sidRetailQuery(
     'SELECT kode,nama,alamat,telp,COALESCE(saldo_tabungan,0) AS saldo_tabungan ' +
-    'FROM pelanggan WHERE kode = '\'' + safeKode + '\'' LIMIT 1'
+    'FROM pelanggan WHERE kode = ' + customerSqlQuoteV1(kode) + ' LIMIT 1'
   );
   var masterRows = masterResult.data || masterResult.rows || [];
 
@@ -151,9 +137,9 @@ function getPelangganDetailV1(kodePelanggan) {
   var row = masterRows[0];
 
   var piutangResult = sidRetailQuery(
-    'SELECT COUNT(*) AS jumlah_nota_outstanding,' +
+    'SELECT COUNT(CASE WHEN COALESCE(piutang,0) > 0 THEN 1 ELSE NULL END) AS jumlah_nota_outstanding,' +
     'COALESCE(SUM(CASE WHEN COALESCE(piutang,0) > 0 THEN piutang ELSE 0 END),0) AS saldo_piutang ' +
-    'FROM penjualan WHERE pelanggan = '\'' + safeKode + '\'''
+    'FROM penjualan WHERE pelanggan = ' + customerSqlQuoteV1(kode)
   );
   var piutangRows = piutangResult.data || piutangResult.rows || [];
   var piutang = piutangRows[0] || {};
@@ -178,13 +164,6 @@ function getPelangganDetailV1(kodePelanggan) {
   };
 }
 
-/**
- * Riwayat tabungan customer.
- *
- * Saldo akhir bukan dihitung sebagai source of truth baru:
- * saldo_tabungan tetap berasal dari pelanggan.saldo_tabungan.
- * running balance hanya merupakan rekonstruksi history untuk tampilan.
- */
 function getRiwayatTabunganPelangganV1(kodePelanggan, limit) {
   var kode = String(kodePelanggan || '').trim();
   if (!kode) throw new Error('Kode pelanggan wajib diisi.');
@@ -193,11 +172,9 @@ function getRiwayatTabunganPelangganV1(kodePelanggan, limit) {
   if (!isFinite(pageSize)) pageSize = 500;
   pageSize = Math.max(1, Math.min(500, Math.floor(pageSize)));
 
-  var safeKode = kode.replace(/'/g, "''");
-
   var masterResult = sidRetailQuery(
     'SELECT kode,nama,COALESCE(saldo_tabungan,0) AS saldo_tabungan ' +
-    'FROM pelanggan WHERE kode = '\'' + safeKode + '\'' LIMIT 1'
+    'FROM pelanggan WHERE kode = ' + customerSqlQuoteV1(kode) + ' LIMIT 1'
   );
   var masterRows = masterResult.data || masterResult.rows || [];
 
@@ -209,8 +186,8 @@ function getRiwayatTabunganPelangganV1(kodePelanggan, limit) {
 
   var historyResult = sidRetailQuery(
     'SELECT kode,tanggal,jam,pelanggan,jumlah,jenis,keterangan,kode_kas,sumber,sumber_faktur ' +
-    'FROM tabungan WHERE pelanggan = '\'' + safeKode + '\'' ' +
-    'ORDER BY tanggal ASC,jam ASC,kode ASC LIMIT ' + pageSize
+    'FROM tabungan WHERE pelanggan = ' + customerSqlQuoteV1(kode) +
+    ' ORDER BY tanggal ASC,jam ASC,kode ASC LIMIT ' + pageSize
   );
   var historyRows = historyResult.data || historyResult.rows || [];
 
