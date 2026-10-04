@@ -423,18 +423,21 @@ function renderCustomerDetail(detailResult, historyResult, fallbackRow) {
   const detailResponse = detailResult?.data || detailResult || {};
   const detail = detailResponse?.customer || detailResponse?.pelanggan || detailResponse || fallbackRow || {};
 
-  const historyResponse = historyResult?.data || historyResult || {};
-  const transactions = Array.isArray(historyResponse)
-    ? historyResponse
-    : (
-        historyResponse?.data ||
-        historyResponse?.transactions ||
-        historyResponse?.riwayat ||
-        historyResponse?.rows ||
-        []
-      );
+  // API contract history: { customer, data: [...], summary: {...} }
+  // Pertahankan root response agar summary rekonsiliasi tidak hilang.
+  const historyResponse = historyResult || {};
+  const transactions = Array.isArray(historyResponse?.data)
+    ? historyResponse.data
+    : Array.isArray(historyResponse)
+      ? historyResponse
+      : (
+          historyResponse?.transactions ||
+          historyResponse?.riwayat ||
+          historyResponse?.rows ||
+          []
+        );
 
-  const historySummary = historyResponse?.summary || {};
+  const historySummary = historyResponse?.summary || historyResponse?.data?.summary || {};
 
   const code =
     detail?.kode_pelanggan ||
