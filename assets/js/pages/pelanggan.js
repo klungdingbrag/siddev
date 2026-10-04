@@ -8,6 +8,7 @@ const state = {
   page: 1,
   pages: {},
   loading: false,
+  loadingPages: {},
   detailLoading: false,
   search: "",
   pageSize: 50,
@@ -99,7 +100,7 @@ function readCustomerCache() {
 function writeCustomerCache() {
   try {
     sessionStorage.setItem(customerCacheKey(), JSON.stringify({
-      version: 1,
+      version: 2,
       savedAt: Date.now(),
       state: {
         page: state.page,
@@ -145,10 +146,15 @@ function totalKnownPages() {
   return Object.keys(state.pages).filter((key) => state.pages[key]).length;
 }
 
+function isPageLoading(pageNumber) {
+  return Boolean(state.loadingPages[String(pageNumber)]);
+}
+
 export function renderPelangganPage() {
   const mountId = ++state.mountId;
 
   state.loading = false;
+  state.loadingPages = {};
   state.detailLoading = false;
   state.search = "";
 
@@ -202,6 +208,8 @@ export function renderPelangganPage() {
     setCustomerState("", "");
     if (cached.ageMs >= CUSTOMER_CACHE_TTL_MS) {
       loadCustomers(mountId, state.page, true);
+    } else {
+      prefetchNextPage(mountId, state.page);
     }
   } else {
     renderCustomerRows();
@@ -215,6 +223,7 @@ function bindEvents(mountId) {
     state.page = 1;
     state.pages = {};
     state.rows = [];
+    state.loadingPages = {};
     renderCustomerRows();
     loadCustomers(mountId, 1, true);
   });
@@ -229,6 +238,7 @@ function bindEvents(mountId) {
     state.page = 1;
     state.pages = {};
     state.rows = [];
+    state.loadingPages = {};
     sessionStorage.removeItem(customerCacheKey());
     renderCustomerRows();
     loadCustomers(mountId, 1, true);
@@ -239,18 +249,26 @@ function bindEvents(mountId) {
     state.page -= 1;
     syncCurrentPage();
     renderCustomerRows();
+    prefetchNextPage(mountId, state.page);
   });
 
   document.querySelector("#customer-next").addEventListener("click", () => {
     if (state.loading) return;
+
     const nextPage = state.page + 1;
     if (state.pages[String(nextPage)]) {
       state.page = nextPage;
       syncCurrentPage();
       renderCustomerRows();
+      prefetchNextPage(mountId, state.page);
       return;
     }
+
     if (!currentPageData().hasMore) return;
+
+    // Jika prefetch sedang berjalan, tunggu request tersebut.
+    if (isPageLoading(nextPage)) return;
+
     loadCustomers(mountId, nextPage, false);
   });
 
@@ -263,22 +281,30 @@ function bindEvents(mountId) {
 }
 
 async function loadCustomers(mountId, pageNumber, force) {
-  if (state.loading) return;
+  if (state.loading && !force) return;
 
   const cachedPage = state.pages[String(pageNumber)];
   if (!force && cachedPage) {
     state.page = pageNumber;
     syncCurrentPage();
     renderCustomerRows();
+    prefetchNextPage(mountId, pageNumber);
     return;
   }
 
+  if (isPageLoading(pageNumber)) return;
+
   state.loading = true;
+  state.loadingPages[String(pageNumber)] = true;
   setCustomerState("loading", pageNumber === 1 ? "Mengambil daftar pelanggan..." : "Mengambil halaman pelanggan...");
   setLoadButton(true);
 
   try {
     const cursor = pageCursor(pageNumber);
+    if (pageNumber > 1 && !cursor) {
+      throw new Error("Cursor halaman sebelumnya belum tersedia.");
+    }
+
     const result = await api.pelanggan(state.pageSize, cursor);
 
     if (mountId !== state.mountId) return;
@@ -291,19 +317,65 @@ async function loadCustomers(mountId, pageNumber, force) {
       nextCursor: pagination.nextCursor,
       hasMore: pagination.hasMore
     };
+
     state.page = pageNumber;
     syncCurrentPage();
     writeCustomerCache();
 
     renderCustomerRows();
     setCustomerState("", "");
+
+    // Ambil halaman berikutnya di background agar tombol Next terasa instan.
+    prefetchNextPage(mountId, pageNumber);
   } catch (error) {
     if (mountId !== state.mountId) return;
     setCustomerState("error", error.message || "Gagal mengambil data pelanggan.");
   } finally {
     if (mountId === state.mountId) {
+      delete state.loadingPages[String(pageNumber)];
       state.loading = false;
       setLoadButton(false);
+      updateLoadMore();
+    }
+  }
+}
+
+async function prefetchNextPage(mountId, pageNumber) {
+  if (mountId !== state.mountId) return;
+
+  const pageData = state.pages[String(pageNumber)];
+  if (!pageData?.hasMore || !pageData.nextCursor) return;
+
+  const nextPage = pageNumber + 1;
+  if (state.pages[String(nextPage)] || isPageLoading(nextPage)) return;
+
+  state.loadingPages[String(nextPage)] = true;
+
+  try {
+    const result = await api.pelanggan(state.pageSize, pageData.nextCursor);
+
+    if (mountId !== state.mountId) return;
+
+    const rows = getRows(result);
+    const pagination = getPagination(result);
+
+    state.pages[String(nextPage)] = {
+      rows,
+      nextCursor: pagination.nextCursor,
+      hasMore: pagination.hasMore
+    };
+
+    writeCustomerCache();
+    updateLoadMore();
+  } catch (error) {
+    if (mountId !== state.mountId) return;
+    // Prefetch adalah optimasi UX. Jika gagal, Next tetap bisa mencoba lagi.
+    console.warn("[Pelanggan] prefetch halaman berikutnya gagal:", error);
+    updateLoadMore();
+  } finally {
+    if (mountId === state.mountId) {
+      delete state.loadingPages[String(nextPage)];
+      updateLoadMore();
     }
   }
 }
@@ -422,7 +494,6 @@ function updateLoadMore() {
     (knownPages > 1 ? " · " + number.format(knownPages) + " halaman tersimpan" : "") +
     (state.search ? " · pencarian di halaman ini" : "");
 }
-
 
 function setLoadButton(loading) {
   const previous = document.querySelector("#customer-prev");
