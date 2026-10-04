@@ -239,3 +239,38 @@ function getRiwayatTabunganPelangganV1(kodePelanggan, limit) {
     }
   };
 }
+
+
+function testPelangganApiV1() {
+  Logger.log('==============================================');
+  Logger.log('CUSTOMER API V1 TEST');
+  Logger.log('==============================================');
+
+  var list = getPelangganLaporanV1(5, '');
+  Logger.log('LIST STATUS: ' + list.status);
+  Logger.log('LIST COUNT: ' + list.data.length);
+  Logger.log(JSON.stringify(list.data, null, 2));
+  Logger.log('LIST PAGINATION: ' + JSON.stringify(list.pagination));
+
+  var detail = getPelangganDetailV1('2404002');
+  Logger.log('DETAIL STATUS: ' + detail.status);
+  Logger.log(JSON.stringify(detail.customer, null, 2));
+
+  var history = getRiwayatTabunganPelangganV1('2404002', 100);
+  Logger.log('HISTORY STATUS: ' + history.status);
+  Logger.log(JSON.stringify(history.summary, null, 2));
+
+  if (list.status !== 'success' ||
+      detail.status !== 'success' ||
+      history.status !== 'success') {
+    throw new Error('CUSTOMER API V1 TEST GAGAL.');
+  }
+
+  Logger.log('CUSTOMER API V1 TEST: PASS');
+  return {
+    status: 'success',
+    list_count: list.data.length,
+    detail_customer: detail.customer,
+    history_summary: history.summary
+  };
+}
