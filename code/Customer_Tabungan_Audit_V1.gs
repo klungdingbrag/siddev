@@ -583,3 +583,134 @@ function testCustomerTabunganAuditV1() {
   Logger.log('CUSTOMER + TABUNGAN AUDIT V1: PASS');
   return result;
 }
+
+
+function auditCustomerPiutangBpkKiminV1() {
+  var started = new Date().getTime();
+  var kode = '2404002';
+  var nama = 'BPK KIMIN';
+
+  // Jalur referensi: laporan Piutang existing yang sudah stabil.
+  var laporan = getPiutangPelangganLaporan();
+  if (!laporan || laporan.status !== 'success') {
+    throw new Error('Gagal membaca laporan Piutang existing: ' + JSON.stringify(laporan));
+  }
+
+  var laporanRows = Array.isArray(laporan.data) ? laporan.data : [];
+  var laporanCustomer = null;
+
+  laporanRows.forEach(function(row) {
+    if (String(row.kd_pelanggan || '').trim() === kode) {
+      laporanCustomer = row;
+    }
+  });
+
+  // Jalur kedua: aggregate langsung dari penjualan.piutang.
+  var aggregateResult = sidRetailQuery(
+    "SELECT pelanggan," +
+    "COUNT(CASE WHEN COALESCE(piutang,0) > 0 THEN 1 ELSE NULL END) AS jumlah_nota_outstanding," +
+    "COALESCE(SUM(CASE WHEN COALESCE(piutang,0) > 0 THEN piutang ELSE 0 END),0) AS total_piutang " +
+    "FROM penjualan " +
+    "WHERE pelanggan = '" + kode + "' " +
+    "GROUP BY pelanggan"
+  );
+
+  var aggregateRows = aggregateResult && aggregateResult.data
+    ? aggregateResult.data
+    : (aggregateResult && aggregateResult.rows ? aggregateResult.rows : []);
+
+  var aggregateCustomer = aggregateRows.length ? aggregateRows[0] : null;
+
+  // Jalur ketiga: detail Piutang existing untuk memastikan nota outstanding.
+  var detail = getDetailPiutangPelanggan(kode);
+  if (!detail || detail.status !== 'success') {
+    throw new Error('Gagal membaca detail Piutang existing: ' + JSON.stringify(detail));
+  }
+
+  var detailRows = Array.isArray(detail.data) ? detail.data : [];
+  var detailTotal = detailRows.reduce(function(total, row) {
+    return total + Number(row.piutang || 0);
+  }, 0);
+
+  var laporanTotal = laporanCustomer
+    ? Number(laporanCustomer.total_piutang || 0)
+    : 0;
+  var aggregateTotal = aggregateCustomer
+    ? Number(aggregateCustomer.total_piutang || 0)
+    : 0;
+
+  var result = {
+    status: 'AUDIT_COMPLETE',
+    read_only: true,
+    production_changed: false,
+    kode_pelanggan: kode,
+    nama_target: nama,
+    reference_report: {
+      found: !!laporanCustomer,
+      total_piutang: laporanTotal,
+      jumlah_nota_outstanding: laporanCustomer
+        ? null
+        : 0
+    },
+    direct_penjualan: {
+      total_piutang: aggregateTotal,
+      jumlah_nota_outstanding: aggregateCustomer
+        ? Number(aggregateCustomer.jumlah_nota_outstanding || 0)
+        : 0
+    },
+    detail_piutang_existing: {
+      total_piutang: detailTotal,
+      jumlah_nota_outstanding: detailRows.length
+    },
+    comparison: {
+      report_vs_direct_difference: laporanTotal - aggregateTotal,
+      report_vs_detail_difference: laporanTotal - detailTotal,
+      direct_vs_detail_difference: aggregateTotal - detailTotal,
+      status: (
+        Math.abs(laporanTotal - aggregateTotal) < 0.01 &&
+        Math.abs(laporanTotal - detailTotal) < 0.01
+      ) ? 'PASS' : 'CHECK_REQUIRED'
+    },
+    report_customer: laporanCustomer,
+    detail_rows: detailRows,
+    duration_ms: new Date().getTime() - started
+  };
+
+  Logger.log('==============================================');
+  Logger.log('AUDIT BPK KIMIN - PIUTANG V1');
+  Logger.log('==============================================');
+  Logger.log('KODE: ' + kode);
+  Logger.log('NAMA: ' + nama);
+  Logger.log('LAPORAN PIUTANG EXISTING: Rp ' + laporanTotal.toLocaleString('id-ID'));
+  Logger.log('DIRECT penjualan.piutang: Rp ' + aggregateTotal.toLocaleString('id-ID'));
+  Logger.log('DETAIL PIUTANG EXISTING: Rp ' + detailTotal.toLocaleString('id-ID'));
+  Logger.log('NOTA OUTSTANDING DETAIL: ' + detailRows.length);
+  Logger.log('SELISIH REPORT vs DIRECT: Rp ' + (laporanTotal - aggregateTotal).toLocaleString('id-ID'));
+  Logger.log('SELISIH REPORT vs DETAIL: Rp ' + (laporanTotal - detailTotal).toLocaleString('id-ID'));
+  Logger.log('STATUS: ' + result.comparison.status);
+  Logger.log('==============================================');
+
+  return result;
+}
+
+function testCustomerPiutangBpkKiminV1() {
+  var result = auditCustomerPiutangBpkKiminV1();
+
+  if (!result || result.status !== 'AUDIT_COMPLETE') {
+    throw new Error('Audit BPK KIMIN tidak selesai.');
+  }
+
+  if (result.read_only !== true || result.production_changed !== false) {
+    throw new Error('Audit BPK KIMIN tidak memenuhi prinsip read-only.');
+  }
+
+  if (result.comparison.status !== 'PASS') {
+    throw new Error(
+      'Saldo Piutang BPK KIMIN belum konsisten. ' +
+      JSON.stringify(result.comparison)
+    );
+  }
+
+  Logger.log('BPK KIMIN PIUTANG VALIDATION: PASS');
+  return result;
+}
