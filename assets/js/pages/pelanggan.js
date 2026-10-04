@@ -4,14 +4,14 @@ const CUSTOMER_CACHE_KEY = "sidretail:pelanggan:v2";
 const CUSTOMER_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const state = {
-  rows: [],
-  page: 1,
-  pages: {},
+  loaded: false,
   loading: false,
-  loadingPages: {},
-  detailLoading: false,
+  rows: [],
+  filtered: [],
+  page: 1,
+  pageSize: 25,
   search: "",
-  pageSize: 50,
+  detailLoading: 0,
   mountId: 0,
   escapeHandler: null
 };
@@ -157,41 +157,36 @@ function isPageLoading(pageNumber) {
 export function renderPelangganPage() {
   const mountId = ++state.mountId;
 
+  state.loaded = false;
   state.loading = false;
-  state.loadingPages = {};
-  state.detailLoading = false;
+  state.rows = [];
+  state.filtered = [];
+  state.page = 1;
   state.search = "";
-
-  const cached = readCustomerCache();
-  const restored = cached ? restoreCustomerCache(cached) : false;
-  if (!restored) {
-    state.page = 1;
-    state.pages = {};
-    state.rows = [];
-  }
+  state.detailLoading = 0;
 
   root().innerHTML =
     '<section class="page-heading">' +
-      '<div><p class="eyebrow">Master Data</p><h2>Pelanggan</h2><p class="page-description">Menampilkan pelanggan aktif finansial: memiliki saldo tabungan atau saldo piutang > 0.</p></div>' +
+      '<div><p class="eyebrow">Master Data</p><h2>Pelanggan Aktif Finansial</h2><p class="page-description">Seluruh pelanggan yang memiliki saldo tabungan atau saldo piutang lebih dari 0. Data dimuat sekali, lalu pencarian dan pagination diproses di browser.</p></div>' +
       '<button id="customer-refresh" class="btn btn-primary">↻ Refresh</button>' +
     '</section>' +
 
     '<section class="summary-grid">' +
-      '<article class="summary-card"><span>Data Dimuat</span><strong id="customer-loaded">0</strong><small>pelanggan pada sesi ini</small></article>' +
-      '<article class="summary-card"><span>Dengan Piutang</span><strong id="customer-with-debt">0</strong><small>berdasarkan data yang sudah dimuat</small></article>' +
-      '<article class="summary-card"><span>Dengan Tabungan</span><strong id="customer-with-saving">0</strong><small>berdasarkan data yang sudah dimuat</small></article>' +
-      '<article class="summary-card"><span>Status Data</span><strong id="customer-status">Siap</strong><small id="customer-status-detail">Memuat halaman pertama</small></article>' +
+      '<article class="summary-card"><span>Total Pelanggan</span><strong id="customer-loaded">0</strong><small>pelanggan aktif finansial</small></article>' +
+      '<article class="summary-card"><span>Dengan Piutang</span><strong id="customer-with-debt">0</strong><small>dari seluruh data aktif</small></article>' +
+      '<article class="summary-card"><span>Dengan Tabungan</span><strong id="customer-with-saving">0</strong><small>dari seluruh data aktif</small></article>' +
+      '<article class="summary-card"><span>Status Data</span><strong id="customer-status">Siap</strong><small id="customer-status-detail">Memuat seluruh data aktif finansial</small></article>' +
     '</section>' +
 
     '<section class="card panel">' +
       '<div class="toolbar">' +
         '<div class="search-box"><span>⌕</span><input id="customer-search" type="search" placeholder="Cari kode atau nama..." autocomplete="off"></div>' +
-        '<label class="page-size"><span>Per halaman</span><select id="customer-page-size"><option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label>' +
+        '<label class="page-size"><span>Baris</span><select id="customer-page-size"><option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label>' +
       '</div>' +
-      '<div id="customer-state" class="table-state loading">Memuat pelanggan...</div>' +
+      '<div id="customer-state" class="table-state loading">Memuat seluruh pelanggan aktif finansial...</div>' +
       '<div id="customer-table-wrap" class="table-scroll hidden"><table class="data-table"><thead><tr><th>Pelanggan</th><th>Telepon</th><th>Saldo Tabungan</th><th>Piutang</th><th>Nota Outstanding</th><th></th></tr></thead><tbody id="customer-body"></tbody></table></div>' +
       '<div id="customer-cards" class="mobile-data-cards hidden"></div>' +
-      '<div class="pagination"><button id="customer-prev" class="btn btn-light">← Sebelumnya</button><span id="customer-page-info">Halaman 1</span><button id="customer-next" class="btn btn-light">Berikutnya →</button></div>' +
+      '<div id="customer-pagination" class="pagination hidden"><button id="customer-prev" class="btn btn-light">← Sebelumnya</button><span id="customer-page-info">Halaman 1 / 1</span><button id="customer-next" class="btn btn-light">Berikutnya →</button></div>' +
     '</section>' +
 
     '<div id="customer-modal" class="modal hidden" aria-hidden="true">' +
@@ -203,101 +198,44 @@ export function renderPelangganPage() {
     '</div>';
 
   bindEvents(mountId);
-
-  const pageSizeSelect = document.querySelector("#customer-page-size");
-  if (pageSizeSelect) pageSizeSelect.value = String(state.pageSize);
-
-  if (restored) {
-    renderCustomerRows();
-    setCustomerState("", "");
-    if (cached.ageMs >= CUSTOMER_CACHE_TTL_MS) {
-      loadCustomers(mountId, state.page, true);
-    } else {
-      prefetchNextPage(mountId, state.page);
-    }
-  } else {
-    renderCustomerRows();
-    loadCustomers(mountId, 1, false);
-  }
+  document.querySelector("#customer-page-size").value = String(state.pageSize);
+  loadCustomers(mountId);
 }
 
 function bindEvents(mountId) {
-  document.querySelector("#customer-refresh").addEventListener("click", () => {
-    if (state.loading) return;
-    state.page = 1;
-    state.pages = {};
-    state.rows = [];
-    state.loadingPages = {};
-    renderCustomerRows();
-    loadCustomers(mountId, 1, true);
-  });
+  document.querySelector("#customer-refresh").addEventListener("click", () => loadCustomers(mountId, true));
 
   document.querySelector("#customer-search").addEventListener("input", (event) => {
     state.search = event.target.value.trim().toLowerCase();
-    renderCustomerRows();
+    state.page = 1;
+    filterAndRender();
   });
 
   document.querySelector("#customer-page-size").addEventListener("change", (event) => {
-    state.pageSize = Number(event.target.value) || 50;
+    state.pageSize = Number(event.target.value) || 25;
     state.page = 1;
-    state.pages = {};
-    state.rows = [];
-    state.loadingPages = {};
-    sessionStorage.removeItem(customerCacheKey());
     renderCustomerRows();
-    loadCustomers(mountId, 1, true);
   });
 
   document.querySelector("#customer-prev").addEventListener("click", () => {
-    if (state.page <= 1 || state.loading) return;
-    state.page -= 1;
-    syncCurrentPage();
-    renderCustomerRows();
-    prefetchNextPage(mountId, state.page);
+    if (state.page > 1) {
+      state.page -= 1;
+      renderCustomerRows();
+    }
   });
 
   document.querySelector("#customer-next").addEventListener("click", () => {
-    if (state.loading) return;
-
-    const nextPage = state.page + 1;
-    if (state.pages[String(nextPage)]) {
-      state.page = nextPage;
-      syncCurrentPage();
+    const pages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+    if (state.page < pages) {
+      state.page += 1;
       renderCustomerRows();
-      prefetchNextPage(mountId, state.page);
-      return;
     }
-
-    if (!currentPageData().hasMore) return;
-
-    // Jika prefetch sedang berjalan, gunakan request yang sama.
-    const pending = state.loadingPages[String(nextPage)];
-    if (pending && typeof pending.then === "function") {
-      pending.then(() => {
-        if (mountId !== state.mountId) return;
-        if (state.page !== nextPage - 1) return;
-        if (!state.pages[String(nextPage)]) return;
-        state.page = nextPage;
-        syncCurrentPage();
-        renderCustomerRows();
-        prefetchNextPage(mountId, state.page);
-      }).catch(() => {
-        if (mountId !== state.mountId) return;
-        if (state.page !== nextPage - 1) return;
-        // Prefetch gagal: klik Next tetap boleh mencoba request normal.
-        loadCustomers(mountId, nextPage, false);
-      });
-      return;
-    }
-
-    loadCustomers(mountId, nextPage, false);
   });
 
   document.querySelector("#customer-body").addEventListener("click", customerActionClick);
   document.querySelector("#customer-cards").addEventListener("click", customerActionClick);
   document.querySelector("#customer-detail-close").addEventListener("click", closeCustomerDetail);
 
-  // Hindari akumulasi listener ketika route Pelanggan dibuka berulang kali.
   if (state.escapeHandler) {
     document.removeEventListener("keydown", state.escapeHandler);
   }
@@ -305,118 +243,55 @@ function bindEvents(mountId) {
   document.addEventListener("keydown", state.escapeHandler);
 }
 
-async function loadCustomers(mountId, pageNumber, force) {
-  if (state.loading && !force) return;
+async function loadCustomers(mountId, force = false) {
+  if (state.loading) return;
 
-  const cachedPage = state.pages[String(pageNumber)];
-  if (!force && cachedPage) {
-    state.page = pageNumber;
-    syncCurrentPage();
-    renderCustomerRows();
-    prefetchNextPage(mountId, pageNumber);
+  if (!force && state.loaded && state.rows.length) {
+    filterAndRender();
     return;
   }
 
-  if (isPageLoading(pageNumber)) return;
-
   state.loading = true;
-  state.loadingPages[String(pageNumber)] = true;
-  setCustomerState("loading", pageNumber === 1 ? "Mengambil daftar pelanggan..." : "Mengambil halaman pelanggan...");
-  setLoadButton(true);
+  setCustomerState("loading", "Mengambil seluruh pelanggan aktif finansial...");
+  setRefreshButton(true);
 
   try {
-    const cursor = pageCursor(pageNumber);
-    if (pageNumber > 1 && !cursor) {
-      throw new Error("Cursor halaman sebelumnya belum tersedia.");
-    }
-
-    const result = await api.pelanggan(state.pageSize, cursor);
-
+    const result = await api.pelanggan();
     if (mountId !== state.mountId) return;
 
     const rows = getRows(result);
-    const pagination = getPagination(result);
+    if (!Array.isArray(rows)) {
+      throw new Error("Struktur respons pelanggan tidak dikenali.");
+    }
 
-    state.pages[String(pageNumber)] = {
-      rows,
-      nextCursor: pagination.nextCursor,
-      hasMore: pagination.hasMore
-    };
+    state.rows = rows.filter((row) =>
+      money(row?.saldo_tabungan) > 0 ||
+      money(row?.saldo_piutang) > 0
+    );
+    state.loaded = true;
+    state.page = 1;
 
-    state.page = pageNumber;
-    syncCurrentPage();
-    writeCustomerCache();
-
-    renderCustomerRows();
+    filterAndRender();
     setCustomerState("", "");
-
-    // Ambil halaman berikutnya di background agar tombol Next terasa instan.
-    prefetchNextPage(mountId, pageNumber);
   } catch (error) {
     if (mountId !== state.mountId) return;
+    state.loaded = false;
+    state.rows = [];
+    state.filtered = [];
+    renderCustomerRows();
     setCustomerState("error", error.message || "Gagal mengambil data pelanggan.");
   } finally {
     if (mountId === state.mountId) {
-      delete state.loadingPages[String(pageNumber)];
       state.loading = false;
-      setLoadButton(false);
-      updateLoadMore();
-    }
-  }
-}
-
-async function prefetchNextPage(mountId, pageNumber) {
-  if (mountId !== state.mountId) return;
-
-  const pageData = state.pages[String(pageNumber)];
-  if (!pageData?.hasMore || !pageData.nextCursor) return;
-
-  const nextPage = pageNumber + 1;
-  if (state.pages[String(nextPage)] || isPageLoading(nextPage)) return;
-
-  let resolvePending;
-  let rejectPending;
-  const pending = new Promise((resolve, reject) => {
-    resolvePending = resolve;
-    rejectPending = reject;
-  });
-  state.loadingPages[String(nextPage)] = pending;
-
-  try {
-    const result = await api.pelanggan(state.pageSize, pageData.nextCursor);
-
-    if (mountId !== state.mountId) return;
-
-    const rows = getRows(result);
-    const pagination = getPagination(result);
-
-    state.pages[String(nextPage)] = {
-      rows,
-      nextCursor: pagination.nextCursor,
-      hasMore: pagination.hasMore
-    };
-
-    writeCustomerCache();
-    updateLoadMore();
-    resolvePending();
-  } catch (error) {
-    // Prefetch adalah optimasi UX. Jika gagal, Next tetap bisa mencoba lagi.
-    console.warn("[Pelanggan] prefetch halaman berikutnya gagal:", error);
-    rejectPending(error);
-    if (mountId === state.mountId) {
-      updateLoadMore();
-    }
-  } finally {
-    if (mountId === state.mountId) {
-      delete state.loadingPages[String(nextPage)];
-      updateLoadMore();
+      setRefreshButton(false);
+      updatePagination();
     }
   }
 }
 
 function filteredRows() {
   const q = state.search;
-  if (!q) return state.rows;
+  if (!q) return [...state.rows];
 
   return state.rows.filter((row) => {
     const haystack = [
@@ -430,67 +305,57 @@ function filteredRows() {
   });
 }
 
+function filterAndRender() {
+  state.filtered = filteredRows();
+  const pages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+  state.page = Math.min(state.page, pages);
+  renderCustomerRows();
+}
+
 function renderCustomerRows() {
-  const rows = filteredRows();
+  const rows = state.filtered.slice(
+    (state.page - 1) * state.pageSize,
+    state.page * state.pageSize
+  );
 
   const tableWrap = document.querySelector("#customer-table-wrap");
   const cards = document.querySelector("#customer-cards");
   const body = document.querySelector("#customer-body");
   const stateEl = document.querySelector("#customer-state");
+  const pagination = document.querySelector("#customer-pagination");
 
   if (!body || !cards) return;
-
-  if (!state.loading) stateEl.classList.add("hidden");
 
   if (!rows.length) {
     tableWrap.classList.add("hidden");
     cards.classList.add("hidden");
-    if (!state.loading) setCustomerState("empty", state.rows.length ? "Tidak ada pelanggan yang cocok dengan pencarian." : "Belum ada data pelanggan.");
+    pagination.classList.add("hidden");
+    if (!state.loading) {
+      setCustomerState(
+        "empty",
+        state.loaded
+          ? (state.search ? "Tidak ada pelanggan yang cocok dengan pencarian." : "Tidak ada pelanggan aktif finansial.")
+          : "Belum ada data pelanggan."
+      );
+    }
   } else {
     tableWrap.classList.remove("hidden");
     cards.classList.remove("hidden");
+    stateEl.classList.add("hidden");
+    pagination.classList.remove("hidden");
 
     body.innerHTML = rows.map(customerRowHtml).join("");
     cards.innerHTML = rows.map(customerCardHtml).join("");
   }
 
   updateCustomerSummary();
-  updateLoadMore();
-}
-
-function customerRowHtml(row) {
-  const code = customerCode(row);
-  const name = customerName(row);
-
-  return '<tr>' +
-    '<td><div class="customer-cell"><strong>' + esc(name) + '</strong><span>' + esc(code) + '</span><span>' + esc(row?.alamat || "Alamat tidak tersedia") + '</span></div></td>' +
-    '<td>' + esc(row?.telp || "—") + '</td>' +
-    '<td><strong>' + formatMoney(row?.saldo_tabungan) + '</strong></td>' +
-    '<td><strong>' + formatMoney(row?.saldo_piutang) + '</strong></td>' +
-    '<td>' + number.format(money(row?.jumlah_nota_outstanding)) + '</td>' +
-    '<td><button class="icon-btn" data-customer-code="' + esc(code) + '">Detail</button></td>' +
-  '</tr>';
-}
-
-function customerCardHtml(row) {
-  const code = customerCode(row);
-  const name = customerName(row);
-
-  return '<article class="mobile-customer-card">' +
-    '<div class="mobile-customer-head"><div><strong>' + esc(name) + '</strong><span>' + esc(code) + '</span></div><button class="icon-btn" data-customer-code="' + esc(code) + '">Detail</button></div>' +
-    '<div class="mobile-customer-total"><span>Piutang</span><strong>' + formatMoney(row?.saldo_piutang) + '</strong></div>' +
-    '<div class="mobile-aging-grid">' +
-      '<span>Tabungan<b>' + formatMoney(row?.saldo_tabungan) + '</b></span>' +
-      '<span>Nota outstanding<b>' + number.format(money(row?.jumlah_nota_outstanding)) + '</b></span>' +
-    '</div>' +
-  '</article>';
+  updatePagination();
 }
 
 function updateCustomerSummary() {
   const loaded = state.rows.length;
   const withDebt = state.rows.filter((row) => money(row?.saldo_piutang) > 0).length;
-  const withSaving = state.rows.filter((row) => money(row?.saldo_tabungan) !== 0).length;
-  const pageData = currentPageData();
+  const withSaving = state.rows.filter((row) => money(row?.saldo_tabungan) > 0).length;
 
   const loadedEl = document.querySelector("#customer-loaded");
   const debtEl = document.querySelector("#customer-with-debt");
@@ -501,49 +366,45 @@ function updateCustomerSummary() {
   if (loadedEl) loadedEl.textContent = number.format(loaded);
   if (debtEl) debtEl.textContent = number.format(withDebt);
   if (savingEl) savingEl.textContent = number.format(withSaving);
-  if (statusEl) statusEl.textContent = pageData.hasMore ? "Berlanjut" : "Selesai";
-  if (detailEl) detailEl.textContent = pageData.hasMore
-    ? "Masih ada data di server"
-    : "Halaman terakhir";
+  if (statusEl) statusEl.textContent = state.loaded ? "Selesai" : "Memuat";
+  if (detailEl) {
+    detailEl.textContent = state.loaded
+      ? number.format(loaded) + " pelanggan aktif finansial dimuat"
+      : "Memuat seluruh data aktif finansial";
+  }
 }
 
-function updateLoadMore() {
+function updatePagination() {
   const previous = document.querySelector("#customer-prev");
   const next = document.querySelector("#customer-next");
   const info = document.querySelector("#customer-page-info");
-  const pageData = currentPageData();
-  const knownPages = totalKnownPages();
+  const pagination = document.querySelector("#customer-pagination");
+  if (!previous || !next || !info || !pagination) return;
 
-  if (!previous || !next || !info) return;
+  const pages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
 
-  previous.disabled = state.loading || state.page <= 1;
-  next.disabled = state.loading || (!pageData.hasMore && !state.pages[String(state.page + 1)]);
-
-  previous.textContent = "← Sebelumnya";
-  next.textContent = state.loading ? "Memuat..." : "Berikutnya →";
+  pagination.classList.toggle("hidden", !state.filtered.length);
+  previous.disabled = state.page <= 1 || state.loading;
+  next.disabled = state.page >= pages || state.loading;
 
   info.textContent =
     "Halaman " + number.format(state.page) +
-    " · " + number.format(state.rows.length) + " pelanggan" +
-    (knownPages > 1 ? " · " + number.format(knownPages) + " halaman tersimpan" : "") +
-    (state.search ? " · pencarian di halaman ini" : "");
+    " / " + number.format(pages) +
+    " · " + number.format(state.filtered.length) + " pelanggan" +
+    (state.search ? " · hasil pencarian" : "");
 }
 
-function setLoadButton(loading) {
-  const previous = document.querySelector("#customer-prev");
-  const next = document.querySelector("#customer-next");
-  if (!previous || !next) return;
-  previous.disabled = loading || state.page <= 1;
-  next.disabled = loading;
-  next.textContent = loading
-    ? "Memuat..."
-    : "Berikutnya →";
+function setRefreshButton(loading) {
+  const button = document.querySelector("#customer-refresh");
+  if (!button) return;
+  button.disabled = loading;
+  button.classList.toggle("ui-busy", loading);
+  button.textContent = loading ? "Memuat..." : "↻ Refresh";
 }
 
 function setCustomerState(type, message) {
   const el = document.querySelector("#customer-state");
   if (!el) return;
-
   el.className = "table-state" + (type ? " " + type : " hidden");
   el.textContent = message || "";
 }
