@@ -1,8 +1,5 @@
 import { api } from "../api/endpoints.js";
 
-const CUSTOMER_CACHE_KEY = "sidretail:pelanggan:v2";
-const CUSTOMER_CACHE_TTL_MS = 5 * 60 * 1000;
-
 const state = {
   loaded: false,
   loading: false,
@@ -76,82 +73,6 @@ function customerName(row) {
 
 function customerCode(row) {
   return row?.kode_pelanggan || row?.kode || row?.kd_pelanggan || "";
-}
-
-function customerCacheKey() {
-  return CUSTOMER_CACHE_KEY + ":" + state.pageSize;
-}
-
-function readCustomerCache() {
-  try {
-    const raw = sessionStorage.getItem(customerCacheKey());
-    if (!raw) return null;
-    const cached = JSON.parse(raw);
-    if (!cached?.savedAt || !cached?.state || cached.version !== 3) {
-      sessionStorage.removeItem(customerCacheKey());
-      return null;
-    }
-    return {
-      state: cached.state,
-      ageMs: Date.now() - Number(cached.savedAt)
-    };
-  } catch (error) {
-    console.warn("[Pelanggan] cache read gagal:", error);
-    return null;
-  }
-}
-
-function writeCustomerCache() {
-  try {
-    sessionStorage.setItem(customerCacheKey(), JSON.stringify({
-      version: 3,
-      savedAt: Date.now(),
-      state: {
-        page: state.page,
-        pageSize: state.pageSize,
-        pages: state.pages
-      }
-    }));
-  } catch (error) {
-    console.warn("[Pelanggan] cache write gagal:", error);
-  }
-}
-
-function restoreCustomerCache(cached) {
-  if (!cached?.state?.pages) return false;
-
-  state.page = Number(cached.state.page) || 1;
-  state.pageSize = Number(cached.state.pageSize) || 50;
-  state.pages = cached.state.pages || {};
-  syncCurrentPage();
-  return Boolean(state.pages[String(state.page)]);
-}
-
-function currentPageData() {
-  return state.pages[String(state.page)] || {
-    rows: [],
-    nextCursor: null,
-    hasMore: true
-  };
-}
-
-function syncCurrentPage() {
-  const page = currentPageData();
-  state.rows = Array.isArray(page.rows) ? page.rows : [];
-}
-
-function pageCursor(pageNumber) {
-  if (pageNumber <= 1) return null;
-  const previous = state.pages[String(pageNumber - 1)];
-  return previous?.nextCursor || null;
-}
-
-function totalKnownPages() {
-  return Object.keys(state.pages).filter((key) => state.pages[key]).length;
-}
-
-function isPageLoading(pageNumber) {
-  return Boolean(state.loadingPages[String(pageNumber)]);
 }
 
 export function renderPelangganPage() {
