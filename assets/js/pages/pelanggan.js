@@ -194,6 +194,9 @@ export function renderPelangganPage() {
 
   bindEvents(mountId);
 
+  const pageSizeSelect = document.querySelector("#customer-page-size");
+  if (pageSizeSelect) pageSizeSelect.value = String(state.pageSize);
+
   if (restored) {
     renderCustomerRows();
     setCustomerState("", "");
@@ -427,7 +430,9 @@ function setLoadButton(loading) {
   if (!previous || !next) return;
   previous.disabled = loading || state.page <= 1;
   next.disabled = loading;
-  if (loading) next.textContent = "Memuat...";
+  next.textContent = loading
+    ? "Memuat..."
+    : "Berikutnya →";
 }
 
 function setCustomerState(type, message) {
