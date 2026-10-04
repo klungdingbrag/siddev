@@ -1,6 +1,6 @@
 import { api } from "../api/endpoints.js";
 
-const CUSTOMER_CACHE_KEY = "sidretail:pelanggan:v1";
+const CUSTOMER_CACHE_KEY = "sidretail:pelanggan:v2";
 const CUSTOMER_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const state = {
@@ -87,7 +87,10 @@ function readCustomerCache() {
     const raw = sessionStorage.getItem(customerCacheKey());
     if (!raw) return null;
     const cached = JSON.parse(raw);
-    if (!cached?.savedAt || !cached?.state) return null;
+    if (!cached?.savedAt || !cached?.state || cached.version !== 3) {
+      sessionStorage.removeItem(customerCacheKey());
+      return null;
+    }
     return {
       state: cached.state,
       ageMs: Date.now() - Number(cached.savedAt)
@@ -101,7 +104,7 @@ function readCustomerCache() {
 function writeCustomerCache() {
   try {
     sessionStorage.setItem(customerCacheKey(), JSON.stringify({
-      version: 2,
+      version: 3,
       savedAt: Date.now(),
       state: {
         page: state.page,
