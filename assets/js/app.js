@@ -2,7 +2,7 @@ import { APP_CONFIG } from "./config.js";
 import { apiHealth } from "./api/client.js";
 import { renderPiutangPage } from "./pages/piutang.js?v=20260930-pdf-transport-5";
 import { renderDashboardPage } from "./pages/dashboard.js?v=20261002-dashboard-v4";
-import { renderPelangganPage } from "./pages/pelanggan.js?v=20261004-customer-v1-cachefix";
+import { renderPelangganPage } from "./pages/pelanggan.js?v=20261004-customer-v1-renderfix";
 
 const sidebar = document.querySelector("#sidebar");
 const topbar = document.querySelector("#topbar");
