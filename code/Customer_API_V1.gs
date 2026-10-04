@@ -506,3 +506,65 @@ function testPelangganApiV1() {
     history_summary: history.summary
   };
 }
+
+
+/**
+ * Diagnostic khusus customer FIKA.
+ *
+ * Read-only:
+ * - Menguji lookup master pelanggan.
+ * - Menguji query riwayat tabungan secara terpisah.
+ * - Menampilkan error SID Retail apa adanya agar akar masalah terlihat.
+ *
+ * Hapus setelah akar masalah selesai.
+ */
+function testRiwayatTabunganPelangganFikaV1() {
+  var kode = '2606030';
+
+  Logger.log('==============================================');
+  Logger.log('DIAGNOSTIC RIWAYAT TABUNGAN FIKA V1');
+  Logger.log('KODE PELANGGAN: ' + kode);
+  Logger.log('==============================================');
+
+  try {
+    var result = getRiwayatTabunganPelangganV1(kode, 100);
+
+    var diagnostic = {
+      status: 'success',
+      kode_pelanggan: kode,
+      nama: result.customer && result.customer.nama,
+      saldo_tabungan: result.customer && result.customer.saldo_tabungan,
+      jumlah_transaksi: Array.isArray(result.data) ? result.data.length : null,
+      summary: result.summary || null
+    };
+
+    Logger.log('DIAGNOSTIC RESULT:');
+    Logger.log(JSON.stringify(diagnostic, null, 2));
+    Logger.log('DIAGNOSTIC RIWAYAT TABUNGAN FIKA V1: PASS');
+
+    return diagnostic;
+  } catch (error) {
+    var message = error && error.message
+      ? error.message
+      : String(error);
+
+    Logger.log('DIAGNOSTIC ERROR MESSAGE:');
+    Logger.log(message);
+
+    Logger.log('DIAGNOSTIC ERROR STACK:');
+    Logger.log(error && error.stack ? error.stack : '(stack tidak tersedia)');
+
+    var failure = {
+      status: 'error',
+      kode_pelanggan: kode,
+      error_message: message,
+      error_stack: error && error.stack ? error.stack : null
+    };
+
+    Logger.log('DIAGNOSTIC RESULT:');
+    Logger.log(JSON.stringify(failure, null, 2));
+    Logger.log('DIAGNOSTIC RIWAYAT TABUNGAN FIKA V1: FAIL');
+
+    throw error;
+  }
+}
