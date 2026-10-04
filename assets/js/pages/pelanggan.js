@@ -273,6 +273,35 @@ function renderCustomerRows() {
   updatePagination();
 }
 
+
+function customerRowHtml(row) {
+  const code = customerCode(row);
+  const name = customerName(row);
+
+  return '<tr>' +
+    '<td><div class="customer-cell"><strong>' + esc(name) + '</strong><span>' + esc(code) + '</span><span>' + esc(row?.alamat || "Alamat tidak tersedia") + '</span></div></td>' +
+    '<td>' + esc(row?.telp || "—") + '</td>' +
+    '<td><strong>' + formatMoney(row?.saldo_tabungan) + '</strong></td>' +
+    '<td><strong>' + formatMoney(row?.saldo_piutang) + '</strong></td>' +
+    '<td>' + number.format(money(row?.jumlah_nota_outstanding)) + '</td>' +
+    '<td><button class="icon-btn" data-customer-code="' + esc(code) + '">Detail</button></td>' +
+  '</tr>';
+}
+
+function customerCardHtml(row) {
+  const code = customerCode(row);
+  const name = customerName(row);
+
+  return '<article class="mobile-customer-card">' +
+    '<div class="mobile-customer-head"><div><strong>' + esc(name) + '</strong><span>' + esc(code) + '</span></div><button class="icon-btn" data-customer-code="' + esc(code) + '">Detail</button></div>' +
+    '<div class="mobile-customer-total"><span>Piutang</span><strong>' + formatMoney(row?.saldo_piutang) + '</strong></div>' +
+    '<div class="mobile-aging-grid">' +
+      '<span>Tabungan<b>' + formatMoney(row?.saldo_tabungan) + '</b></span>' +
+      '<span>Nota outstanding<b>' + number.format(money(row?.jumlah_nota_outstanding)) + '</b></span>' +
+    '</div>' +
+  '</article>';
+}
+
 function updateCustomerSummary() {
   const loaded = state.rows.length;
   const withDebt = state.rows.filter((row) => money(row?.saldo_piutang) > 0).length;
