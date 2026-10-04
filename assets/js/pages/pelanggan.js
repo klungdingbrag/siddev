@@ -277,6 +277,10 @@ function bindEvents(mountId) {
         syncCurrentPage();
         renderCustomerRows();
         prefetchNextPage(mountId, state.page);
+      }).catch(() => {
+        if (mountId !== state.mountId) return;
+        // Prefetch gagal: klik Next tetap boleh mencoba request normal.
+        loadCustomers(mountId, nextPage, false);
       });
       return;
     }
