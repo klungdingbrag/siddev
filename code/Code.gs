@@ -7849,10 +7849,7 @@ function apiV1Dispatch_(action, request) {
       );
 
     case 'pelanggan':
-      return getPelangganAktifFinansialV1(
-        request.limit,
-        request.cursor
-      );
+      return getPelangganAktifFinansialSemuaV1();
 
     case 'pelangganDetail':
       return getPelangganDetailV1(
