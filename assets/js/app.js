@@ -2,6 +2,7 @@ import { APP_CONFIG } from "./config.js";
 import { apiHealth } from "./api/client.js";
 import { renderPiutangPage } from "./pages/piutang.js?v=20260930-pdf-transport-5";
 import { renderDashboardPage } from "./pages/dashboard.js?v=20261002-dashboard-v4";
+import { renderPelangganPage } from "./pages/pelanggan.js?v=20261004-customer-v1";
 
 const sidebar = document.querySelector("#sidebar");
 const topbar = document.querySelector("#topbar");
@@ -90,10 +91,7 @@ function route() {
     },
     "#pelanggan": {
       title: "Pelanggan",
-      render: () => renderComingSoonPage(
-        "Pelanggan",
-        "Modul Pelanggan belum diaktifkan. Halaman ini tidak menjalankan request Dashboard."
-      )
+      render: () => renderPelangganPage()
     },
     "#barang": {
       title: "Data Barang",
