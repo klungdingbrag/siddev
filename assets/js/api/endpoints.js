@@ -4,8 +4,8 @@ export const api = Object.freeze({
   health: () => apiRequest("health"),
   validateConfig: () => apiRequest("validateConfig"),
   piutang: (params = {}) => apiRequest("piutang", params),
-  pelanggan: (limit = 50, cursor = null) =>
-    apiRequest("pelanggan", { limit, cursor }),
+  pelanggan: () =>
+    apiRequest("pelanggan"),
   pelangganDetail: (kodePelanggan) =>
     apiRequest("pelangganDetail", { kode_pelanggan: kodePelanggan }),
   pelangganTabunganHistory: (kodePelanggan, limit = 100) =>
