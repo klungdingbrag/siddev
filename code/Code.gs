@@ -7848,6 +7848,23 @@ function apiV1Dispatch_(action, request) {
         apiV1Required_(request, 'kode_pelanggan')
       );
 
+    case 'pelanggan':
+      return getPelangganLaporanV1(
+        request.limit,
+        request.cursor
+      );
+
+    case 'pelangganDetail':
+      return getPelangganDetailV1(
+        apiV1Required_(request, 'kode_pelanggan')
+      );
+
+    case 'pelangganTabunganHistory':
+      return getRiwayatTabunganPelangganV1(
+        apiV1Required_(request, 'kode_pelanggan'),
+        request.limit
+      );
+
     case 'tabungan':
       return getSaldoTabunganPelanggan(
         apiV1Required_(request, 'kode_pelanggan')
