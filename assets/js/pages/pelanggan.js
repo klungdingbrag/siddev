@@ -12,7 +12,8 @@ const state = {
   detailLoading: false,
   search: "",
   pageSize: 50,
-  mountId: 0
+  mountId: 0,
+  escapeHandler: null
 };
 
 const rupiah = new Intl.NumberFormat("id-ID", {
@@ -168,7 +169,7 @@ export function renderPelangganPage() {
 
   root().innerHTML =
     '<section class="page-heading">' +
-      '<div><p class="eyebrow">Master Data</p><h2>Pelanggan</h2><p class="page-description">Daftar seluruh pelanggan dari SID Retail. Semua klasifikasi internal diperlakukan sebagai satu entitas pelanggan di frontend.</p></div>' +
+      '<div><p class="eyebrow">Master Data</p><h2>Pelanggan</h2><p class="page-description">Menampilkan pelanggan aktif finansial: memiliki saldo tabungan atau saldo piutang > 0.</p></div>' +
       '<button id="customer-refresh" class="btn btn-primary">↻ Refresh</button>' +
     '</section>' +
 
@@ -266,8 +267,19 @@ function bindEvents(mountId) {
 
     if (!currentPageData().hasMore) return;
 
-    // Jika prefetch sedang berjalan, tunggu request tersebut.
-    if (isPageLoading(nextPage)) return;
+    // Jika prefetch sedang berjalan, gunakan request yang sama.
+    const pending = state.loadingPages[String(nextPage)];
+    if (pending && typeof pending.then === "function") {
+      pending.then(() => {
+        if (mountId !== state.mountId) return;
+        if (!state.pages[String(nextPage)]) return;
+        state.page = nextPage;
+        syncCurrentPage();
+        renderCustomerRows();
+        prefetchNextPage(mountId, state.page);
+      });
+      return;
+    }
 
     loadCustomers(mountId, nextPage, false);
   });
@@ -276,8 +288,12 @@ function bindEvents(mountId) {
   document.querySelector("#customer-cards").addEventListener("click", customerActionClick);
   document.querySelector("#customer-detail-close").addEventListener("click", closeCustomerDetail);
 
-  // Detail modal closes through the explicit close button or Escape.
-  document.addEventListener("keydown", customerEscapeHandler);
+  // Hindari akumulasi listener ketika route Pelanggan dibuka berulang kali.
+  if (state.escapeHandler) {
+    document.removeEventListener("keydown", state.escapeHandler);
+  }
+  state.escapeHandler = customerEscapeHandler;
+  document.addEventListener("keydown", state.escapeHandler);
 }
 
 async function loadCustomers(mountId, pageNumber, force) {
@@ -349,7 +365,13 @@ async function prefetchNextPage(mountId, pageNumber) {
   const nextPage = pageNumber + 1;
   if (state.pages[String(nextPage)] || isPageLoading(nextPage)) return;
 
-  state.loadingPages[String(nextPage)] = true;
+  let resolvePending;
+  let rejectPending;
+  const pending = new Promise((resolve, reject) => {
+    resolvePending = resolve;
+    rejectPending = reject;
+  });
+  state.loadingPages[String(nextPage)] = pending;
 
   try {
     const result = await api.pelanggan(state.pageSize, pageData.nextCursor);
@@ -367,11 +389,14 @@ async function prefetchNextPage(mountId, pageNumber) {
 
     writeCustomerCache();
     updateLoadMore();
+    resolvePending();
   } catch (error) {
-    if (mountId !== state.mountId) return;
     // Prefetch adalah optimasi UX. Jika gagal, Next tetap bisa mencoba lagi.
     console.warn("[Pelanggan] prefetch halaman berikutnya gagal:", error);
-    updateLoadMore();
+    rejectPending(error);
+    if (mountId === state.mountId) {
+      updateLoadMore();
+    }
   } finally {
     if (mountId === state.mountId) {
       delete state.loadingPages[String(nextPage)];
