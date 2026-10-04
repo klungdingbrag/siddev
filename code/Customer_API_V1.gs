@@ -120,6 +120,145 @@ function getPelangganLaporanV1(limit, cursor) {
   };
 }
 
+/**
+ * Customer aktif secara finansial:
+ * - saldo_tabungan > 0
+ *   ATAU
+ * - saldo_piutang > 0
+ *
+ * Dipisahkan dari getPelangganLaporanV1() agar fungsi lama tetap tersedia
+ * untuk audit dan rollback. Cursor pagination tetap kompatibel dengan frontend.
+ */
+function getPelangganAktifFinansialV1(limit, cursor) {
+  var pageSize = Number(limit || 50);
+  if (!isFinite(pageSize)) pageSize = 50;
+  pageSize = Math.max(1, Math.min(200, Math.floor(pageSize)));
+
+  var lastKode = String(cursor || '').trim();
+
+  var query =
+    'SELECT p.kode,p.nama,p.alamat,p.telp,' +
+    'COALESCE(p.saldo_tabungan,0) AS saldo_tabungan,' +
+    'COALESCE(x.saldo_piutang,0) AS saldo_piutang,' +
+    'COALESCE(x.jumlah_nota_outstanding,0) AS jumlah_nota_outstanding ' +
+    'FROM pelanggan p ' +
+    'LEFT JOIN (' +
+      'SELECT pelanggan,' +
+      'SUM(CASE WHEN COALESCE(piutang,0) > 0 THEN piutang ELSE 0 END) AS saldo_piutang,' +
+      'COUNT(*) AS jumlah_nota_outstanding ' +
+      'FROM penjualan ' +
+      'WHERE COALESCE(piutang,0) > 0 ' +
+      'GROUP BY pelanggan' +
+    ') x ON x.pelanggan = p.kode ' +
+    'WHERE p.kode IS NOT NULL AND TRIM(p.kode) <> ' + customerSqlQuoteV1('') +
+    ' AND (COALESCE(p.saldo_tabungan,0) > 0 OR COALESCE(x.saldo_piutang,0) > 0)' +
+    (lastKode ? ' AND p.kode > ' + customerSqlQuoteV1(lastKode) : '') +
+    ' ORDER BY p.kode ASC LIMIT ' + (pageSize + 1);
+
+  var result = sidRetailQuery(query);
+  var rows = result.data || result.rows || [];
+
+  var hasMore = rows.length > pageSize;
+  if (hasMore) rows = rows.slice(0, pageSize);
+
+  var data = rows.map(function(row) {
+    return {
+      kode_pelanggan: String(row.kode || '').trim(),
+      nama: String(row.nama || '').trim() || String(row.kode || '').trim(),
+      alamat: String(row.alamat || '').trim(),
+      telp: String(row.telp || '').trim(),
+      saldo_tabungan: Number(row.saldo_tabungan || 0),
+      saldo_piutang: Number(row.saldo_piutang || 0),
+      jumlah_nota_outstanding: Number(row.jumlah_nota_outstanding || 0)
+    };
+  });
+
+  var nextCursor = hasMore && data.length
+    ? data[data.length - 1].kode_pelanggan
+    : null;
+
+  return {
+    status: 'success',
+    data: data,
+    pagination: {
+      limit: pageSize,
+      cursor: lastKode || null,
+      next_cursor: nextCursor,
+      has_more: hasMore
+    },
+    source_contract: {
+      customer: 'pelanggan',
+      saldo_tabungan: 'pelanggan.saldo_tabungan',
+      saldo_piutang: 'penjualan.piutang',
+      financial_active_rule: 'saldo_tabungan > 0 OR saldo_piutang > 0',
+      piutang_mode: 'transaction-first'
+    }
+  };
+}
+
+function testPelangganAktifFinansialV1() {
+  Logger.log('==============================================');
+  Logger.log('CUSTOMER AKTIF FINANSIAL V1 TEST');
+  Logger.log('==============================================');
+
+  var first = getPelangganAktifFinansialV1(5, '');
+  Logger.log('PAGE 1 STATUS: ' + first.status);
+  Logger.log('PAGE 1 COUNT: ' + first.data.length);
+  Logger.log('PAGE 1 PAGINATION: ' + JSON.stringify(first.pagination));
+  Logger.log(JSON.stringify(first.data, null, 2));
+
+  first.data.forEach(function(row) {
+    if (!(Number(row.saldo_tabungan || 0) > 0 ||
+          Number(row.saldo_piutang || 0) > 0)) {
+      throw new Error(
+        'FILTER FINANSIAL AKTIF GAGAL untuk pelanggan: ' +
+        row.kode_pelanggan
+      );
+    }
+  });
+
+  if (first.pagination.next_cursor) {
+    var second = getPelangganAktifFinansialV1(
+      5,
+      first.pagination.next_cursor
+    );
+
+    Logger.log('PAGE 2 STATUS: ' + second.status);
+    Logger.log('PAGE 2 COUNT: ' + second.data.length);
+    Logger.log('PAGE 2 PAGINATION: ' + JSON.stringify(second.pagination));
+
+    second.data.forEach(function(row) {
+      if (!(Number(row.saldo_tabungan || 0) > 0 ||
+            Number(row.saldo_piutang || 0) > 0)) {
+        throw new Error(
+          'FILTER FINANSIAL AKTIF GAGAL untuk pelanggan: ' +
+          row.kode_pelanggan
+        );
+      }
+    });
+
+    if (second.data.length && first.data.length) {
+      var lastFirst = first.data[first.data.length - 1].kode_pelanggan;
+      var firstSecond = second.data[0].kode_pelanggan;
+
+      if (!(firstSecond > lastFirst)) {
+        throw new Error(
+          'CURSOR PAGINATION GAGAL: ' +
+          firstSecond + ' tidak lebih besar dari ' + lastFirst
+        );
+      }
+    }
+  }
+
+  Logger.log('CUSTOMER AKTIF FINANSIAL V1 TEST: PASS');
+
+  return {
+    status: 'success',
+    first_page_count: first.data.length,
+    pagination: first.pagination
+  };
+}
+
 function getPelangganDetailV1(kodePelanggan) {
   var kode = String(kodePelanggan || '').trim();
   if (!kode) throw new Error('Kode pelanggan wajib diisi.');
