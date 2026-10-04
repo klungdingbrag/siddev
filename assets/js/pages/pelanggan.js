@@ -497,6 +497,13 @@ function renderCustomerDetail(detailResult, historyResult, fallbackRow) {
       '<div class="financial-card debt"><span>Saldo Piutang</span><strong>' + formatMoney(debt) + '</strong></div>' +
     '</div>' +
 
+    '<div class="detail-heading">Posisi Tabungan vs Piutang</div>' +
+    '<div class="detail-customer">' +
+      '<div><span>Saldo Tabungan</span><strong>' + formatMoney(saving) + '</strong></div>' +
+      '<div><span>Saldo Piutang</span><strong>' + formatMoney(debt) + '</strong></div>' +
+      '<div><span>Selisih</span><strong>' + (saving - debt > 0 ? '+' : '') + formatMoney(saving - debt) + '</strong></div>' +
+    '</div>' +
+
     '<div class="summary-grid" style="margin-top:14px;margin-bottom:0">' +
       '<article class="summary-card"><span>Nota Outstanding</span><strong>' + number.format(notes) + '</strong><small>nota dengan piutang > 0</small></article>' +
       '<article class="summary-card"><span>Riwayat Tabungan</span><strong>' + number.format(transactions.length) + '</strong><small>transaksi yang dimuat</small></article>' +
