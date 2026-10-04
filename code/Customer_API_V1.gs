@@ -31,7 +31,7 @@ function getPelangganLaporanV1(limit, cursor) {
     'FROM pelanggan ' +
     'WHERE kode IS NOT NULL AND TRIM(kode) <> ''' +
     (lastKode
-      ? ' AND kode > ''' + lastKode.replace(/'/g, "''") + ''''
+      ? ' AND kode > ''' + lastKode.replace(/'/g, "''") + '\'''
       : '') +
     ' ORDER BY kode ASC LIMIT ' + pageSize;
 
@@ -140,7 +140,7 @@ function getPelangganDetailV1(kodePelanggan) {
 
   var masterResult = sidRetailQuery(
     'SELECT kode,nama,alamat,telp,COALESCE(saldo_tabungan,0) AS saldo_tabungan ' +
-    'FROM pelanggan WHERE kode = ''' + safeKode + ''' LIMIT 1'
+    'FROM pelanggan WHERE kode = '\'' + safeKode + '\'' LIMIT 1'
   );
   var masterRows = masterResult.data || masterResult.rows || [];
 
@@ -153,7 +153,7 @@ function getPelangganDetailV1(kodePelanggan) {
   var piutangResult = sidRetailQuery(
     'SELECT COUNT(*) AS jumlah_nota_outstanding,' +
     'COALESCE(SUM(CASE WHEN COALESCE(piutang,0) > 0 THEN piutang ELSE 0 END),0) AS saldo_piutang ' +
-    'FROM penjualan WHERE pelanggan = ''' + safeKode + ''''
+    'FROM penjualan WHERE pelanggan = '\'' + safeKode + '\'''
   );
   var piutangRows = piutangResult.data || piutangResult.rows || [];
   var piutang = piutangRows[0] || {};
@@ -197,7 +197,7 @@ function getRiwayatTabunganPelangganV1(kodePelanggan, limit) {
 
   var masterResult = sidRetailQuery(
     'SELECT kode,nama,COALESCE(saldo_tabungan,0) AS saldo_tabungan ' +
-    'FROM pelanggan WHERE kode = ''' + safeKode + ''' LIMIT 1'
+    'FROM pelanggan WHERE kode = '\'' + safeKode + '\'' LIMIT 1'
   );
   var masterRows = masterResult.data || masterResult.rows || [];
 
@@ -209,7 +209,7 @@ function getRiwayatTabunganPelangganV1(kodePelanggan, limit) {
 
   var historyResult = sidRetailQuery(
     'SELECT kode,tanggal,jam,pelanggan,jumlah,jenis,keterangan,kode_kas,sumber,sumber_faktur ' +
-    'FROM tabungan WHERE pelanggan = ''' + safeKode + ''' ' +
+    'FROM tabungan WHERE pelanggan = '\'' + safeKode + '\'' ' +
     'ORDER BY tanggal ASC,jam ASC,kode ASC LIMIT ' + pageSize
   );
   var historyRows = historyResult.data || historyResult.rows || [];
