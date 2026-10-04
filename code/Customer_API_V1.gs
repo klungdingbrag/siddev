@@ -417,7 +417,7 @@ function getRiwayatTabunganPelangganV1(kodePelanggan, limit) {
   var row = masterRows[0];
 
   var historyResult = sidRetailQuery(
-    'SELECT kode,tanggal,jam,pelanggan,jumlah,jenis,keterangan,kode_kas,sumber,sumber_faktur ' +
+    'SELECT kode,tanggal,jam,pelanggan,jumlah,jenis,keterangan ' +
     'FROM tabungan WHERE pelanggan = ' + customerSqlQuoteV1(kode) +
     ' ORDER BY tanggal ASC,jam ASC,kode ASC LIMIT ' + pageSize
   );
@@ -442,9 +442,6 @@ function getRiwayatTabunganPelangganV1(kodePelanggan, limit) {
       jenis: jenis,
       jumlah: jumlah,
       keterangan: String(item.keterangan || ''),
-      kode_kas: String(item.kode_kas || ''),
-      sumber: String(item.sumber || ''),
-      sumber_faktur: String(item.sumber_faktur || ''),
       running_balance: running
     };
   });
