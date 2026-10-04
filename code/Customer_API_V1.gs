@@ -196,6 +196,57 @@ function getPelangganAktifFinansialV1(limit, cursor) {
   };
 }
 
+function getPelangganAktifFinansialSemuaV1() {
+  var query =
+    'SELECT p.kode,p.nama,p.alamat,p.telp,' +
+    'COALESCE(p.saldo_tabungan,0) AS saldo_tabungan,' +
+    'COALESCE(x.saldo_piutang,0) AS saldo_piutang,' +
+    'COALESCE(x.jumlah_nota_outstanding,0) AS jumlah_nota_outstanding ' +
+    'FROM pelanggan p ' +
+    'LEFT JOIN (' +
+      'SELECT pelanggan,' +
+      'SUM(CASE WHEN COALESCE(piutang,0) > 0 THEN piutang ELSE 0 END) AS saldo_piutang,' +
+      'COUNT(*) AS jumlah_nota_outstanding ' +
+      'FROM penjualan ' +
+      'WHERE COALESCE(piutang,0) > 0 ' +
+      'GROUP BY pelanggan' +
+    ') x ON x.pelanggan = p.kode ' +
+    'WHERE p.kode IS NOT NULL AND TRIM(p.kode) <> ' + customerSqlQuoteV1('') +
+    ' AND (COALESCE(p.saldo_tabungan,0) > 0 OR COALESCE(x.saldo_piutang,0) > 0)' +
+    ' ORDER BY p.kode ASC';
+
+  var result = sidRetailQuery(query);
+  var rows = result.data || result.rows || [];
+
+  var data = rows.map(function(row) {
+    return {
+      kode_pelanggan: String(row.kode || '').trim(),
+      nama: String(row.nama || '').trim() || String(row.kode || '').trim(),
+      alamat: String(row.alamat || '').trim(),
+      telp: String(row.telp || '').trim(),
+      saldo_tabungan: Number(row.saldo_tabungan || 0),
+      saldo_piutang: Number(row.saldo_piutang || 0),
+      jumlah_nota_outstanding: Number(row.jumlah_nota_outstanding || 0)
+    };
+  });
+
+  return {
+    status: 'success',
+    data: data,
+    pagination: {
+      mode: 'client-side',
+      total: data.length
+    },
+    source_contract: {
+      customer: 'pelanggan',
+      saldo_tabungan: 'pelanggan.saldo_tabungan',
+      saldo_piutang: 'penjualan.piutang',
+      financial_active_rule: 'saldo_tabungan > 0 OR saldo_piutang > 0',
+      piutang_mode: 'transaction-first'
+    }
+  };
+}
+
 function testPelangganAktifFinansialV1() {
   Logger.log('==============================================');
   Logger.log('CUSTOMER AKTIF FINANSIAL V1 TEST');
