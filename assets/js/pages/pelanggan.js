@@ -1,9 +1,12 @@
 import { api } from "../api/endpoints.js";
 
+const CUSTOMER_CACHE_KEY = "sidretail:pelanggan:v1";
+const CUSTOMER_CACHE_TTL_MS = 5 * 60 * 1000;
+
 const state = {
   rows: [],
-  cursor: null,
-  hasMore: true,
+  page: 1,
+  pages: {},
   loading: false,
   detailLoading: false,
   search: "",
@@ -73,15 +76,89 @@ function customerCode(row) {
   return row?.kode_pelanggan || row?.kode || row?.kd_pelanggan || "";
 }
 
+function customerCacheKey() {
+  return CUSTOMER_CACHE_KEY + ":" + state.pageSize;
+}
+
+function readCustomerCache() {
+  try {
+    const raw = sessionStorage.getItem(customerCacheKey());
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    if (!cached?.savedAt || !cached?.state) return null;
+    return {
+      state: cached.state,
+      ageMs: Date.now() - Number(cached.savedAt)
+    };
+  } catch (error) {
+    console.warn("[Pelanggan] cache read gagal:", error);
+    return null;
+  }
+}
+
+function writeCustomerCache() {
+  try {
+    sessionStorage.setItem(customerCacheKey(), JSON.stringify({
+      version: 1,
+      savedAt: Date.now(),
+      state: {
+        page: state.page,
+        pageSize: state.pageSize,
+        pages: state.pages
+      }
+    }));
+  } catch (error) {
+    console.warn("[Pelanggan] cache write gagal:", error);
+  }
+}
+
+function restoreCustomerCache(cached) {
+  if (!cached?.state?.pages) return false;
+
+  state.page = Number(cached.state.page) || 1;
+  state.pageSize = Number(cached.state.pageSize) || 50;
+  state.pages = cached.state.pages || {};
+  syncCurrentPage();
+  return Boolean(state.pages[String(state.page)]);
+}
+
+function currentPageData() {
+  return state.pages[String(state.page)] || {
+    rows: [],
+    nextCursor: null,
+    hasMore: true
+  };
+}
+
+function syncCurrentPage() {
+  const page = currentPageData();
+  state.rows = Array.isArray(page.rows) ? page.rows : [];
+}
+
+function pageCursor(pageNumber) {
+  if (pageNumber <= 1) return null;
+  const previous = state.pages[String(pageNumber - 1)];
+  return previous?.nextCursor || null;
+}
+
+function totalKnownPages() {
+  return Object.keys(state.pages).filter((key) => state.pages[key]).length;
+}
+
 export function renderPelangganPage() {
   const mountId = ++state.mountId;
 
-  state.rows = [];
-  state.cursor = null;
-  state.hasMore = true;
   state.loading = false;
   state.detailLoading = false;
   state.search = "";
+
+  const cached = readCustomerCache();
+  const restored = cached ? restoreCustomerCache(cached) : false;
+  if (!restored) {
+    state.page = 1;
+    state.pages = {};
+    state.rows = [];
+  }
 
   root().innerHTML =
     '<section class="page-heading">' +
@@ -99,16 +176,16 @@ export function renderPelangganPage() {
     '<section class="card panel">' +
       '<div class="toolbar">' +
         '<div class="search-box"><span>⌕</span><input id="customer-search" type="search" placeholder="Cari kode atau nama..." autocomplete="off"></div>' +
-        '<label class="page-size"><span>Ambil</span><select id="customer-page-size"><option value="25">25</option><option value="50" selected>50</option><option value="100">100</option><option value="200">200</option></select></label>' +
+        '<label class="page-size"><span>Per halaman</span><select id="customer-page-size"><option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label>' +
       '</div>' +
       '<div id="customer-state" class="table-state loading">Memuat pelanggan...</div>' +
       '<div id="customer-table-wrap" class="table-scroll hidden"><table class="data-table"><thead><tr><th>Pelanggan</th><th>Telepon</th><th>Saldo Tabungan</th><th>Piutang</th><th>Nota Outstanding</th><th></th></tr></thead><tbody id="customer-body"></tbody></table></div>' +
       '<div id="customer-cards" class="mobile-data-cards hidden"></div>' +
-      '<div class="pagination"><button id="customer-load-more" class="btn btn-light">Muat berikutnya</button><span id="customer-page-info">0 pelanggan dimuat</span></div>' +
+      '<div class="pagination"><button id="customer-prev" class="btn btn-light">← Sebelumnya</button><span id="customer-page-info">Halaman 1</span><button id="customer-next" class="btn btn-light">Berikutnya →</button></div>' +
     '</section>' +
 
     '<div id="customer-modal" class="modal hidden" aria-hidden="true">' +
-      '<div class="modal-backdrop" data-close-customer></div>' +
+      '<div class="modal-backdrop"></div>' +
       '<section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="customer-detail-title">' +
         '<div class="modal-header"><div><p class="eyebrow">Customer Detail</p><h3 id="customer-detail-title">Pelanggan</h3><span id="customer-detail-code" class="modal-code"></span></div><button id="customer-detail-close" class="modal-close" aria-label="Tutup">×</button></div>' +
         '<div id="customer-detail-content" class="modal-body"></div>' +
@@ -116,17 +193,27 @@ export function renderPelangganPage() {
     '</div>';
 
   bindEvents(mountId);
-  loadCustomers(mountId, true);
+
+  if (restored) {
+    renderCustomerRows();
+    setCustomerState("", "");
+    if (cached.ageMs >= CUSTOMER_CACHE_TTL_MS) {
+      loadCustomers(mountId, state.page, true);
+    }
+  } else {
+    renderCustomerRows();
+    loadCustomers(mountId, 1, false);
+  }
 }
 
 function bindEvents(mountId) {
   document.querySelector("#customer-refresh").addEventListener("click", () => {
     if (state.loading) return;
+    state.page = 1;
+    state.pages = {};
     state.rows = [];
-    state.cursor = null;
-    state.hasMore = true;
     renderCustomerRows();
-    loadCustomers(mountId, true);
+    loadCustomers(mountId, 1, true);
   });
 
   document.querySelector("#customer-search").addEventListener("input", (event) => {
@@ -136,49 +223,74 @@ function bindEvents(mountId) {
 
   document.querySelector("#customer-page-size").addEventListener("change", (event) => {
     state.pageSize = Number(event.target.value) || 50;
+    state.page = 1;
+    state.pages = {};
     state.rows = [];
-    state.cursor = null;
-    state.hasMore = true;
+    sessionStorage.removeItem(customerCacheKey());
     renderCustomerRows();
-    loadCustomers(mountId, true);
+    loadCustomers(mountId, 1, true);
   });
 
-  document.querySelector("#customer-load-more").addEventListener("click", () => {
-    loadCustomers(mountId, false);
+  document.querySelector("#customer-prev").addEventListener("click", () => {
+    if (state.page <= 1 || state.loading) return;
+    state.page -= 1;
+    syncCurrentPage();
+    renderCustomerRows();
+  });
+
+  document.querySelector("#customer-next").addEventListener("click", () => {
+    if (state.loading) return;
+    const nextPage = state.page + 1;
+    if (state.pages[String(nextPage)]) {
+      state.page = nextPage;
+      syncCurrentPage();
+      renderCustomerRows();
+      return;
+    }
+    if (!currentPageData().hasMore) return;
+    loadCustomers(mountId, nextPage, false);
   });
 
   document.querySelector("#customer-body").addEventListener("click", customerActionClick);
   document.querySelector("#customer-cards").addEventListener("click", customerActionClick);
   document.querySelector("#customer-detail-close").addEventListener("click", closeCustomerDetail);
 
-  document.querySelector("#customer-modal").addEventListener("click", (event) => {
-    if (event.target.closest("[data-close-customer]")) closeCustomerDetail();
-  });
-
-  document.addEventListener("keydown", function customerEscape(event) {
-    if (event.key === "Escape") closeCustomerDetail();
-  }, { once: true });
+  // Detail modal closes through the explicit close button or Escape.
+  document.addEventListener("keydown", customerEscapeHandler);
 }
 
-async function loadCustomers(mountId, reset) {
-  if (state.loading || !state.hasMore) return;
+async function loadCustomers(mountId, pageNumber, force) {
+  if (state.loading) return;
+
+  const cachedPage = state.pages[String(pageNumber)];
+  if (!force && cachedPage) {
+    state.page = pageNumber;
+    syncCurrentPage();
+    renderCustomerRows();
+    return;
+  }
 
   state.loading = true;
-  setCustomerState("loading", reset ? "Mengambil daftar pelanggan..." : "Mengambil halaman pelanggan berikutnya...");
+  setCustomerState("loading", pageNumber === 1 ? "Mengambil daftar pelanggan..." : "Mengambil halaman pelanggan...");
   setLoadButton(true);
 
   try {
-    const result = await api.pelanggan(state.pageSize, state.cursor);
+    const cursor = pageCursor(pageNumber);
+    const result = await api.pelanggan(state.pageSize, cursor);
 
     if (mountId !== state.mountId) return;
 
     const rows = getRows(result);
     const pagination = getPagination(result);
 
-    if (reset) state.rows = [];
-    state.rows.push(...rows);
-    state.cursor = pagination.nextCursor;
-    state.hasMore = pagination.hasMore;
+    state.pages[String(pageNumber)] = {
+      rows,
+      nextCursor: pagination.nextCursor,
+      hasMore: pagination.hasMore
+    };
+    state.page = pageNumber;
+    syncCurrentPage();
+    writeCustomerCache();
 
     renderCustomerRows();
     setCustomerState("", "");
@@ -269,6 +381,7 @@ function updateCustomerSummary() {
   const loaded = state.rows.length;
   const withDebt = state.rows.filter((row) => money(row?.saldo_piutang) > 0).length;
   const withSaving = state.rows.filter((row) => money(row?.saldo_tabungan) !== 0).length;
+  const pageData = currentPageData();
 
   const loadedEl = document.querySelector("#customer-loaded");
   const debtEl = document.querySelector("#customer-with-debt");
@@ -279,31 +392,42 @@ function updateCustomerSummary() {
   if (loadedEl) loadedEl.textContent = number.format(loaded);
   if (debtEl) debtEl.textContent = number.format(withDebt);
   if (savingEl) savingEl.textContent = number.format(withSaving);
-  if (statusEl) statusEl.textContent = state.hasMore ? "Berlanjut" : "Selesai";
-  if (detailEl) detailEl.textContent = state.hasMore ? "Masih ada data di server" : "Seluruh data sudah dimuat";
+  if (statusEl) statusEl.textContent = pageData.hasMore ? "Berlanjut" : "Selesai";
+  if (detailEl) detailEl.textContent = pageData.hasMore
+    ? "Masih ada data di server"
+    : "Halaman terakhir";
 }
 
 function updateLoadMore() {
-  const button = document.querySelector("#customer-load-more");
+  const previous = document.querySelector("#customer-prev");
+  const next = document.querySelector("#customer-next");
   const info = document.querySelector("#customer-page-info");
-  if (!button || !info) return;
+  const pageData = currentPageData();
+  const knownPages = totalKnownPages();
 
-  button.disabled = state.loading || !state.hasMore;
-  button.textContent = state.loading
-    ? "Memuat..."
-    : state.hasMore
-      ? "Muat berikutnya"
-      : "Semua data dimuat";
+  if (!previous || !next || !info) return;
 
-  info.textContent = number.format(state.rows.length) + " pelanggan dimuat" +
-    (state.search ? " • hasil pencarian dari data yang dimuat" : "");
+  previous.disabled = state.loading || state.page <= 1;
+  next.disabled = state.loading || (!pageData.hasMore && !state.pages[String(state.page + 1)]);
+
+  previous.textContent = "← Sebelumnya";
+  next.textContent = state.loading ? "Memuat..." : "Berikutnya →";
+
+  info.textContent =
+    "Halaman " + number.format(state.page) +
+    " · " + number.format(state.rows.length) + " pelanggan" +
+    (knownPages > 1 ? " · " + number.format(knownPages) + " halaman tersimpan" : "") +
+    (state.search ? " · pencarian di halaman ini" : "");
 }
 
+
 function setLoadButton(loading) {
-  const button = document.querySelector("#customer-load-more");
-  if (!button) return;
-  button.disabled = loading || !state.hasMore;
-  if (loading) button.textContent = "Memuat...";
+  const previous = document.querySelector("#customer-prev");
+  const next = document.querySelector("#customer-next");
+  if (!previous || !next) return;
+  previous.disabled = loading || state.page <= 1;
+  next.disabled = loading;
+  if (loading) next.textContent = "Memuat...";
 }
 
 function setCustomerState(type, message) {
@@ -354,6 +478,10 @@ async function openCustomerDetail(code) {
       esc(error.message || "Unknown error") +
       '</span></div>';
   }
+}
+
+function customerEscapeHandler(event) {
+  if (event.key === "Escape") closeCustomerDetail();
 }
 
 function closeCustomerDetail() {
