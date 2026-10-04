@@ -236,3 +236,59 @@ function runFikaDiagnosticQuery(label, query) {
 function customerSqlQuoteFika(value) {
   return "'" + String(value || '').replace(/'/g, "''") + "'";
 }
+
+function testFikaTabunganColumnIsolation() {
+  Logger.log('');
+  Logger.log('==================================================');
+  Logger.log('TEST 7 - ISOLASI KOLOM PENYEBAB TIMEOUT');
+  Logger.log('==================================================');
+
+  var base =
+    'FROM tabungan WHERE pelanggan = ' +
+    customerSqlQuoteFika(FIKA_DIAGNOSTIC_CODE) +
+    ' ORDER BY tanggal ASC,jam ASC,kode ASC LIMIT 100';
+
+  runFikaDiagnosticQuery(
+    'TEST 7A - BASE + KETERANGAN',
+    'SELECT kode,tanggal,jam,pelanggan,jumlah,jenis,keterangan ' + base
+  );
+
+  runFikaDiagnosticQuery(
+    'TEST 7B - BASE + KODE_KAS',
+    'SELECT kode,tanggal,jam,pelanggan,jumlah,jenis,kode_kas ' + base
+  );
+
+  runFikaDiagnosticQuery(
+    'TEST 7C - BASE + SUMBER',
+    'SELECT kode,tanggal,jam,pelanggan,jumlah,jenis,sumber ' + base
+  );
+
+  runFikaDiagnosticQuery(
+    'TEST 7D - BASE + SUMBER_FAKTUR',
+    'SELECT kode,tanggal,jam,pelanggan,jumlah,jenis,sumber_faktur ' + base
+  );
+
+  runFikaDiagnosticQuery(
+    'TEST 7E - BASE + KODE_KAS,SUMBER',
+    'SELECT kode,tanggal,jam,pelanggan,jumlah,jenis,kode_kas,sumber ' + base
+  );
+
+  runFikaDiagnosticQuery(
+    'TEST 7F - BASE + KODE_KAS,SUMBER_FAKTUR',
+    'SELECT kode,tanggal,jam,pelanggan,jumlah,jenis,kode_kas,sumber_faktur ' + base
+  );
+
+  runFikaDiagnosticQuery(
+    'TEST 7G - BASE + SUMBER,SUMBER_FAKTUR',
+    'SELECT kode,tanggal,jam,pelanggan,jumlah,jenis,sumber,sumber_faktur ' + base
+  );
+
+  runFikaDiagnosticQuery(
+    'TEST 7H - EXACT PRODUCTION COLUMNS',
+    'SELECT kode,tanggal,jam,pelanggan,jumlah,jenis,keterangan,kode_kas,sumber,sumber_faktur ' + base
+  );
+
+  Logger.log('==================================================');
+  Logger.log('TEST 7 SELESAI');
+  Logger.log('==================================================');
+}
