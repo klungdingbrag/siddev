@@ -7849,7 +7849,7 @@ function apiV1Dispatch_(action, request) {
       );
 
     case 'pelanggan':
-      return getPelangganLaporanV1(
+      return getPelangganAktifFinansialV1(
         request.limit,
         request.cursor
       );
