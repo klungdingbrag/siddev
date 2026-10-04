@@ -499,28 +499,68 @@ function closeCustomerDetail() {
 }
 
 function renderCustomerDetail(detailResult, historyResult, fallbackRow) {
-  const detail = detailResult?.data || detailResult || {};
-  const history = historyResult?.data || historyResult || {};
-  const row = detail?.customer || detail?.pelanggan || detail || fallbackRow || {};
+  // API contract:
+  // pelangganDetail -> { customer: {...} }
+  // pelangganTabunganHistory -> { customer: {...}, data: [...], summary: {...} }
+  // Jangan membaca field financial dari root response secara asumtif.
 
-  const code = detail?.kode_pelanggan || row?.kode || customerCode(fallbackRow);
-  const name = detail?.nama || row?.nama || customerName(fallbackRow);
-  const address = detail?.alamat || row?.alamat || "—";
-  const phone = detail?.telp || row?.telp || "—";
-  const saving = money(detail?.saldo_tabungan ?? row?.saldo_tabungan);
-  const debt = money(detail?.saldo_piutang);
-  const notes = money(detail?.jumlah_nota_outstanding);
+  const detailResponse = detailResult?.data || detailResult || {};
+  const detail = detailResponse?.customer || detailResponse?.pelanggan || detailResponse || fallbackRow || {};
 
-  const transactions =
-    history?.transactions ||
-    history?.riwayat ||
-    history?.rows ||
-    history?.data ||
-    [];
+  const historyResponse = historyResult?.data || historyResult || {};
+  const transactions = Array.isArray(historyResponse)
+    ? historyResponse
+    : (
+        historyResponse?.data ||
+        historyResponse?.transactions ||
+        historyResponse?.riwayat ||
+        historyResponse?.rows ||
+        []
+      );
 
-  const masterBalance = money(history?.saldo_master ?? saving);
-  const reconstructed = money(history?.saldo_rekonstruksi_history);
-  const difference = money(history?.selisih_rekonstruksi_vs_master);
+  const historySummary = historyResponse?.summary || {};
+
+  const code =
+    detail?.kode_pelanggan ||
+    detail?.kode ||
+    customerCode(fallbackRow);
+
+  const name =
+    detail?.nama ||
+    detail?.nama_pelanggan ||
+    customerName(fallbackRow);
+
+  const address = detail?.alamat || fallbackRow?.alamat || "—";
+  const phone = detail?.telp || fallbackRow?.telp || "—";
+
+  // Nilai saldo utama berasal dari endpoint pelangganDetail.
+  const saving = money(
+    detail?.saldo_tabungan ??
+    fallbackRow?.saldo_tabungan
+  );
+
+  const debt = money(
+    detail?.saldo_piutang ??
+    fallbackRow?.saldo_piutang
+  );
+
+  const notes = money(
+    detail?.jumlah_nota_outstanding ??
+    fallbackRow?.jumlah_nota_outstanding
+  );
+
+  // Summary histori berasal dari pelangganTabunganHistory.
+  const masterBalance = money(
+    historySummary?.saldo_master ?? saving
+  );
+
+  const reconstructed = money(
+    historySummary?.saldo_rekonstruksi_history
+  );
+
+  const difference = money(
+    historySummary?.selisih_rekonstruksi_vs_master
+  );
 
   const content = document.querySelector("#customer-detail-content");
   if (!content) return;
@@ -563,7 +603,11 @@ function historyRowHtml(transaction) {
   const type = String(transaction?.jenis || "").toUpperCase();
   const amount = money(transaction?.jumlah);
   const signed = type === "AMBIL" ? -amount : amount;
-  const running = transaction?.saldo_berjalan ?? transaction?.saldoBerjalan ?? null;
+  const running =
+    transaction?.running_balance ??
+    transaction?.saldo_berjalan ??
+    transaction?.saldoBerjalan ??
+    null;
 
   return '<tr>' +
     '<td>' + esc(transaction?.tanggal || "—") + '</td>' +
