@@ -7,7 +7,9 @@
  * TUJUAN:
  * 1. Menentukan bagian query tabungan yang menyebabkan HTTP 504.
  * 2. Membandingkan COUNT, SELECT tanpa ORDER BY, dan SELECT dengan ORDER BY.
- * 3. Mencatat waktu eksekusi dan potongan response mentah.
+ * 3. Menjalankan exact production query 5x berturut-turut untuk mendeteksi
+ *    kegagalan transient/intermittent.
+ * 4. Mencatat waktu eksekusi dan response mentah.
  *
  * CATATAN:
  * - Read-only. Tidak INSERT/UPDATE/DELETE.
@@ -31,6 +33,7 @@ function testFikaTabunganDiagnostic() {
   testFikaTabunganSelectDenganOrder();
   testFikaTabunganSelectSeratusDenganOrder();
   testFikaTabunganOrderVariasi();
+  testFikaTabunganExactProductionLimaKali();
 
   Logger.log('==================================================');
   Logger.log('DIAGNOSTIC FIKA TABUNGAN SELESAI');
@@ -101,6 +104,59 @@ function testFikaTabunganOrderVariasi() {
   );
 }
 
+function testFikaTabunganExactProductionLimaKali() {
+  var query =
+    'SELECT kode,tanggal,jam,pelanggan,jumlah,jenis,keterangan,kode_kas,sumber,sumber_faktur ' +
+    'FROM tabungan WHERE pelanggan = ' +
+    customerSqlQuoteFika(FIKA_DIAGNOSTIC_CODE) +
+    ' ORDER BY tanggal ASC,jam ASC,kode ASC LIMIT 100';
+
+  Logger.log('');
+  Logger.log('==================================================');
+  Logger.log('TEST 6 - EXACT PRODUCTION QUERY 5X');
+  Logger.log('QUERY: ' + query);
+  Logger.log('==================================================');
+
+  var successCount = 0;
+  var failureCount = 0;
+  var httpCodes = [];
+  var durations = [];
+
+  for (var attempt = 1; attempt <= 5; attempt++) {
+    Logger.log('');
+    Logger.log('EXACT PRODUCTION ATTEMPT ' + attempt + '/5');
+
+    var result = runFikaDiagnosticQuery(
+      'EXACT PRODUCTION ATTEMPT ' + attempt + '/5',
+      query
+    );
+
+    httpCodes.push(result.httpCode);
+    durations.push(result.elapsedMs);
+
+    if (result.httpCode >= 200 && result.httpCode < 300) {
+      successCount++;
+    } else {
+      failureCount++;
+    }
+  }
+
+  Logger.log('');
+  Logger.log('EXACT PRODUCTION SUMMARY');
+  Logger.log('SUCCESS COUNT: ' + successCount);
+  Logger.log('FAILURE COUNT: ' + failureCount);
+  Logger.log('HTTP CODES: ' + JSON.stringify(httpCodes));
+  Logger.log('DURATIONS MS: ' + JSON.stringify(durations));
+
+  if (failureCount === 0) {
+    Logger.log('EXACT PRODUCTION QUERY 5X: ALL PASS');
+  } else {
+    Logger.log('EXACT PRODUCTION QUERY 5X: INTERMITTENT/FAILURE DETECTED');
+  }
+
+  Logger.log('==================================================');
+}
+
 function runFikaDiagnosticQuery(label, query) {
   Logger.log('');
   Logger.log('--------------------------------------------------');
@@ -108,6 +164,8 @@ function runFikaDiagnosticQuery(label, query) {
   Logger.log('QUERY: ' + query);
 
   var startedAt = Date.now();
+  var httpCode = 0;
+  var responseText = '';
 
   try {
     var apiKey = getApiKey();
@@ -125,8 +183,8 @@ function runFikaDiagnosticQuery(label, query) {
     });
 
     var elapsedMs = Date.now() - startedAt;
-    var httpCode = response.getResponseCode();
-    var responseText = response.getContentText();
+    httpCode = response.getResponseCode();
+    responseText = response.getContentText();
 
     Logger.log('TRX CODE: ' + trxCode);
     Logger.log('HTTP CODE: ' + httpCode);
@@ -151,13 +209,28 @@ function runFikaDiagnosticQuery(label, query) {
     } else {
       Logger.log('RESULT: FAIL - HTTP ' + httpCode);
     }
+
+    Logger.log('--------------------------------------------------');
+
+    return {
+      httpCode: httpCode,
+      elapsedMs: elapsedMs,
+      responseLength: responseText.length
+    };
   } catch (error) {
+    var elapsedOnError = Date.now() - startedAt;
+
     Logger.log('DIAGNOSTIC EXCEPTION: ' +
       (error && error.message ? error.message : String(error)));
     Logger.log('RESULT: FAIL - EXCEPTION');
-  }
+    Logger.log('--------------------------------------------------');
 
-  Logger.log('--------------------------------------------------');
+    return {
+      httpCode: httpCode || 0,
+      elapsedMs: elapsedOnError,
+      responseLength: responseText.length
+    };
+  }
 }
 
 function customerSqlQuoteFika(value) {
