@@ -954,6 +954,60 @@ function validateStage6TransactionCode_(kodeTransaksi) {
   return kode;
 }
 
+function stage6AgeLabel_(umurHari) {
+  if (umurHari === null || umurHari === undefined || !isFinite(Number(umurHari))) {
+    return '-';
+  }
+
+  const umur = Number(umurHari);
+
+  if (umur <= 0) return 'Belum JT';
+  return umur + ' hari';
+}
+
+function inspectPdfBytes_(bytes, label) {
+  if (!bytes || !bytes.length) {
+    Logger.log("PDF INSPECT %s: EMPTY", label);
+    return;
+  }
+
+  const text = Utilities.newBlob(bytes).getDataAsString();
+  const tailStart = Math.max(0, text.length - 4096);
+  const tail = text.substring(tailStart);
+
+  Logger.log("========================================");
+  Logger.log("PDF INSPECT: %s", label);
+  Logger.log("SIZE: %s", bytes.length);
+  Logger.log("HEADER: %s", text.substring(0, 8));
+  Logger.log("HAS startxref: %s", tail.indexOf("startxref") >= 0);
+  Logger.log("HAS %%EOF: %s", tail.indexOf("%%EOF") >= 0);
+
+  const eofIndex = text.lastIndexOf("%%EOF");
+  const xrefIndex = text.lastIndexOf("startxref");
+
+  Logger.log("startxref INDEX: %s", xrefIndex);
+  Logger.log("%%EOF INDEX: %s", eofIndex);
+
+  if (eofIndex >= 0) {
+    Logger.log(
+      "TAIL AROUND EOF:\n%s",
+      text.substring(
+        Math.max(0, eofIndex - 300),
+        eofIndex + 50
+      )
+    );
+  } else {
+    Logger.log(
+      "LAST 1000 BYTES:\n%s",
+      text.substring(
+        Math.max(0, text.length - 1000)
+      )
+    );
+  }
+
+  Logger.log("========================================");
+}
+
 function getRingkasanPiutangPelanggan(kodePelanggan) {
   const kode = validateStage6CustomerCode_(kodePelanggan);
   const started = Date.now();
