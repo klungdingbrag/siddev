@@ -1565,3 +1565,18 @@ textarea:focus-visible {
     margin-top: 11px;
   }
 }
+
+
+@media (min-width: 1101px) {
+  .dashboard-calendar-panel {
+    grid-column: 1;
+    grid-row: 3;
+  }
+}
+
+@media (max-width: 1100px) {
+  .dashboard-calendar-panel {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
