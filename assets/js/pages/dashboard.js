@@ -1,7 +1,8 @@
 import { api } from "../api/endpoints.js";
 
-const DASHBOARD_DEFAULT_YEAR = 2026;
-const DASHBOARD_DEFAULT_MONTH = 9;
+const DASHBOARD_NOW = new Date();
+const DASHBOARD_DEFAULT_YEAR = DASHBOARD_NOW.getFullYear();
+const DASHBOARD_DEFAULT_MONTH = DASHBOARD_NOW.getMonth() + 1;
 const DASHBOARD_CACHE_KEY = "sidretail:dashboard:v1";
 const DASHBOARD_CACHE_TTL_MS = 5 * 60 * 1000;
 
