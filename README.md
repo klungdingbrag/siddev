@@ -3,9 +3,9 @@
 > **Project:** TB Nusantara SID Retail  
 > **Repository:** `klungdingbrag/siddev`  
 > **Current milestone:** Frontend V1 + Development Backend Integration  
-> **Stable baseline:** `stable/2026-10-04`  
-> **Current development branch:** `feature/customer-v1`  
-> **Status:** Stable foundation / Customer V1 development and audit
+> **Stable baseline:** `stable/2026-10-05`  
+> **Current active branch:** `main`  
+> **Status:** Stable foundation / `main` is the active branch for `admin.tbnusantara.com`
 
 ---
 
@@ -1791,3 +1791,185 @@ Status akhir:
 
 **CLEANUP + SMOKE TEST: PASS — BASELINE 2026-10-05 READY**
 
+---
+
+## 27. Git Branch & Deployment Discipline
+
+Mulai 2026-10-05, repository menggunakan aturan branch berikut sebagai **aturan kerja resmi**.
+
+### Peran Branch
+
+```text
+main
+ |
+ +-- Source code aktif untuk admin.tbnusantara.com
+ |
+ +-- Versi utama yang sedang digunakan / dikembangkan
+ |
+ +-- Bukan tempat eksperimen sembarangan
+ |
+ +-- Perubahan masuk setelah melalui development, testing, dan review
+
+
+stable/2026-10-05
+ |
+ +-- Baseline resmi
+ |
+ +-- Recovery point
+ |
+ +-- Tidak digunakan sebagai tempat eksperimen
+ |
+ +-- Tidak diubah setelah dikunci
+
+
+stable/2026-10-04
+ |
+ +-- Recovery point lama
+ |
+ +-- Dipertahankan untuk historical recovery
+```
+
+### Branch Utama
+
+**`main` adalah source utama untuk `admin.tbnusantara.com`.**
+
+Commit yang berada pada `main` merepresentasikan versi aplikasi yang sedang dijadikan acuan utama untuk deployment/admin frontend.
+
+Baseline resmi saat aturan ini ditetapkan:
+
+```text
+main
+    = 94c5257c243e6ba54959c799ad7261f48091b2f6
+
+stable/2026-10-05
+    = 94c5257c243e6ba54959c799ad7261f48091b2f6
+```
+
+Kedua branch tersebut sengaja berada pada commit yang sama pada saat baseline 2026-10-05 ditetapkan.
+
+### Aturan Pengembangan Fitur
+
+Fitur baru **tidak dikerjakan langsung pada `main`** apabila masih bersifat eksperimen atau belum tervalidasi.
+
+Alur standar:
+
+```text
+                  main
+                   |
+                   v
+          feature/<nama-fitur>
+                   |
+                   v
+          Development GAS
+                   |
+                   v
+              Testing
+                   |
+                   v
+               Review
+                   |
+                   v
+              main
+                   |
+                   v
+          Stable / Release
+```
+
+Contoh:
+
+```text
+main
+ |
+ +-- feature/customer-v2
+ |
+ +-- feature/dashboard-v2
+ |
+ +-- fix/pdf-transport-v3
+```
+
+Branch feature/fix digunakan untuk pekerjaan yang sedang dikembangkan. Setelah selesai dan terbukti aman, perubahan dapat diintegrasikan ke `main`.
+
+### Aturan Baseline
+
+Setelah `main` mencapai kondisi yang dianggap stabil dan telah melewati pengujian yang diperlukan, buat baseline baru:
+
+```text
+stable/YYYY-MM-DD
+```
+
+Contoh:
+
+```text
+stable/2026-10-05
+stable/2026-10-15
+stable/2026-11-01
+```
+
+Baseline adalah **checkpoint yang dapat digunakan untuk recovery**.
+
+Baseline yang sudah dikunci tidak boleh diperlakukan sebagai branch eksperimen.
+
+### Prinsip Recovery
+
+Jika perubahan pada `main` menyebabkan masalah:
+
+```text
+main
+ |
+ X  masalah
+ |
+ v
+stable/<baseline-terakhir>
+ |
+ v
+recovery / rollback / diagnosis
+```
+
+Tujuannya agar pengembangan tidak menghilangkan versi terakhir yang sudah terbukti stabil.
+
+### Aturan Penting
+
+1. **`main` = source utama `admin.tbnusantara.com`.**
+2. **`stable/*` = baseline/recovery, bukan tempat eksperimen.**
+3. Fitur baru dibuat pada branch `feature/*` dari `main`.
+4. Bug fix terisolasi dapat menggunakan branch `fix/*`.
+5. Pengembangan backend tetap dilakukan dan diuji pada **Development GAS** sebelum dianggap siap.
+6. Perubahan yang menyentuh accounting logic, API contract, PDF, atau business logic harus melalui testing dan review.
+7. Jangan mengubah baseline lama hanya untuk mengikuti perkembangan fitur baru.
+8. Setelah versi stabil baru tercapai, buat baseline baru.
+9. Setiap perubahan harus dapat ditelusuri melalui commit Git.
+10. Jika ada keraguan terhadap kondisi repository, **baseline terakhir yang sudah teruji menjadi titik referensi**, bukan asumsi dari percakapan lama.
+
+### Tujuan Aturan Ini
+
+README ini sengaja mencatat branch discipline agar konteks proyek tetap dapat dipahami walaupun pengembangan dilanjutkan pada percakapan ChatGPT yang berbeda.
+
+Dengan demikian, percakapan baru tidak perlu menebak:
+
+- branch mana yang aktif,
+- branch mana yang menjadi baseline,
+- branch mana yang boleh diubah,
+- branch mana yang digunakan oleh `admin.tbnusantara.com`,
+- atau dari mana pengembangan fitur baru harus dimulai.
+
+**Rule of thumb:**
+
+```text
+ADMIN AKTIF
+    -> main
+
+BASELINE / RECOVERY
+    -> stable/YYYY-MM-DD
+
+FITUR BARU
+    -> feature/<nama>
+
+BUG FIX TERISOLASI
+    -> fix/<nama>
+
+SEBELUM MASUK main
+    -> Development -> Test -> Review
+
+SETELAH STABIL
+    -> New Baseline
+```
