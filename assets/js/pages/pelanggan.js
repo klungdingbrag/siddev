@@ -925,6 +925,11 @@ function showCustomerPdfError(message) {
     document.body.appendChild(box);
   }
 
+  if (!text) {
+    box.style.display = "none";
+    return;
+  }
+
   box.textContent = "PDF Customer gagal: " + text;
   box.style.display = "block";
 
