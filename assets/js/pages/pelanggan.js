@@ -40,7 +40,7 @@ function readCustomerCache() {
     if (!raw) return null;
 
     const parsed = JSON.parse(raw);
-    if (!parsed || !Array.isArray(parsed.result)) {
+    if (!parsed || !parsed.result || !Array.isArray(getRows(parsed.result))) {
       sessionStorage.removeItem(CUSTOMER_CACHE_KEY);
       return null;
     }
