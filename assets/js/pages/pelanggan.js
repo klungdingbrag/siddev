@@ -1,5 +1,8 @@
 import { api } from "../api/endpoints.js";
 
+const CUSTOMER_CACHE_KEY = "sidretail:customer:v1";
+const CUSTOMER_CACHE_TTL_MS = 2 * 60 * 1000;
+
 const state = {
   loaded: false,
   loading: false,
@@ -24,6 +27,69 @@ const number = new Intl.NumberFormat("id-ID", {
 });
 
 const root = () => document.querySelector("#page-content");
+
+let customerMountId = 0;
+
+function isCustomerMounted(mountId) {
+  return mountId === customerMountId && Boolean(document.querySelector("#customer-page-size"));
+}
+
+function readCustomerCache() {
+  try {
+    const raw = sessionStorage.getItem(CUSTOMER_CACHE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.result)) {
+      sessionStorage.removeItem(CUSTOMER_CACHE_KEY);
+      return null;
+    }
+
+    const savedAt = Number(parsed.savedAt);
+    if (!Number.isFinite(savedAt) || savedAt <= 0) {
+      sessionStorage.removeItem(CUSTOMER_CACHE_KEY);
+      return null;
+    }
+
+    return {
+      result: parsed.result,
+      savedAt,
+      ageMs: Math.max(0, Date.now() - savedAt)
+    };
+  } catch (error) {
+    console.warn("[CUSTOMER CACHE] read failed:", error);
+    return null;
+  }
+}
+
+function writeCustomerCache(result, savedAt = Date.now()) {
+  try {
+    sessionStorage.setItem(
+      CUSTOMER_CACHE_KEY,
+      JSON.stringify({ version: 1, savedAt, result })
+    );
+  } catch (error) {
+    console.warn("[CUSTOMER CACHE] write failed:", error);
+  }
+}
+
+function applyCustomerData(result, savedAt) {
+  const rows = getRows(result);
+  if (!Array.isArray(rows)) return false;
+
+  state.rows = rows.filter((row) =>
+    money(row?.saldo_tabungan) > 0 ||
+    money(row?.saldo_piutang) > 0
+  );
+  state.loaded = true;
+  state.page = 1;
+
+  filterAndRender();
+
+  const age = Date.now() - Number(savedAt || Date.now());
+  setRefreshButton(false, age);
+  return true;
+}
 
 function money(value) {
   const n = Number(value);
@@ -76,7 +142,8 @@ function customerCode(row) {
 }
 
 export function renderPelangganPage() {
-  const mountId = ++state.mountId;
+  const mountId = ++customerMountId;
+  state.mountId = mountId;
 
   state.loaded = false;
   state.loading = false;
@@ -167,8 +234,27 @@ function bindEvents(mountId) {
 async function loadCustomers(mountId, force = false) {
   if (state.loading) return;
 
-  if (!force && state.loaded && state.rows.length) {
-    filterAndRender();
+  const cached = readCustomerCache();
+
+  // Cache fresh: tampilkan langsung tanpa request ulang ke backend.
+  if (!force && cached && cached.ageMs < CUSTOMER_CACHE_TTL_MS) {
+    applyCustomerData(cached.result, cached.savedAt);
+    setCustomerState("", "");
+    return;
+  }
+
+  // Cache stale: tampilkan data lama terlebih dahulu, lalu refresh di background.
+  if (!force && cached) {
+    applyCustomerData(cached.result, cached.savedAt);
+    setCustomerState("", "");
+    refreshCustomersFromBackend(mountId, false);
+    return;
+  }
+
+  // Manual Refresh: pertahankan data yang sudah tampil dan refresh di background.
+  if (force && state.loaded) {
+    setRefreshButton(true);
+    await refreshCustomersFromBackend(mountId, true);
     return;
   }
 
@@ -177,30 +263,7 @@ async function loadCustomers(mountId, force = false) {
   setRefreshButton(true);
 
   try {
-    const result = await api.pelanggan();
-    if (mountId !== state.mountId) return;
-
-    const rows = getRows(result);
-    if (!Array.isArray(rows)) {
-      throw new Error("Struktur respons pelanggan tidak dikenali.");
-    }
-
-    state.rows = rows.filter((row) =>
-      money(row?.saldo_tabungan) > 0 ||
-      money(row?.saldo_piutang) > 0
-    );
-    state.loaded = true;
-    state.page = 1;
-
-    filterAndRender();
-    setCustomerState("", "");
-  } catch (error) {
-    if (mountId !== state.mountId) return;
-    state.loaded = false;
-    state.rows = [];
-    state.filtered = [];
-    renderCustomerRows();
-    setCustomerState("error", error.message || "Gagal mengambil data pelanggan.");
+    await refreshCustomersFromBackend(mountId, false);
   } finally {
     if (mountId === state.mountId) {
       state.loading = false;
@@ -209,6 +272,44 @@ async function loadCustomers(mountId, force = false) {
     }
   }
 }
+
+async function refreshCustomersFromBackend(mountId, isManualRefresh) {
+  if (isManualRefresh) state.loading = true;
+
+  try {
+    const result = await api.pelanggan();
+    if (!isCustomerMounted(mountId)) return;
+
+    const rows = getRows(result);
+    if (!Array.isArray(rows)) {
+      throw new Error("Struktur respons pelanggan tidak dikenali.");
+    }
+
+    writeCustomerCache(result);
+    applyCustomerData(result, Date.now());
+    setCustomerState("", "");
+  } catch (error) {
+    if (!isCustomerMounted(mountId)) return;
+
+    if (!state.loaded) {
+      state.loaded = false;
+      state.rows = [];
+      state.filtered = [];
+      renderCustomerRows();
+      setCustomerState("error", error.message || "Gagal mengambil data pelanggan.");
+    } else {
+      console.warn("[CUSTOMER CACHE] refresh failed:", error);
+      // Data cache tetap ditampilkan. Tidak perlu mengganggu pengguna.
+    }
+  } finally {
+    if (isCustomerMounted(mountId)) {
+      state.loading = false;
+      setRefreshButton(false);
+      updatePagination();
+    }
+  }
+}
+
 
 function filteredRows() {
   const q = state.search;
@@ -344,12 +445,20 @@ function updatePagination() {
     (state.search ? " · hasil pencarian" : "");
 }
 
-function setRefreshButton(loading) {
+function setRefreshButton(loading, ageMs = null) {
   const button = document.querySelector("#customer-refresh");
   if (!button) return;
-  button.disabled = loading;
-  button.classList.toggle("ui-busy", loading);
-  button.textContent = loading ? "Memuat..." : "↻ Refresh";
+
+  if (loading) {
+    button.disabled = true;
+    button.classList.add("ui-busy");
+    button.textContent = "Memuat...";
+    return;
+  }
+
+  button.disabled = false;
+  button.classList.remove("ui-busy");
+  button.textContent = "↻ Refresh";
 }
 
 function setCustomerState(type, message) {
