@@ -380,7 +380,6 @@ Grafik Laba POS September 2026 menghasilkan **Rp84.787.006,74**, sama dengan has
 
 Fungsi audit dipertahankan sebagai alat validasi dan tidak menjadi sumber business logic baru. Penggabungan file hanya merapikan organisasi source code; fungsi yang telah berhasil diuji tidak dihapus atau diubah perilakunya.
 
-
 ---
 
 ## 9B. Dashboard Sales View Roadmap (Planned)
@@ -734,7 +733,6 @@ Untuk membuat halaman baru:
 
 Jangan langsung membuat pola request asynchronous yang mengasumsikan elemen DOM pasti masih ada setelah await.
 
-
 ---
 
 ## 9K. Responsive UI Foundation V1
@@ -827,7 +825,6 @@ Perubahan responsive tidak mengubah:
 Responsive layer hanya mengubah presentasi dan interaction shell.
 
 ---
-
 
 ## 10. Prinsip Data
 
@@ -1197,3 +1194,411 @@ Audit terlebih dahulu pada Google Apps Script (GAS):
     BARU IMPLEMENTASI JIKA TERBUKTI BERMANFAAT
 
 **Untuk saat ini halaman Piutang tidak diubah.** Ini hanya menjadi catatan roadmap/optimasi untuk audit berikutnya.
+
+---
+
+## 23. Customer V1 — Arsitektur Data dan Scope
+
+**Status: DOKUMENTASI ARSITEKTUR / HASIL AUDIT — LOGIC PRODUCTION TIDAK DIUBAH**
+
+Modul Customer V1 menggunakan **master pelanggan** sebagai population utama customer.
+
+Sumber data yang dipakai:
+
+```text
+Frontend Customer
+       |
+       v
+GAS API
+       |
+       +------------------------------+
+       |                              |
+       v                              v
+pelanggan                        penjualan
+(master customer)               (transaction piutang)
+       |                              |
+       +--------------+---------------+
+                      |
+                      v
+              Customer Financial
+```
+
+### 23.1 Definisi Customer Aktif Finansial
+
+Customer V1 menganggap pelanggan aktif finansial apabila memenuhi:
+
+```text
+saldo_tabungan > 0
+OR
+saldo_piutang > 0
+```
+
+Dengan klasifikasi:
+
+```text
+A = Tabungan saja
+    saldo_tabungan > 0
+    saldo_piutang = 0
+
+B = Piutang saja
+    saldo_tabungan = 0
+    saldo_piutang > 0
+
+C = Keduanya
+    saldo_tabungan > 0
+    saldo_piutang > 0
+
+D = Tidak keduanya
+    saldo_tabungan = 0
+    saldo_piutang = 0
+```
+
+Maka:
+
+```text
+Customer Aktif Finansial = A + B + C
+
+Customer Memiliki Tabungan = A + C
+
+Customer Memiliki Piutang dari master = B + C
+```
+
+Hasil audit pada Development:
+
+```text
+Master pelanggan              = 1.730
+A — Tabungan saja             =     8
+B — Piutang saja              =   216
+C — Keduanya                  =    24
+D — Tidak keduanya            = 1.482
+
+Aktif Finansial
+= 8 + 216 + 24
+= 248 pelanggan
+```
+
+Tidak terdapat duplicate customer code pada master berdasarkan diagnostic yang dijalankan.
+
+### 23.2 Mengapa Piutang Menampilkan 256 Sedangkan Customer 248?
+
+Perbedaan **248 vs 256 bukan bug Customer V1**.
+
+Laporan Piutang bersifat **transaction-first** dan menghitung unique `penjualan.pelanggan` yang memiliki:
+
+```text
+piutang > 0
+```
+
+Hasil audit:
+
+```text
+Piutang customer yang cocok dengan master
+= B + C
+= 216 + 24
+= 240
+
+Kode piutang yang tidak terdapat di master
+= 16
+
+Total unique customer/kode pada laporan Piutang
+= 240 + 16
+= 256
+```
+
+Dengan demikian kedua angka tersebut mempunyai **scope/population yang berbeda**.
+
+```text
+CUSTOMER V1
+    |
+    +-- berangkat dari master pelanggan
+    +-- hanya customer master
+    +-- aktif finansial = tabungan OR piutang
+    +-- hasil audit = 248
+
+PIUTANG
+    |
+    +-- berangkat dari transaksi penjualan
+    +-- transaction-first
+    +-- mencakup kode customer yang muncul pada transaksi
+    +-- hasil audit = 256
+```
+
+### 23.3 Kode Piutang Tanpa Master — Expected Data Scope
+
+Diagnostic menemukan 16 kode yang tidak memiliki pasangan pada `pelanggan.kode`.
+
+Setelah diverifikasi terhadap arsitektur POS Server, kode tersebut bukan alasan untuk mengubah Customer V1.
+
+Ada dua kelompok:
+
+#### A. Transaksi sementara / held transaction
+
+Kode dengan prefix:
+
+```text
+____2207004
+____2510022
+____2609029
+```
+
+Kode tersebut merupakan transaksi yang **masih ditahan sementara di backend POS Server**, antara lain untuk memungkinkan tambahan barang dimasukkan sebelum transaksi diselesaikan.
+
+Kode tersebut **tidak diperlakukan sebagai customer master** pada Customer V1.
+
+#### B. Data cabang
+
+Kode berikut berasal dari data cabang yang memang mempunyai piutang:
+
+```text
+AJI
+BJAYA
+FBR
+HENDRA
+ITHENG
+KUKUH
+KURNIA
+MIRYA
+RHD
+RIMBAL
+SUMA
+TB BEJA
+WENDY
+```
+
+Data tersebut valid dalam scope laporan transaksi Piutang karena transaksi dan piutangnya memang terdapat pada POS Server.
+
+**Kesimpulan:** keberadaan kode tersebut pada laporan Piutang tidak berarti master customer utama harus diubah untuk memasukkan semuanya.
+
+### 23.4 Contract Antar-Modul
+
+Jangan menyamakan population Customer dan Piutang secara otomatis.
+
+```text
+Customer V1
+    = master pelanggan
+    + saldo tabungan master
+    + saldo piutang transaction-first yang
+      dapat direkonsiliasi dengan customer master
+
+Piutang
+    = transaksi penjualan outstanding
+    + seluruh customer/kode transaksi yang
+      berada dalam scope laporan Piutang
+```
+
+Karena itu:
+
+```text
+Customer Aktif Finansial = 248
+Piutang Customer/Kode     = 256
+```
+
+**keduanya dapat benar secara bersamaan.**
+
+Perbedaan jumlah tidak boleh dianggap sebagai bug hanya karena angka Piutang lebih besar. Yang harus diperiksa terlebih dahulu adalah **scope dan sumber population** masing-masing laporan.
+
+### 23.5 Prinsip Data Quality
+
+Diagnostic overlap dipertahankan sebagai alat audit read-only.
+
+Jika pada masa depan muncul kembali perbedaan angka Customer dan Piutang, langkah pertama adalah:
+
+```text
+1. Identifikasi population masing-masing endpoint
+2. Bandingkan source table
+3. Identifikasi customer/kode yang tidak overlap
+4. Bedakan:
+      - master customer
+      - data cabang
+      - transaksi sementara
+      - data legacy
+      - anomaly nyata
+5. Baru tentukan apakah perlu perubahan kode
+```
+
+**Jangan memperbaiki anomaly data dengan mengubah business logic sebelum struktur data sumber dipahami.**
+
+### 23.6 Customer V1 — Backend Contract Saat Ini
+
+Endpoint Customer V1 utama:
+
+```text
+pelanggan
+    -> getPelangganAktifFinansialSemuaV1()
+
+pelangganDetail
+    -> getPelangganDetailV1(kode_pelanggan)
+
+pelangganTabunganHistory
+    -> getRiwayatTabunganPelangganV1(kode_pelanggan, limit)
+```
+
+Customer list menggunakan **full dataset load** dan pagination dilakukan di frontend.
+
+Customer list tidak menggunakan cursor pagination production sebagai mekanisme utama.
+
+Detail customer mengambil posisi finansial customer dan riwayat tabungan secara terpisah.
+
+### 23.7 Customer Cache Contract
+
+Customer list menggunakan cache frontend:
+
+```text
+sessionStorage
+key:
+sidretail:customer:v1
+
+TTL:
+2 menit
+```
+
+Perilaku:
+
+```text
+Cache fresh
+    -> tampilkan langsung
+    -> tidak perlu request backend
+
+Cache stale
+    -> tampilkan cache lama
+    -> refresh backend di background
+
+Tidak ada cache
+    -> request backend
+
+Manual Refresh
+    -> paksa request backend
+```
+
+Detail customer dan history **tidak dianggap sama dengan cache customer list** dan tetap mengambil data sesuai kebutuhan detail.
+
+Cache hanya optimasi UX. Source of truth tetap berada di backend/SID Retail.
+
+### 23.8 Prinsip Arsitektur Customer
+
+```text
+                    SID RETAIL
+                        |
+             +----------+----------+
+             |                     |
+             v                     v
+         pelanggan             penjualan
+         master                 transaksi
+             |                     |
+             |                     |
+             +----------+----------+
+                        |
+                        v
+                  GAS Backend
+                        |
+                  Customer API
+                        |
+                        v
+                 GitHub Frontend
+                        |
+             +----------+----------+
+             |                     |
+             v                     v
+        Customer List          Customer Detail
+             |                     |
+         local search          posisi finansial
+         pagination            + history tabungan
+         2m cache
+```
+
+Prinsip yang harus dipertahankan:
+
+1. **SID Retail tetap source of truth.**
+2. **Customer V1 menggunakan master customer sebagai population utama.**
+3. **Piutang menggunakan transaction-first population.**
+4. Data cabang dan transaksi sementara tidak boleh dipaksa menjadi customer master tanpa kebutuhan bisnis yang terbukti.
+5. Cache frontend bukan source of truth.
+6. Data anomaly harus diaudit berdasarkan source dan scope sebelum business logic diubah.
+7. Perubahan Customer V1 tetap melalui Development → test → review → baseline baru.
+8. Production/stable tidak menjadi tempat eksperimen.
+
+---
+
+## 24. Customer V1 — Audit Status
+
+Hasil audit Customer V1 yang sudah dilakukan:
+
+| Item | Status |
+|---|---|
+| Customer active financial formula | Valid |
+| A/B/C/D classification | Valid |
+| Master duplicate customer code | 0 ditemukan |
+| Piutang master overlap | 240 |
+| Piutang transaction-first population | 256 |
+| Orphan/extended transaction codes | Explained by data architecture |
+| 248 vs 256 | **RESOLVED / EXPECTED BEHAVIOR** |
+| Production business logic change | **Tidak diperlukan** |
+| Customer cache | Implemented, browser validation tetap diperlukan |
+
+Kesimpulan audit:
+
+> **248 pada Customer V1 dan 256 pada Piutang bukan dua angka yang harus dipaksa menjadi sama. Keduanya merepresentasikan population yang berbeda dan keduanya valid berdasarkan arsitektur data yang telah diverifikasi.**
+
+---
+
+## 25. Baseline / Development Discipline
+
+Setelah arsitektur dan contract suatu modul dipahami, pengembangan berikutnya harus mengikuti:
+
+```text
+AUDIT
+  |
+  v
+UNDERSTAND DATA SCOPE
+  |
+  v
+DEFINE API CONTRACT
+  |
+  v
+IMPLEMENT
+  |
+  v
+TEST DEVELOPMENT
+  |
+  v
+REVIEW
+  |
+  v
+NEW BASELINE
+```
+
+Untuk Customer V1, hasil audit data scope di atas menjadi referensi sebelum dilakukan perubahan berikutnya terhadap Customer, Piutang, PDF customer, WhatsApp customer, atau modul yang menggunakan data pelanggan.
+
+---
+
+## 26. Final Project Note
+
+Repository ini bukan sekadar kumpulan source code.
+
+Ia menjadi catatan evolusi sistem TB Nusantara:
+
+```text
+Legacy / Existing SID Retail
+             |
+             v
+Development Backend
+             |
+             v
+API Contract
+             |
+             v
+GitHub Frontend
+             |
+             v
+Stable Foundation
+             |
+             +----> Pelanggan
+             |
+             +----> Data Barang
+             |
+             +----> Modul berikutnya
+```
+
+**Tujuan utama pengembangan adalah membangun sistem yang dapat berkembang tanpa kehilangan kontrol terhadap data, accounting logic, keamanan, dan sejarah perubahan kode.**
+
+---
