@@ -291,7 +291,12 @@ function renderDashboardCalendar(rows) {
   const daysInMonth = new Date(year, month, 0).getDate();
   const startOffset = (firstDay.getDay() + 6) % 7;
   const salesByDay = new Map(
-    (Array.isArray(rows) ? rows : []).map((row) => [row.tanggal, row])
+    (Array.isArray(rows) ? rows : []).map((row) => {
+      const date = row.date instanceof Date && !Number.isNaN(row.date.getTime())
+        ? `${row.date.getFullYear()}-${pad2(row.date.getMonth() + 1)}-${pad2(row.date.getDate())}`
+        : row.tanggal;
+      return [date, row];
+    })
   );
 
   const today = new Date();
