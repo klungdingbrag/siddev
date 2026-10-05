@@ -926,6 +926,133 @@ function escapeSqlString_(value) {
  *   testConcurrency7()
  * ============================================================
  */
+function validateStage6CustomerCode_(kodePelanggan) {
+  const kode = String(kodePelanggan || '').trim();
+
+  if (!kode) {
+    throw new Error('Kode pelanggan kosong.');
+  }
+
+  if (!/^[a-zA-Z0-9._\- ]+$/.test(kode)) {
+    throw new Error('Kode pelanggan tidak valid.');
+  }
+
+  return kode;
+}
+
+function validateStage6TransactionCode_(kodeTransaksi) {
+  const kode = String(kodeTransaksi || '').trim();
+
+  if (!kode) {
+    throw new Error('Kode transaksi kosong.');
+  }
+
+  if (!/^[a-zA-Z0-9._\- ]+$/.test(kode)) {
+    throw new Error('Kode transaksi tidak valid.');
+  }
+
+  return kode;
+}
+
+function getRingkasanPiutangPelanggan(kodePelanggan) {
+  const kode = validateStage6CustomerCode_(kodePelanggan);
+  const started = Date.now();
+  const escapedKode = kode.replace(/'/g, "''");
+
+  const query =
+    'SELECT kode,tanggal,pelanggan,nama_pelanggan,jt,piutang ' +
+    'FROM penjualan ' +
+    "WHERE pelanggan = '" + escapedKode + "' " +
+    'AND piutang > 0 ' +
+    'ORDER BY kode ' +
+    'LIMIT ' + SID_CONFIG.DETAIL_LIMIT;
+
+  const result = sidRetailQuery(query);
+
+  if (!result || result.status !== 'success') {
+    throw new Error(
+      'Gagal mengambil ringkasan piutang pelanggan: ' +
+      JSON.stringify(result)
+    );
+  }
+
+  const rows = Array.isArray(result.data) ? result.data : [];
+  const today = startOfDay(new Date());
+
+  const data = rows.map(function(row, index) {
+    const kodeTransaksi = String(row.kode || '').trim();
+
+    if (!kodeTransaksi) {
+      throw new Error(
+        'Invoice #' + (index + 1) + ' tidak memiliki kode transaksi.'
+      );
+    }
+
+    const tanggalTransaksi = parseSidDate(row.tanggal);
+    const jtHari = parseJtDays(row.jt);
+    const jatuhTempo = (
+      tanggalTransaksi && jtHari !== null
+    ) ? addDays(tanggalTransaksi, jtHari) : null;
+
+    const umurHari = jatuhTempo
+      ? Math.floor(
+          (today.getTime() - startOfDay(jatuhTempo).getTime()) / 86400000
+        )
+      : null;
+
+    return {
+      no: index + 1,
+      kode_transaksi: kodeTransaksi,
+      tanggal: row.tanggal || '',
+      kode_pelanggan: row.pelanggan || kode,
+      nama_pelanggan: row.nama_pelanggan || '',
+      jt_hari: jtHari,
+      jatuh_tempo: formatSidDate(jatuhTempo),
+      umur_hari: umurHari,
+      umur_label: stage6AgeLabel_(umurHari),
+      piutang: parseMoney(row.piutang)
+    };
+  });
+
+  let totalInvoice = 0;
+  data.forEach(function(item) {
+    totalInvoice += item.piutang;
+  });
+
+  let contact = {
+    nama: data.length ? data[0].nama_pelanggan : '',
+    telp: '',
+    alamat: ''
+  };
+
+  try {
+    contact = getCustomerContactOnDemand(kode) || contact;
+  } catch (contactError) {
+    Logger.log(
+      'STAGE 6 CONTACT GAGAL | KODE=' + kode +
+      ' | ERROR=' +
+      (contactError && contactError.message
+        ? contactError.message
+        : String(contactError))
+    );
+  }
+
+  return {
+    status: 'success',
+    generated_at: new Date().toISOString(),
+    today: formatSidDate(today),
+    kode_pelanggan: kode,
+    nama_pelanggan: contact.nama || (data[0] && data[0].nama_pelanggan) || kode,
+    telp: contact.telp || '',
+    alamat: contact.alamat || '',
+    count: data.length,
+    total_invoice: totalInvoice,
+    total_outstanding: totalInvoice,
+    data: data,
+    duration_ms: Date.now() - started
+  };
+}
+
 function getSemuaNotaOutstanding(kodePelanggan) {
   const kode = validateStage6CustomerCode_(kodePelanggan);
   const started = Date.now();
