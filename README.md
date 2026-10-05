@@ -826,6 +826,65 @@ Responsive layer hanya mengubah presentasi dan interaction shell.
 
 ---
 
+## 9L. Deployment dan Custom Domain
+
+Frontend pada GitHub Pages telah dikonfigurasi menggunakan **custom domain**:
+
+```text
+admin.tbnusantara.com
+```
+
+Domain tersebut digunakan sebagai alamat akses frontend/admin SID Retail yang dipublikasikan melalui GitHub Pages.
+
+Arsitektur deployment:
+
+```text
+User / Browser
+      |
+      v
+admin.tbnusantara.com
+      |
+      v
+GitHub Pages
+      |
+      v
+Frontend SID Retail
+      |
+      | HTTPS / API
+      v
+Development GAS Backend
+      |
+      v
+SID Retail API / POS Server
+```
+
+### Prinsip
+
+- Custom domain merupakan alamat publik untuk frontend.
+- GitHub Pages berfungsi sebagai host frontend/static application.
+- Custom domain tidak menggantikan backend GAS.
+- Frontend tetap berkomunikasi dengan backend melalui API.
+- Perubahan domain/hosting tidak boleh mengubah accounting logic atau source of truth.
+- Konfigurasi domain harus dipisahkan dari credential dan secret backend.
+
+### Status
+
+```text
+Custom domain
+    admin.tbnusantara.com
+          |
+          v
+      GitHub Pages
+          |
+          v
+   SID Retail Frontend
+```
+
+**Status: sudah dikonfigurasi dan digunakan.**
+
+
+---
+
 ## 10. Prinsip Data
 
 Beberapa prinsip yang harus dijaga:
