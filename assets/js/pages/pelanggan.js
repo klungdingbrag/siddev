@@ -471,7 +471,7 @@ function setCustomerState(type, message) {
   el.textContent = message || "";
 }
 
-async function customerActionClick(event) {
+async async function customerActionClick(event) {
   const button = event.target.closest("[data-customer-code]");
   if (!button) return;
 
