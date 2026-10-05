@@ -514,3 +514,471 @@ button.ui-busy::after {
     animation: none;
   }
 }
+
+/* =========================================================
+   UI/UX POLISH V2 — DESIGN SYSTEM + APP SHELL
+   Visual-only layer. Preserves API, accounting, PDF, and state logic.
+   ========================================================= */
+
+:root {
+  --ui-surface-raised: #ffffff;
+  --ui-surface-subtle: #f6f8fb;
+  --ui-border-soft: #e7ebf0;
+  --ui-border-strong: #d8dee8;
+  --ui-text-strong: #111827;
+  --ui-text-body: #344054;
+  --ui-text-muted: #667085;
+  --ui-primary-soft: #eff5ff;
+  --ui-success-soft: #ecfdf3;
+  --ui-danger-soft: #fef3f2;
+  --ui-warning-soft: #fffaeb;
+  --ui-radius-sm: 9px;
+  --ui-radius-md: 12px;
+  --ui-radius-lg: 16px;
+  --ui-shadow-card: 0 1px 2px rgba(16,24,40,.03), 0 8px 24px rgba(16,24,40,.045);
+  --ui-shadow-card-hover: 0 2px 4px rgba(16,24,40,.04), 0 12px 30px rgba(16,24,40,.07);
+}
+
+body {
+  color: var(--ui-text-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: #dbeafe;
+  color: var(--ui-text-strong);
+}
+
+button,
+a,
+select,
+input,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+/* ---------- App shell ---------- */
+
+.sidebar {
+  width: 248px;
+  padding: 20px 12px;
+  border-right: 1px solid rgba(255,255,255,.055);
+  box-shadow: 8px 0 28px rgba(16,24,40,.08);
+}
+
+.brand {
+  padding: 7px 9px 24px;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  box-shadow: 0 6px 16px rgba(37,99,235,.22);
+}
+
+.brand strong {
+  font-size: 14px;
+  letter-spacing: -.01em;
+}
+
+.brand span {
+  font-size: 11px;
+}
+
+.nav {
+  gap: 4px;
+}
+
+.nav-item {
+  position: relative;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: #cbd5e1;
+  transition: background-color .16s ease, color .16s ease, border-color .16s ease, transform .16s ease;
+}
+
+.nav-item:hover {
+  background: rgba(255,255,255,.055);
+  color: #f8fafc;
+  transform: translateX(1px);
+}
+
+.nav-item.active {
+  background: rgba(37,99,235,.16);
+  border-color: rgba(147,180,248,.13);
+  color: #fff;
+  box-shadow: inset 3px 0 0 #60a5fa;
+}
+
+.nav-item.active:hover {
+  background: rgba(37,99,235,.19);
+}
+
+.sidebar-footer {
+  margin: auto 3px 0;
+  padding: 11px 9px;
+  border-top: 1px solid rgba(255,255,255,.07);
+  font-size: 11px;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  box-shadow: 0 0 0 3px rgba(21,128,61,.12);
+}
+
+.app-shell {
+  width: calc(100% - 248px);
+  margin-left: 248px;
+}
+
+.topbar {
+  min-height: 76px;
+  padding: 16px 30px;
+  box-shadow: 0 1px 0 rgba(16,24,40,.015);
+}
+
+.topbar h1 {
+  color: var(--ui-text-strong);
+  font-size: 21px;
+  letter-spacing: -.025em;
+}
+
+.eyebrow {
+  color: var(--ui-text-muted);
+  font-size: 9px;
+  letter-spacing: .1em;
+}
+
+.environment-badge {
+  padding: 7px 10px;
+  border-color: var(--ui-border-soft);
+  background: var(--ui-surface-subtle);
+  color: var(--ui-text-muted);
+  font-weight: 600;
+}
+
+.page-content {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 28px 30px 42px;
+}
+
+.page-heading {
+  margin-bottom: 18px;
+}
+
+.page-heading h2 {
+  color: var(--ui-text-strong);
+  letter-spacing: -.035em;
+}
+
+.page-description {
+  color: var(--ui-text-muted);
+  line-height: 1.55;
+}
+
+/* ---------- Shared cards / panels ---------- */
+
+.welcome-card,
+.stat-card,
+.summary-card,
+.card.panel,
+.dashboard-panel,
+.dashboard-kpi {
+  border-color: var(--ui-border-soft);
+  box-shadow: var(--ui-shadow-card);
+}
+
+.welcome-card:hover,
+.stat-card:hover,
+.summary-card:hover,
+.dashboard-kpi:hover {
+  box-shadow: var(--ui-shadow-card-hover);
+}
+
+.welcome-card,
+.stat-card,
+.summary-card {
+  border-radius: var(--ui-radius-lg);
+}
+
+.welcome-card h2 {
+  color: var(--ui-text-strong);
+  letter-spacing: -.035em;
+}
+
+.stat-card strong,
+.summary-card strong {
+  color: var(--ui-text-strong);
+  letter-spacing: -.025em;
+}
+
+/* ---------- Controls ---------- */
+
+.btn,
+.icon-btn,
+.mini-action {
+  font-weight: 650;
+}
+
+.btn {
+  border-radius: var(--ui-radius-md);
+  min-height: 42px;
+}
+
+.btn-primary {
+  box-shadow: 0 5px 15px rgba(37,99,235,.17);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.btn-light:hover:not(:disabled),
+.icon-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: var(--ui-border-strong);
+}
+
+.search-box {
+  border-color: var(--ui-border-soft);
+  background: #f8fafc;
+  border-radius: var(--ui-radius-md);
+  transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+
+.search-box:focus-within {
+  border-color: #9dbcf6;
+  background: #fff;
+  box-shadow: 0 0 0 3px var(--ui-focus);
+}
+
+.search-box input::placeholder,
+.contact-input::placeholder,
+.contact-message::placeholder {
+  color: #98a2b3;
+}
+
+.page-size select,
+.dashboard-period select,
+.contact-input,
+.contact-message {
+  border-color: var(--ui-border-soft);
+  border-radius: var(--ui-radius-md);
+}
+
+.page-size select:focus,
+.dashboard-period select:focus,
+.contact-input:focus,
+.contact-message:focus {
+  border-color: #9dbcf6;
+  box-shadow: 0 0 0 3px var(--ui-focus);
+}
+
+/* ---------- Tables ---------- */
+
+.card.panel {
+  border-radius: var(--ui-radius-lg);
+}
+
+.toolbar {
+  padding: 15px 17px;
+  background: rgba(255,255,255,.92);
+}
+
+.data-table th {
+  background: #f8fafc;
+  color: #667085;
+  font-weight: 750;
+}
+
+.data-table td {
+  color: var(--ui-text-body);
+}
+
+.data-table tr:hover td {
+  background: #f8fbff;
+}
+
+.data-table tr:last-child td,
+.detail-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.pagination {
+  border-top: 1px solid var(--ui-border-soft);
+  background: #fcfdff;
+}
+
+/* ---------- Mobile cards ---------- */
+
+.mobile-customer-card {
+  border-color: var(--ui-border-soft);
+  border-radius: var(--ui-radius-md);
+  box-shadow: 0 1px 2px rgba(16,24,40,.025);
+}
+
+.mobile-customer-card:active {
+  transform: scale(.998);
+}
+
+/* ---------- Detail modal ---------- */
+
+.modal-backdrop {
+  background: rgba(15,23,42,.56);
+}
+
+.modal-panel {
+  border-color: var(--ui-border-soft);
+  border-radius: 18px;
+  box-shadow: 0 28px 80px rgba(15,23,42,.22);
+}
+
+.modal-header {
+  padding: 18px 21px;
+}
+
+.modal-header h3 {
+  color: var(--ui-text-strong);
+  letter-spacing: -.02em;
+}
+
+.modal-body {
+  padding: 19px 21px;
+}
+
+.detail-customer div,
+.aging-card,
+.financial-card {
+  border-color: var(--ui-border-soft);
+}
+
+.detail-customer div {
+  background: #f8fafc;
+}
+
+.aging-card {
+  box-shadow: 0 1px 2px rgba(16,24,40,.025);
+}
+
+.aging-danger {
+  background: var(--ui-danger-soft);
+}
+
+.financial-card.debt {
+  background: #172f49;
+  border-color: #172f49;
+  box-shadow: 0 8px 22px rgba(23,47,73,.14);
+}
+
+.detail-table th {
+  background: #f8fafc;
+  color: #667085;
+}
+
+.detail-footer {
+  background: rgba(255,255,255,.985);
+  border-top-color: var(--ui-border-soft);
+}
+
+/* ---------- Toast ---------- */
+
+.app-toast {
+  border-radius: 13px;
+  font-weight: 600;
+}
+
+/* ---------- Desktop spacing ---------- */
+
+@media (min-width: 1200px) {
+  .page-content {
+    padding-left: 34px;
+    padding-right: 34px;
+  }
+}
+
+/* ---------- Mobile app shell refinement ---------- */
+
+@media (max-width: 800px) {
+  .sidebar {
+    width: min(292px, 86vw);
+    padding: 17px 12px;
+  }
+
+  .topbar {
+    min-height: 64px;
+    padding: 10px 15px;
+    box-shadow: 0 1px 8px rgba(16,24,40,.045);
+  }
+
+  .page-content {
+    padding: 19px 15px 30px;
+  }
+
+  .page-heading h2 {
+    font-size: 25px;
+  }
+
+  .toolbar {
+    gap: 10px;
+  }
+
+  .summary-card {
+    padding: 16px;
+  }
+
+  .modal-panel {
+    box-shadow: 0 -12px 45px rgba(15,23,42,.16);
+  }
+}
+
+@media (max-width: 520px) {
+  .page-content {
+    padding: 16px 12px 26px;
+  }
+
+  .page-heading h2 {
+    font-size: 23px;
+  }
+
+  .welcome-card {
+    padding: 19px;
+  }
+
+  .summary-card {
+    padding: 15px;
+  }
+
+  .btn,
+  .btn[data-pdf-action],
+  .btn[data-wa-action] {
+    border-radius: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-item,
+  .welcome-card,
+  .stat-card,
+  .summary-card,
+  .dashboard-kpi,
+  .search-box {
+    transition: none;
+  }
+}
