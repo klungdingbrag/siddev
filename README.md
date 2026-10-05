@@ -1661,3 +1661,133 @@ Stable Foundation
 **Tujuan utama pengembangan adalah membangun sistem yang dapat berkembang tanpa kehilangan kontrol terhadap data, accounting logic, keamanan, dan sejarah perubahan kode.**
 
 ---
+
+
+---
+
+## 12. Baseline 2026-10-05 — GAS Production Cleanup
+
+**Baseline:** `stable/2026-10-05`  
+**Source:** `cleanup/gas-production-2026-10-05`  
+**Tested source commit:** `c9e72a8faa788b58ed9df113c7371ded4937e330`
+
+Baseline ini dikunci setelah seluruh smoke test Development dinyatakan **PASS**.
+
+### Smoke Test Final
+
+| Area | Hasil |
+|---|---|
+| Dashboard — data omzet | PASS |
+| Dashboard — laba bulanan | PASS |
+| Dashboard — summary | PASS |
+| Customer — refresh/cache | PASS |
+| Tabungan — saldo | PASS |
+| Tabungan — riwayat | PASS |
+| PDF customer dengan customer lain | PASS |
+| PDF customer tanpa riwayat tabungan | PASS |
+| Customer hanya tabungan | PASS |
+| Customer hanya piutang | PASS |
+| API `health` | PASS |
+| API `validateConfig` | PASS |
+| FIKA customer `2606030` — detail, riwayat, PDF | PASS |
+
+### GAS Production Structure
+
+Folder `code/` pada baseline ini dipertahankan sebagai source production yang telah diaudit:
+
+```text
+code/
+├── Code.gs
+├── Customer_API_V1.gs
+├── Dashboard_Analytics_V1.gs
+└── Production_Tabungan_V1.gs
+```
+
+File diagnostic/test obsolete yang dihapus dari source production:
+
+- `Diagnostic_Customer_Financial_Overlap_V1.gs`
+- `Diagnostic_Fika_Tabungan.gs`
+- `Invoice_WhatsApp_V2.gs`
+
+`vik.gs` juga tidak termasuk source production baseline apabila masih terdapat pada project GAS Development.
+
+### Production Functions Preserved
+
+Cleanup dilakukan dengan prinsip **tidak mengubah atau menghapus fungsi production yang masih menjadi dependency**.
+
+Dependency Stage 6 yang sempat teridentifikasi dan dipulihkan:
+
+- `validateStage6CustomerCode_`
+- `validateStage6TransactionCode_`
+- `getRingkasanPiutangPelanggan`
+- `stage6AgeLabel_`
+- `inspectPdfBytes_`
+- `apiV1Pdf6D2WithFingerprint_`
+- `apiV1Sha256Hex_`
+
+Syntax production `getSemuaNotaOutstanding()` juga dipulihkan ke deklarasi fungsi yang benar.
+
+### Customer V1
+
+Customer V1 menggunakan pendekatan master-customer oriented untuk daftar customer aktif secara finansial.
+
+Kontrak penting:
+
+- saldo tabungan berasal dari `pelanggan.saldo_tabungan`
+- saldo piutang berasal dari transaksi `penjualan.piutang`
+- riwayat tabungan berasal dari tabel `tabungan`
+- Customer V1 tidak memaksa seluruh kode transaksi piutang yang tidak terdapat pada master customer masuk ke daftar customer master
+
+Kondisi customer yang telah diuji mencakup:
+
+- hanya tabungan
+- hanya piutang
+- tabungan dan piutang
+- tanpa riwayat tabungan
+- PDF customer
+
+### Recovery Point
+
+Baseline sebelumnya **tetap dipertahankan dan tidak diubah**:
+
+```text
+stable/2026-10-04
+29664e947f39dba74f83df18e7b784a455db06a2
+```
+
+Baseline baru:
+
+```text
+stable/2026-10-05
+```
+
+Aturan pengembangan berikutnya:
+
+```text
+stable/2026-10-05
+       |
+       +---- baseline / recovery point
+       |
+       +---- feature branch
+       |
+       +---- development GAS
+       |
+       +---- smoke test
+       |
+       +---- review
+       |
+       +---- baseline berikutnya
+```
+
+**Baseline ini tidak boleh diperlakukan sebagai tempat eksperimen langsung.** Perubahan berikutnya harus dimulai dari branch development/feature baru dan melewati pengujian sebelum menjadi baseline berikutnya.
+
+### Cleanup Documentation
+
+Audit dan keputusan cleanup lengkap dicatat pada:
+
+`docs/GAS_CLEANUP_2026-10-05.md`
+
+Status akhir:
+
+**CLEANUP + SMOKE TEST: PASS — BASELINE 2026-10-05 READY**
+
