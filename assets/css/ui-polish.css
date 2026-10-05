@@ -1352,3 +1352,216 @@ textarea:focus-visible {
     height: 250px;
   }
 }
+
+
+/* =========================================================
+   DASHBOARD CALENDAR V1
+   Frontend-only widget using existing dashboard sales data.
+   ========================================================= */
+
+.dashboard-calendar-panel {
+  min-width: 0;
+}
+
+.dashboard-calendar {
+  padding: 18px 19px 17px;
+}
+
+.dashboard-calendar-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dashboard-calendar-head h3 {
+  margin: 5px 0 0;
+  color: var(--ui-text-strong);
+  font-size: 17px;
+  letter-spacing: -.018em;
+  text-transform: capitalize;
+}
+
+.dashboard-calendar-legend {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ui-text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.dashboard-calendar-legend i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: 1px;
+}
+
+.dashboard-calendar-weekdays,
+.dashboard-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.dashboard-calendar-weekdays {
+  margin-bottom: 5px;
+}
+
+.dashboard-calendar-weekdays span {
+  padding: 4px 0;
+  color: var(--ui-text-muted);
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.dashboard-calendar-day {
+  position: relative;
+  min-width: 0;
+  min-height: 43px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ui-text-body);
+  cursor: pointer;
+  transition: background-color .14s ease, border-color .14s ease, transform .14s ease;
+}
+
+.dashboard-calendar-day:hover {
+  background: #f5f8fc;
+  border-color: var(--ui-border-soft);
+}
+
+.dashboard-calendar-day:active {
+  transform: scale(.97);
+}
+
+.dashboard-calendar-day.is-empty {
+  cursor: default;
+  pointer-events: none;
+}
+
+.dashboard-calendar-number {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.dashboard-calendar-day.has-data .dashboard-calendar-number {
+  color: var(--ui-text-strong);
+}
+
+.dashboard-calendar-dot {
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translateX(-50%);
+}
+
+.dashboard-calendar-day.is-today {
+  border-color: #9dbcf6;
+  background: var(--ui-primary-soft);
+}
+
+.dashboard-calendar-day.is-selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 5px 12px rgba(31,111,235,.18);
+}
+
+.dashboard-calendar-day.is-selected .dashboard-calendar-number {
+  color: #fff;
+}
+
+.dashboard-calendar-day.is-selected .dashboard-calendar-dot {
+  background: #fff;
+}
+
+.dashboard-calendar-detail {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 11px 13px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 11px;
+  background: #f8fafc;
+}
+
+.dashboard-calendar-detail span {
+  grid-column: 1 / -1;
+  color: var(--ui-text-muted);
+  font-size: 10px;
+}
+
+.dashboard-calendar-detail strong {
+  color: var(--ui-text-strong);
+  font-size: 13px;
+}
+
+.dashboard-calendar-detail small {
+  color: var(--ui-text-muted);
+  font-size: 10px;
+  text-align: right;
+}
+
+@media (max-width: 800px) {
+  .dashboard-calendar {
+    padding: 16px;
+  }
+
+  .dashboard-calendar-day {
+    min-height: 45px;
+  }
+}
+
+@media (max-width: 520px) {
+  .dashboard-calendar {
+    padding: 14px;
+  }
+
+  .dashboard-calendar-head {
+    margin-bottom: 13px;
+  }
+
+  .dashboard-calendar-head h3 {
+    font-size: 16px;
+  }
+
+  .dashboard-calendar-legend {
+    font-size: 9px;
+  }
+
+  .dashboard-calendar-weekdays,
+  .dashboard-calendar-grid {
+    gap: 3px;
+  }
+
+  .dashboard-calendar-day {
+    min-height: 41px;
+    border-radius: 8px;
+  }
+
+  .dashboard-calendar-number {
+    font-size: 11px;
+  }
+
+  .dashboard-calendar-detail {
+    margin-top: 11px;
+  }
+}
