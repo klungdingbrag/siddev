@@ -12,6 +12,8 @@ const state = {
   pageSize: 25,
   search: "",
   detailLoading: 0,
+  detailData: null,
+  detailHistory: null,
   mountId: 0,
   escapeHandler: null
 };
@@ -501,6 +503,8 @@ async function openCustomerDetail(code) {
 
     if (requestId !== state.detailLoading) return;
 
+    state.detailData = detail;
+    state.detailHistory = history;
     renderCustomerDetail(detail, history, row);
   } catch (error) {
     if (requestId !== state.detailLoading) return;
@@ -673,6 +677,23 @@ async function handleCustomerPdf(code) {
     return;
   }
 
+  // Buka tab secara synchronous sebelum await agar browser tidak memblokir popup.
+  const pdfWindow = window.open("about:blank", "_blank");
+  const popupBlocked = !pdfWindow;
+
+  if (pdfWindow) {
+    try {
+      pdfWindow.document.title = "Membuat Laporan PDF...";
+      pdfWindow.document.body.innerHTML =
+        '<div style="font-family:system-ui,sans-serif;padding:32px;text-align:center;color:#475467">' +
+        '<strong>Sedang membuat Laporan PDF...</strong><br>' +
+        '<span style="font-size:13px">Mohon tunggu.</span>' +
+        '</div>';
+    } catch (error) {
+      console.warn("[CUSTOMER PDF] could not initialize preview tab:", error);
+    }
+  }
+
   setCustomerPdfLoading(
     true,
     "Membuat Laporan PDF...",
@@ -724,30 +745,39 @@ async function handleCustomerPdf(code) {
 
     const blob = new Blob([bytes], { type: "application/pdf" });
     const url = URL.createObjectURL(blob);
-    const opened = window.open(url, "_blank", "noopener,noreferrer");
 
-    if (!opened) {
-      URL.revokeObjectURL(url);
-      downloadCustomerPdfBlob(blob, payload.filename);
+    if (pdfWindow && !pdfWindow.closed) {
+      pdfWindow.location.href = url;
+      setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
       setCustomerPdfLoading(
         false,
         "PDF selesai",
-        "Popup diblokir browser, sehingga PDF diunduh otomatis."
+        "Laporan posisi keuangan pelanggan berhasil dibuat."
       );
-      showToast("Laporan PDF Customer selesai dibuat. Popup diblokir, file diunduh.");
+      showToast("Laporan PDF Customer selesai dibuat.");
       return;
     }
 
-    setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
-
+    // Popup diblokir: tetap berikan fallback download.
+    downloadCustomerPdfBlob(blob, payload.filename);
     setCustomerPdfLoading(
       false,
       "PDF selesai",
-      "Laporan posisi keuangan pelanggan berhasil dibuat."
+      "Popup diblokir browser, sehingga PDF diunduh otomatis."
     );
-    showToast("Laporan PDF Customer selesai dibuat.");
+    showToast("Laporan PDF Customer selesai dibuat. Popup diblokir, file diunduh.");
+    setTimeout(() => URL.revokeObjectURL(url), 60 * 1000);
   } catch (error) {
     console.error("[CUSTOMER PDF] failed:", error);
+
+    if (pdfWindow && !pdfWindow.closed) {
+      try {
+        pdfWindow.close();
+      } catch (closeError) {
+        console.warn("[CUSTOMER PDF] could not close failed PDF tab:", closeError);
+      }
+    }
+
     setCustomerPdfLoading(
       false,
       "PDF gagal",
@@ -941,7 +971,7 @@ function handleCustomerWhatsApp(code, name) {
     "Terima kasih atas perhatian dan kerja samanya.",
     "",
     "*TB NUSANTARA*"
-  ].join("\\n");
+  ].join("\n");
 
   const encoded = encodeURIComponent(message);
   window.open("https://wa.me/?text=" + encoded, "_blank", "noopener,noreferrer");
