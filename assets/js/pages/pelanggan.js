@@ -668,8 +668,249 @@ function customerDetailActionClick(event) {
 }
 
 async function handleCustomerPdf(code) {
-  showToast("Laporan PDF Customer V1 belum diaktifkan.", true);
-  console.info("[CUSTOMER PDF] pending backend endpoint:", code);
+  if (!code) {
+    showToast("Kode pelanggan tidak tersedia.", true);
+    return;
+  }
+
+  setCustomerPdfLoading(
+    true,
+    "Membuat Laporan PDF...",
+    "Laporan posisi keuangan pelanggan sedang dibuat. Mohon tunggu."
+  );
+
+  try {
+    const result = await api.pdfCustomerStatementV1(code);
+    const payload = extractCustomerPdfPayload(result);
+
+    if (!payload.base64) {
+      throw new Error("Backend tidak mengembalikan pdf_base64.");
+    }
+
+    const bytes = customerBase64ToBytes(payload.base64);
+    const validation = validateCustomerPdfBytes(bytes);
+
+    console.info("[CUSTOMER PDF] transport check", {
+      kodePelanggan: code,
+      filename: payload.filename,
+      base64Length: payload.base64.length,
+      expectedSize: payload.expectedSize,
+      decodedSize: bytes.length,
+      sizeMatch: payload.expectedSize ? bytes.length === payload.expectedSize : null,
+      header: validation.header,
+      startxref: validation.startxref,
+      eof: validation.eof
+    });
+
+    if (bytes.length < 100 || !validation.header) {
+      throw new Error("PDF yang diterima kosong atau header PDF tidak valid.");
+    }
+
+    if (!validation.startxref || !validation.eof) {
+      throw new Error(
+        "PDF diterima lengkap (" + bytes.length +
+        " byte), tetapi marker PDF tidak lengkap: " +
+        "startxref=" + (validation.startxref ? "OK" : "GAGAL") +
+        ", %%EOF=" + (validation.eof ? "OK" : "GAGAL") + "."
+      );
+    }
+
+    if (payload.expectedSize && bytes.length !== payload.expectedSize) {
+      throw new Error(
+        "Ukuran PDF berubah saat diterima browser: backend " +
+        payload.expectedSize + " byte, frontend " + bytes.length + " byte."
+      );
+    }
+
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+
+    if (!opened) {
+      URL.revokeObjectURL(url);
+      downloadCustomerPdfBlob(blob, payload.filename);
+      setCustomerPdfLoading(
+        false,
+        "PDF selesai",
+        "Popup diblokir browser, sehingga PDF diunduh otomatis."
+      );
+      showToast("Laporan PDF Customer selesai dibuat. Popup diblokir, file diunduh.");
+      return;
+    }
+
+    setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
+
+    setCustomerPdfLoading(
+      false,
+      "PDF selesai",
+      "Laporan posisi keuangan pelanggan berhasil dibuat."
+    );
+    showToast("Laporan PDF Customer selesai dibuat.");
+  } catch (error) {
+    console.error("[CUSTOMER PDF] failed:", error);
+    setCustomerPdfLoading(
+      false,
+      "PDF gagal",
+      "Laporan posisi keuangan pelanggan gagal dibuat."
+    );
+    showToast(
+      "Gagal membuat Laporan PDF Customer: " +
+      (error.message || "Unknown error"),
+      true
+    );
+  }
+}
+
+function extractCustomerPdfPayload(result) {
+  const source =
+    result?.data && typeof result.data === "object"
+      ? result.data
+      : result || {};
+
+  const base64 = String(source?.pdf_base64 || "");
+  const filename =
+    String(source?.filename || "Laporan_Pelanggan.pdf");
+  const rawSize =
+    source?.size_bytes ?? source?.size ?? source?.pdf_size ?? null;
+  const expectedSize = Number(rawSize);
+
+  return {
+    base64,
+    filename,
+    expectedSize:
+      Number.isFinite(expectedSize) && expectedSize > 0
+        ? expectedSize
+        : null
+  };
+}
+
+function customerBase64ToBytes(base64) {
+  const clean = String(base64)
+    .replace(/^data:.*?;base64,/, "")
+    .replace(/\s+/g, "");
+
+  if (!clean) {
+    throw new Error("pdf_base64 kosong.");
+  }
+
+  let binary;
+  try {
+    binary = atob(clean);
+  } catch (error) {
+    throw new Error(
+      "pdf_base64 tidak dapat didekode: " +
+      (error.message || "base64 invalid")
+    );
+  }
+
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return bytes;
+}
+
+function customerContainsAscii(bytes, text) {
+  const target = new TextEncoder().encode(text);
+  if (!target.length || target.length > bytes.length) return false;
+
+  outer:
+  for (let i = 0; i <= bytes.length - target.length; i += 1) {
+    for (let j = 0; j < target.length; j += 1) {
+      if (bytes[i + j] !== target[j]) continue outer;
+    }
+    return true;
+  }
+
+  return false;
+}
+
+function validateCustomerPdfBytes(bytes) {
+  const header =
+    bytes.length >= 5 &&
+    bytes[0] === 0x25 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x44 &&
+    bytes[3] === 0x46 &&
+    bytes[4] === 0x2D;
+
+  const tail = bytes.subarray(Math.max(0, bytes.length - 4096));
+
+  return {
+    header,
+    startxref: customerContainsAscii(tail, "startxref"),
+    eof: customerContainsAscii(tail, "%%EOF")
+  };
+}
+
+function downloadCustomerPdfBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename || "Laporan_Pelanggan.pdf";
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 60 * 1000);
+}
+
+function setCustomerPdfLoading(
+  active,
+  title = "Membuat PDF...",
+  message = "PDF sedang dibuat. Mohon tunggu."
+) {
+  let overlay = document.querySelector("#customer-pdf-loading-overlay");
+
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "customer-pdf-loading-overlay";
+    overlay.innerHTML =
+      '<div class="customer-pdf-loading-card" role="status" aria-live="polite">' +
+        '<div class="customer-pdf-loading-spinner" aria-hidden="true"></div>' +
+        '<div class="customer-pdf-loading-title"></div>' +
+        '<div class="customer-pdf-loading-message"></div>' +
+      '</div>';
+
+    overlay.style.cssText =
+      "position:fixed;inset:0;z-index:100000;display:flex;" +
+      "align-items:center;justify-content:center;" +
+      "background:rgba(15,23,42,.42);backdrop-filter:blur(2px);padding:20px;";
+
+    document.body.appendChild(overlay);
+
+    const style = document.createElement("style");
+    style.id = "customer-pdf-loading-style";
+    style.textContent =
+      "#customer-pdf-loading-overlay .customer-pdf-loading-card{" +
+        "min-width:280px;max-width:420px;padding:28px 30px;" +
+        "border-radius:16px;background:#fff;" +
+        "box-shadow:0 20px 60px rgba(0,0,0,.2);" +
+        "text-align:center;font-family:system-ui,sans-serif}" +
+      "#customer-pdf-loading-overlay .customer-pdf-loading-spinner{" +
+        "width:42px;height:42px;margin:0 auto 16px;" +
+        "border:4px solid #e5e7eb;border-top-color:#2563eb;" +
+        "border-radius:50%;animation:customerPdfLoadingSpin .8s linear infinite}" +
+      "#customer-pdf-loading-overlay .customer-pdf-loading-title{" +
+        "font-size:17px;font-weight:700;color:#172033}" +
+      "#customer-pdf-loading-overlay .customer-pdf-loading-message{" +
+        "margin-top:7px;font-size:13px;color:#667085}" +
+      "@keyframes customerPdfLoadingSpin{" +
+        "to{transform:rotate(360deg)}}";
+
+    document.head.appendChild(style);
+  }
+
+  const titleEl = overlay.querySelector(".customer-pdf-loading-title");
+  const messageEl = overlay.querySelector(".customer-pdf-loading-message");
+
+  if (titleEl) titleEl.textContent = title;
+  if (messageEl) messageEl.textContent = message;
+
+  overlay.style.display = active ? "flex" : "none";
+  overlay.setAttribute("aria-hidden", active ? "false" : "true");
 }
 
 function handleCustomerWhatsApp(code, name) {
