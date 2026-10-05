@@ -1142,3 +1142,58 @@ Stable Foundation
 ```
 
 **Tujuan utama pengembangan adalah membangun sistem yang dapat berkembang tanpa kehilangan kontrol terhadap data, accounting logic, keamanan, dan sejarah perubahan kode.**
+
+---
+
+## 22. Piutang Aging Bucket Optimization — Catatan / Planned
+
+**Status: CATATAN SAJA — BELUM DIKERJAKAN**
+
+Ada usulan untuk menyederhanakan kolom aging pada halaman **Piutang**.
+
+### Tampilan saat ini
+
+    Pelanggan | Belum Jatuh Tempo | 1–30 | 31–60 | 61–90 | 91–120 | ≥121 | Total Piutang | Aksi
+
+### Usulan tampilan
+
+    Pelanggan | Belum Jatuh Tempo | 1–30 | 31–60 | 61–90 | ≥91 | Total Piutang | Aksi
+
+> Catatan: `≥91` digunakan sebagai interpretasi yang konsisten apabila bucket `91–120` dan `≥121` digabung. Jika pada implementasi final ternyata yang diinginkan adalah `≥100`, bucket `91–99` harus ditentukan secara eksplisit terlebih dahulu.
+
+### Tujuan yang ingin diperiksa
+
+Bukan sekadar mengurangi jumlah kolom UI, tetapi mengetahui apakah penggabungan bucket aging dapat:
+
+- mengurangi pekerjaan perhitungan di backend,
+- mengurangi ukuran response API,
+- mengurangi request atau query yang diperlukan,
+- membuat pengambilan data Piutang lebih ringan,
+- atau sebenarnya hanya mengubah tampilan tanpa memberikan keuntungan performa.
+
+### Urutan pekerjaan yang disepakati
+
+**Belum mengubah kode.**
+
+Audit terlebih dahulu pada Google Apps Script (GAS):
+
+1. Periksa endpoint/fungsi API Piutang.
+2. Periksa query yang mengambil data Piutang.
+3. Tentukan di mana aging bucket dihitung: SID Retail/database, GAS, atau frontend.
+4. Periksa apakah setiap bucket saat ini benar-benar memerlukan data/perhitungan terpisah.
+5. Hitung jumlah request dan ukuran/struktur response.
+6. Baru setelah audit, tentukan apakah penggabungan bucket memberikan keuntungan performa yang nyata.
+
+### Prinsip
+
+    AUDIT GAS
+       ↓
+    PAHAMI QUERY & API CONTRACT
+       ↓
+    UKUR BEBAN / REQUEST
+       ↓
+    PUTUSKAN OPTIMASI
+       ↓
+    BARU IMPLEMENTASI JIKA TERBUKTI BERMANFAAT
+
+**Untuk saat ini halaman Piutang tidak diubah.** Ini hanya menjadi catatan roadmap/optimasi untuk audit berikutnya.
