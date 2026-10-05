@@ -13,6 +13,10 @@ export const api = Object.freeze({
       kode_pelanggan: kodePelanggan,
       limit
     }),
+  pdfCustomerStatementV1: (kodePelanggan) =>
+    apiRequest("pdfCustomerStatementV1", {
+      kode_pelanggan: kodePelanggan
+    }),
   dashboardSalesDaily: (tanggalAwal, tanggalAkhir) =>
     apiRequest("dashboardSalesDaily", { tanggalAwal, tanggalAkhir }),
   dashboardProfitMonthly: (tanggalAwal, tanggalAkhir) =>
