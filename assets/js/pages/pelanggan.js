@@ -680,19 +680,22 @@ async function handleCustomerPdf(code) {
   setCustomerPdfLoading(
     true,
     "Membuat Laporan PDF...",
-    "Laporan posisi keuangan pelanggan sedang dibuat. Mohon tunggu."
+    "PDF sedang dibuat. Mohon tunggu."
   );
 
   try {
-    const result = await api.pdfCustomerStatementV1(code);
-    const payload = extractCustomerPdfPayload(result);
+    // Prinsip mengikuti PDF 6D.2:
+    // API -> payload -> Base64 decode -> validasi -> Blob -> download.
+    // Tidak membuka window/tab sebelum PDF selesai dibuat.
+    const data = await api.pdfCustomerStatementV1(code);
+    const payload = extractCustomerPdfPayload(data);
 
     if (!payload.base64) {
       throw new Error("Backend tidak mengembalikan pdf_base64.");
     }
 
     const bytes = customerBase64ToBytes(payload.base64);
-    const validation = validateCustomerPdfBytes(bytes);
+    const transportCheck = validateCustomerPdfBytes(bytes);
 
     console.info("[CUSTOMER PDF] transport check", {
       kodePelanggan: code,
@@ -701,21 +704,21 @@ async function handleCustomerPdf(code) {
       expectedSize: payload.expectedSize,
       decodedSize: bytes.length,
       sizeMatch: payload.expectedSize ? bytes.length === payload.expectedSize : null,
-      header: validation.header,
-      startxref: validation.startxref,
-      eof: validation.eof
+      header: transportCheck.header,
+      startxref: transportCheck.startxref,
+      eof: transportCheck.eof
     });
 
-    if (bytes.length < 100 || !validation.header) {
+    if (bytes.length < 100 || !transportCheck.header) {
       throw new Error("PDF yang diterima kosong atau header PDF tidak valid.");
     }
 
-    if (!validation.startxref || !validation.eof) {
+    if (!transportCheck.startxref || !transportCheck.eof) {
       throw new Error(
-        "PDF diterima lengkap (" + bytes.length +
-        " byte), tetapi marker PDF tidak lengkap: " +
-        "startxref=" + (validation.startxref ? "OK" : "GAGAL") +
-        ", %%EOF=" + (validation.eof ? "OK" : "GAGAL") + "."
+        "PDF Customer diterima lengkap (" + bytes.length +
+        " byte), tetapi pemeriksaan marker PDF gagal: " +
+        "startxref=" + (transportCheck.startxref ? "OK" : "GAGAL") +
+        ", %%EOF=" + (transportCheck.eof ? "OK" : "GAGAL") + "."
       );
     }
 
@@ -727,24 +730,19 @@ async function handleCustomerPdf(code) {
     }
 
     const blob = new Blob([bytes], { type: "application/pdf" });
-    const url = URL.createObjectURL(blob);
-    const opened = window.open(url, "_blank", "noopener,noreferrer");
 
-    if (!opened) {
-      downloadCustomerPdfBlob(blob, payload.filename);
-      showToast(
-        "Laporan PDF Customer selesai dibuat. Popup diblokir, file diunduh."
-      );
-    } else {
-      showToast("Laporan PDF Customer selesai dibuat.");
-      setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
+    if (!(blob instanceof Blob) || blob.size < 100) {
+      throw new Error("PDF Customer yang diterima kosong atau tidak valid.");
     }
+
+    downloadCustomerPdfBlob(blob, payload.filename);
 
     setCustomerPdfLoading(
       false,
       "PDF selesai",
-      "Laporan posisi keuangan pelanggan selesai dibuat."
+      "Laporan posisi keuangan pelanggan selesai dibuat dan diunduh."
     );
+    showToast("Laporan PDF Customer selesai dibuat dan diunduh.");
   } catch (error) {
     console.error("[CUSTOMER PDF] failed:", error);
 
