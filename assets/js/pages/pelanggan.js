@@ -742,7 +742,8 @@ async function handleCustomerPdf(code) {
       "PDF selesai",
       "Laporan posisi keuangan pelanggan selesai dibuat dan diunduh."
     );
-    showToast("Laporan PDF Customer selesai dibuat dan diunduh.");
+    console.info("[CUSTOMER PDF] download completed");
+    showCustomerPdfError("");
   } catch (error) {
     console.error("[CUSTOMER PDF] failed:", error);
 
@@ -751,10 +752,8 @@ async function handleCustomerPdf(code) {
       "PDF gagal",
       "Laporan posisi keuangan pelanggan gagal dibuat."
     );
-    showToast(
-      "Gagal membuat Laporan PDF Customer: " +
-      (error.message || "Unknown error"),
-      true
+    showCustomerPdfError(
+      error?.message || "Unknown error"
     );
   }
 }
@@ -908,6 +907,31 @@ function setCustomerPdfLoading(
 
   overlay.style.display = active ? "flex" : "none";
   overlay.setAttribute("aria-hidden", active ? "false" : "true");
+}
+
+function showCustomerPdfError(message) {
+  const text = String(message || "Terjadi kesalahan saat membuat PDF.");
+  console.error("[CUSTOMER PDF] USER ERROR:", text);
+
+  let box = document.querySelector("#customer-pdf-error");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "customer-pdf-error";
+    box.style.cssText =
+      "position:fixed;left:20px;right:20px;bottom:20px;z-index:100001;" +
+      "max-width:720px;margin:0 auto;padding:14px 16px;border-radius:12px;" +
+      "background:#fff1f2;color:#991b1b;border:1px solid #fecdd3;" +
+      "box-shadow:0 12px 30px rgba(0,0,0,.15);font:14px/1.5 system-ui,sans-serif;";
+    document.body.appendChild(box);
+  }
+
+  box.textContent = "PDF Customer gagal: " + text;
+  box.style.display = "block";
+
+  clearTimeout(showCustomerPdfError._timer);
+  showCustomerPdfError._timer = setTimeout(() => {
+    if (box) box.style.display = "none";
+  }, 10000);
 }
 
 function handleCustomerWhatsApp(code, name) {
