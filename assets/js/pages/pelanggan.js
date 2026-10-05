@@ -910,10 +910,13 @@ function setCustomerPdfLoading(
 }
 
 function showCustomerPdfError(message) {
-  const text = String(message || "Terjadi kesalahan saat membuat PDF.");
-  console.error("[CUSTOMER PDF] USER ERROR:", text);
+  const hasMessage = message !== undefined && message !== null && String(message).trim() !== "";
+  const text = hasMessage
+    ? String(message).trim()
+    : "";
 
   let box = document.querySelector("#customer-pdf-error");
+
   if (!box) {
     box = document.createElement("div");
     box.id = "customer-pdf-error";
@@ -930,6 +933,7 @@ function showCustomerPdfError(message) {
     return;
   }
 
+  console.error("[CUSTOMER PDF] USER ERROR:", text);
   box.textContent = "PDF Customer gagal: " + text;
   box.style.display = "block";
 
