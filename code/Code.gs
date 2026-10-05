@@ -7800,6 +7800,196 @@ function apiV1ParseRequest_(e, method) {
   return request;
 }
 
+
+/**
+ * CUSTOMER V1 - PDF CUSTOMER STATEMENT
+ *
+ * Customer-facing document.
+ * Sumber data tetap mengikuti kontrak Customer V1:
+ * - identitas + saldo: pelangganDetail
+ * - histori tabungan: pelangganTabunganHistory
+ *
+ * Rekonsiliasi internal tidak ditampilkan pada dokumen customer-facing.
+ */
+function getPdfCustomerStatementV1(kodePelanggan) {
+  var kode = String(kodePelanggan || '').trim();
+
+  if (!kode) {
+    throw new Error('Kode pelanggan wajib diisi.');
+  }
+
+  var detail = getPelangganDetailV1(kode);
+  var history = getRiwayatTabunganPelangganV1(kode, 500);
+
+  var customer = detail && detail.customer
+    ? detail.customer
+    : {};
+
+  var transactions = history && Array.isArray(history.data)
+    ? history.data
+    : [];
+
+  var nama = String(customer.nama || '').trim() || kode;
+  var alamat = String(customer.alamat || '').trim();
+  var telp = String(customer.telp || '').trim();
+  var saldoTabungan = Number(customer.saldo_tabungan || 0);
+  var saldoPiutang = Number(customer.saldo_piutang || 0);
+  var jumlahNota = Number(customer.jumlah_nota_outstanding || 0);
+  var selisih = saldoTabungan - saldoPiutang;
+
+  var html = '';
+  html += '<!DOCTYPE html><html><head><meta charset="UTF-8">';
+  html += '<style>';
+  html += 'body{font-family:Arial,sans-serif;color:#172033;font-size:10px;margin:28px 32px;}';
+  html += 'h1{font-size:19px;margin:0 0 4px;}';
+  html += 'h2{font-size:12px;margin:20px 0 8px;border-bottom:1px solid #d9dee8;padding-bottom:5px;}';
+  html += '.brand{font-size:11px;font-weight:bold;letter-spacing:.8px;color:#334155;margin-bottom:18px;}';
+  html += '.subtitle{font-size:10px;color:#64748b;margin-bottom:18px;}';
+  html += '.identity{width:100%;border-collapse:collapse;margin-bottom:16px;}';
+  html += '.identity td{padding:4px 6px;vertical-align:top;}';
+  html += '.identity .label{width:90px;color:#64748b;}';
+  html += '.identity .value{font-weight:bold;}';
+  html += '.financial{width:100%;border-collapse:collapse;margin:8px 0 16px;}';
+  html += '.financial td{width:33.33%;border:1px solid #d9dee8;padding:10px;}';
+  html += '.financial .label{display:block;color:#64748b;font-size:9px;margin-bottom:4px;}';
+  html += '.financial .value{font-size:13px;font-weight:bold;}';
+  html += '.history{width:100%;border-collapse:collapse;}';
+  html += '.history th{background:#f1f5f9;text-align:left;font-weight:bold;padding:6px;border-bottom:1px solid #cbd5e1;}';
+  html += '.history td{padding:6px;border-bottom:1px solid #e5e7eb;}';
+  html += '.right{text-align:right;}';
+  html += '.summary{margin-top:14px;padding:9px 10px;border:1px solid #d9dee8;background:#f8fafc;}';
+  html += '.note{margin-top:18px;color:#64748b;font-size:8.5px;line-height:1.45;}';
+  html += '.footer{margin-top:24px;padding-top:8px;border-top:1px solid #d9dee8;color:#64748b;font-size:8px;}';
+  html += '</style></head><body>';
+
+  html += '<div class="brand">TB NUSANTARA</div>';
+  html += '<h1>LAPORAN POSISI KEUANGAN PELANGGAN</h1>';
+  html += '<div class="subtitle">Dokumen customer-facing berdasarkan data yang tercatat pada sistem.</div>';
+
+  html += '<table class="identity">';
+  html += '<tr><td class="label">Nama</td><td class="value">' + stage6d2EscapeHtml_(nama) + '</td></tr>';
+  html += '<tr><td class="label">Kode Pelanggan</td><td class="value">' + stage6d2EscapeHtml_(kode) + '</td></tr>';
+  html += '<tr><td class="label">Telepon</td><td>' + stage6d2EscapeHtml_(telp || '—') + '</td></tr>';
+  html += '<tr><td class="label">Alamat</td><td>' + stage6d2EscapeHtml_(alamat || '—') + '</td></tr>';
+  html += '</table>';
+
+  html += '<h2>POSISI KEUANGAN</h2>';
+  html += '<table class="financial"><tr>';
+  html += '<td><span class="label">Saldo Tabungan</span><span class="value">' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(saldoTabungan)) + '</span></td>';
+  html += '<td><span class="label">Saldo Piutang</span><span class="value">' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(saldoPiutang)) + '</span></td>';
+  html += '<td><span class="label">Selisih</span><span class="value">' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(selisih)) + '</span></td>';
+  html += '</tr></table>';
+
+  html += '<div class="summary"><strong>Nota Outstanding:</strong> ' + stage6d2EscapeHtml_(String(jumlahNota)) + '</div>';
+
+  html += '<h2>RIWAYAT TABUNGAN</h2>';
+  html += '<table class="history"><thead><tr>';
+  html += '<th>Tanggal</th><th>Jenis</th><th>Keterangan</th><th class="right">Jumlah</th><th class="right">Saldo Berjalan</th>';
+  html += '</tr></thead><tbody>';
+
+  if (!transactions.length) {
+    html += '<tr><td colspan="5">Tidak ada riwayat tabungan.</td></tr>';
+  } else {
+    transactions.forEach(function(item) {
+      var jenis = String(item.jenis || '').toUpperCase();
+      var jumlah = Number(item.jumlah || 0);
+      var signed = (
+        jenis === 'AMBIL' ||
+        jenis === 'TARIKAN' ||
+        jenis === 'PENARIKAN' ||
+        jenis === 'PENGAMBILAN'
+      ) ? -jumlah : jumlah;
+      var saldoBerjalan = item.running_balance;
+
+      html += '<tr>';
+      html += '<td>' + stage6d2EscapeHtml_(String(item.tanggal || '—')) + '</td>';
+      html += '<td>' + stage6d2EscapeHtml_(jenis || '—') + '</td>';
+      html += '<td>' + stage6d2EscapeHtml_(String(item.keterangan || '—')) + '</td>';
+      html += '<td class="right">' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(signed)) + '</td>';
+      html += '<td class="right">' + stage6d2EscapeHtml_(
+        saldoBerjalan === null || saldoBerjalan === undefined
+          ? '—'
+          : stage6d2FormatRupiah_(Number(saldoBerjalan || 0))
+      ) + '</td>';
+      html += '</tr>';
+    });
+  }
+
+  html += '</tbody></table>';
+
+  html += '<div class="note">';
+  html += 'Catatan: Saldo Tabungan dan Saldo Piutang merupakan posisi yang tercatat pada sistem TB Nusantara. ';
+  html += 'Selisih menunjukkan perbandingan Saldo Tabungan terhadap Saldo Piutang.';
+  html += '</div>';
+
+  html += '<div class="footer">TB NUSANTARA · Laporan Posisi Keuangan Pelanggan · Dicetak ' +
+    stage6d2EscapeHtml_(new Date().toLocaleString('id-ID')) + '</div>';
+
+  html += '</body></html>';
+
+  var blob = HtmlService
+    .createHtmlOutput(html)
+    .getBlob()
+    .getAs(MimeType.PDF)
+    .setName('Laporan_Pelanggan_' + kode + '.pdf');
+
+  var pdfBytes = blob.getBytes();
+
+  validateGeneratedPdfBytes_(pdfBytes, 'PDF Customer V1');
+
+  return {
+    status: 'success',
+    generated_at: new Date().toISOString(),
+    kode_pelanggan: kode,
+    nama_pelanggan: nama,
+    saldo_tabungan: saldoTabungan,
+    saldo_piutang: saldoPiutang,
+    selisih_tabungan_vs_piutang: selisih,
+    jumlah_nota_outstanding: jumlahNota,
+    history_count: transactions.length,
+    filename: blob.getName(),
+    mime_type: blob.getContentType(),
+    size_bytes: pdfBytes.length,
+    pdf_base64: Utilities.base64Encode(pdfBytes)
+  };
+}
+
+function testPdfCustomerStatementV1() {
+  var kodePelanggan = '2504007';
+  var started = Date.now();
+
+  var result = getPdfCustomerStatementV1(kodePelanggan);
+
+  var validation =
+    result &&
+    result.status === 'success' &&
+    result.mime_type === 'application/pdf' &&
+    Number(result.size_bytes) > 100 &&
+    String(result.pdf_base64 || '').length > 0 &&
+    Number(result.history_count) >= 0;
+
+  var output = {
+    status: validation ? 'PASS' : 'FAIL',
+    read_only: true,
+    kode_pelanggan: result.kode_pelanggan,
+    nama_pelanggan: result.nama_pelanggan,
+    saldo_tabungan: result.saldo_tabungan,
+    saldo_piutang: result.saldo_piutang,
+    selisih_tabungan_vs_piutang: result.selisih_tabungan_vs_piutang,
+    jumlah_nota_outstanding: result.jumlah_nota_outstanding,
+    history_count: result.history_count,
+    filename: result.filename,
+    mime_type: result.mime_type,
+    size_bytes: result.size_bytes,
+    base64_length: String(result.pdf_base64 || '').length,
+    duration_ms: Date.now() - started,
+    validation: validation
+  };
+
+  Logger.log(JSON.stringify(output, null, 2));
+  return output;
+}
+
 function apiV1Dispatch_(action, request) {
   switch (action) {
     case 'health':
@@ -7879,6 +8069,11 @@ function apiV1Dispatch_(action, request) {
 
     case 'pdfSemuaDetailPiutang6D2':
       return apiV1Pdf6D2WithFingerprint_(
+        apiV1Required_(request, 'kode_pelanggan')
+      );
+
+    case 'pdfCustomerStatementV1':
+      return getPdfCustomerStatementV1(
         apiV1Required_(request, 'kode_pelanggan')
       );
 
