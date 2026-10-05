@@ -3,9 +3,9 @@
 > **Project:** TB Nusantara SID Retail  
 > **Repository:** `klungdingbrag/siddev`  
 > **Current milestone:** Frontend V1 + Development Backend Integration  
-> **Stable baseline:** `stable/2026-10-02`  
-> **Current UI/UX development branch:** `ui/ux-polish-v1`  
-> **Status:** Stable foundation / Development continues
+> **Stable baseline:** `stable/2026-10-04`  
+> **Current development branch:** `feature/customer-v1`  
+> **Status:** Stable foundation / Customer V1 development and audit
 
 ---
 
