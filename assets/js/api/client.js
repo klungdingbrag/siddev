@@ -76,9 +76,13 @@ export async function apiRequest(action, params = {}) {
       }
 
       if (!result.success) {
+        const backendError =
+          typeof result.error === "string"
+            ? result.error
+            : result.error?.message || result.message;
+
         throw new Error(
-          result.error?.message ||
-          result.message ||
+          backendError ||
           `API request "${action}" gagal.`
         );
       }
