@@ -7843,7 +7843,11 @@ function getPdfCustomerStatementV1(kodePelanggan) {
   html += 'body{font-family:Arial,sans-serif;color:#172033;font-size:10px;margin:28px 32px;}';
   html += 'h1{font-size:19px;margin:0 0 4px;}';
   html += 'h2{font-size:12px;margin:20px 0 8px;border-bottom:1px solid #d9dee8;padding-bottom:5px;}';
-  html += '.brand{font-size:11px;font-weight:bold;letter-spacing:.8px;color:#334155;margin-bottom:18px;}';
+  html += '.company-header{padding-bottom:12px;margin-bottom:16px;border-bottom:1px solid #cbd5e1;}';
+  html += '.company-name{font-size:15px;font-weight:800;letter-spacing:1.2px;color:#172033;}';
+  html += '.company-legal{font-size:10px;font-weight:700;letter-spacing:.4px;color:#334155;margin-top:2px;}';
+  html += '.company-address{font-size:9px;color:#64748b;margin-top:5px;}';
+  html += '.company-phone{font-size:9px;color:#64748b;margin-top:2px;}';
   html += '.subtitle{font-size:10px;color:#64748b;margin-bottom:18px;}';
   html += '.identity{width:100%;border-collapse:collapse;margin-bottom:16px;}';
   html += '.identity td{padding:4px 6px;vertical-align:top;}';
@@ -7862,7 +7866,12 @@ function getPdfCustomerStatementV1(kodePelanggan) {
   html += '.footer{margin-top:24px;padding-top:8px;border-top:1px solid #d9dee8;color:#64748b;font-size:8px;}';
   html += '</style></head><body>';
 
-  html += '<div class="brand">TB NUSANTARA</div>';
+  html += '<div class="company-header">';
+  html += '<div class="company-name">TB NUSANTARA</div>';
+  html += '<div class="company-legal">CV NUSANTARA BUILDING MATERIAL</div>';
+  html += '<div class="company-address">JL LINTAS SELATAN SELATAN SUROREJAN PURING</div>';
+  html += '<div class="company-phone">081234563843</div>';
+  html += '</div>';
   html += '<h1>LAPORAN POSISI KEUANGAN PELANGGAN</h1>';
   html += '<div class="subtitle">Dokumen customer-facing berdasarkan data yang tercatat pada sistem.</div>';
 
