@@ -926,7 +926,7 @@ function escapeSqlString_(value) {
  *   testConcurrency7()
  * ============================================================
  */
-on getSemuaNotaOutstanding(kodePelanggan) {
+function getSemuaNotaOutstanding(kodePelanggan) {
   const kode = validateStage6CustomerCode_(kodePelanggan);
   const started = Date.now();
 
