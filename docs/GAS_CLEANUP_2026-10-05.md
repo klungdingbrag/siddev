@@ -36,3 +36,19 @@ JL LINTAS SELATAN SELATAN SUROREJAN PURING
 ## Important
 
 This branch is not the stable baseline. After copying the cleaned files into GAS, deploy and test the production endpoints first. Only after successful verification should this branch be considered for a new baseline.
+
+
+## Final dependency audit
+
+- `Diagnostic_Fika_Tabungan.gs` was removed after confirming it was one-off diagnostic code and was not used by production routes.
+- Stage 6 production dependencies were explicitly rechecked.
+- `validateStage6CustomerCode_`, `validateStage6TransactionCode_`, `getRingkasanPiutangPelanggan`, `stage6AgeLabel_`, and `inspectPdfBytes_` were retained/restored because active PDF code still references them.
+- `apiV1Pdf6D2WithFingerprint_` and `apiV1Sha256Hex_` remain because the production `pdfSemuaDetailPiutang6D2` route calls the fingerprint wrapper.
+- No removed test/diagnostic function remains as an active code dependency of the retained production functions.
+- A syntax corruption in the cleanup branch (`on getSemuaNotaOutstanding(...)`) was restored to the original production declaration before finalizing the audit.
+
+## Audit result
+
+**CLEANUP AUDIT: PASS WITH PRODUCTION DEPENDENCY RESTORATION**
+
+The branch is ready to be copied into the Development GAS project for deployment and smoke testing. Stable branch remains untouched.
