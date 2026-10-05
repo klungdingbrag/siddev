@@ -223,6 +223,7 @@ function bindEvents(mountId) {
   document.querySelector("#customer-body").addEventListener("click", customerActionClick);
   document.querySelector("#customer-cards").addEventListener("click", customerActionClick);
   document.querySelector("#customer-detail-close").addEventListener("click", closeCustomerDetail);
+  document.querySelector("#customer-modal").addEventListener("click", customerDetailActionClick);
 
   if (state.escapeHandler) {
     document.removeEventListener("keydown", state.escapeHandler);
@@ -628,10 +629,81 @@ function renderCustomerDetail(detailResult, historyResult, fallbackRow) {
       '<div><span>Saldo master</span><strong>' + formatMoney(masterBalance) + '</strong></div>' +
       '<div><span>Saldo rekonstruksi</span><strong>' + formatMoney(reconstructed) + '</strong></div>' +
       '<div><span>Selisih</span><strong>' + formatMoney(difference) + '</strong></div>' +
+    '</div>' +
+
+    '<div class="detail-footer">' +
+      '<div class="detail-footer-left">' +
+        '<button class="btn btn-light" data-customer-pdf="' + esc(code) + '"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h5"></path><path d="M9 13h6M9 17h6"></path></svg></span>Laporan PDF</button>' +
+      '</div>' +
+      '<div class="detail-footer-right">' +
+        '<button class="btn btn-light" data-customer-close>Tutup</button>' +
+        '<button class="btn btn-whatsapp" data-customer-wa="' + esc(code) + '" data-customer-name="' + esc(name) + '"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z"></path><path d="M9 8.5c.2 1.6 1.4 3.4 3.2 4.4 1.4.8 2.5.9 3.2.5"></path></svg></span>Share WhatsApp</button>' +
+      '</div>' +
     '</div>';
 
   document.querySelector("#customer-detail-title").textContent = name;
   document.querySelector("#customer-detail-code").textContent = code;
+}
+
+function customerDetailActionClick(event) {
+  const closeButton = event.target.closest("[data-customer-close]");
+  if (closeButton) {
+    closeCustomerDetail();
+    return;
+  }
+
+  const pdfButton = event.target.closest("[data-customer-pdf]");
+  if (pdfButton) {
+    handleCustomerPdf(pdfButton.dataset.customerPdf);
+    return;
+  }
+
+  const waButton = event.target.closest("[data-customer-wa]");
+  if (waButton) {
+    handleCustomerWhatsApp(
+      waButton.dataset.customerWa,
+      waButton.dataset.customerName || ""
+    );
+  }
+}
+
+async function handleCustomerPdf(code) {
+  showToast("Laporan PDF Customer V1 belum diaktifkan.", true);
+  console.info("[CUSTOMER PDF] pending backend endpoint:", code);
+}
+
+function handleCustomerWhatsApp(code, name) {
+  const detailResponse = state.detailData || {};
+  const detail = detailResponse?.data?.customer ||
+    detailResponse?.customer ||
+    detailResponse?.data ||
+    detailResponse ||
+    {};
+
+  const row = state.rows.find((item) => customerCode(item) === code) || {};
+  const saving = money(detail?.saldo_tabungan ?? row?.saldo_tabungan);
+  const debt = money(detail?.saldo_piutang ?? row?.saldo_piutang);
+  const difference = saving - debt;
+
+  const message = [
+    "Halo Bapak/Ibu *" + (name || "Pelanggan") + "*",
+    "",
+    "Berikut posisi keuangan pelanggan berdasarkan data *TB NUSANTARA*.",
+    "",
+    "*KODE PELANGGAN: " + code + "*",
+    "*SALDO TABUNGAN: " + formatMoney(saving) + "*",
+    "*SALDO PIUTANG: " + formatMoney(debt) + "*",
+    "*SELISIH: " + (difference >= 0 ? "+" : "") + formatMoney(difference) + "*",
+    "",
+    "Mohon dapat melakukan pengecekan. Apabila terdapat perbedaan data, silakan hubungi kami.",
+    "",
+    "Terima kasih atas perhatian dan kerja samanya.",
+    "",
+    "*TB NUSANTARA*"
+  ].join("\\n");
+
+  const encoded = encodeURIComponent(message);
+  window.open("https://wa.me/?text=" + encoded, "_blank", "noopener,noreferrer");
 }
 
 function historyRowHtml(transaction) {
