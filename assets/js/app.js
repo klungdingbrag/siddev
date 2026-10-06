@@ -12,15 +12,25 @@ appFooter.className = "app-footer";
 appFooter.innerHTML = `<span>${APP_CONFIG.appName}</span><span>·</span><span>${APP_CONFIG.companyName}</span><span>·</span><strong>${APP_CONFIG.version}</strong>`;
 document.querySelector(".app-shell")?.appendChild(appFooter);
 
-const mobileMenu = document.createElement("button");
-mobileMenu.type = "button";
-mobileMenu.id = "mobile-menu-toggle";
-mobileMenu.className = "mobile-menu-toggle mobile-menu-toggle-floating";
-mobileMenu.setAttribute("aria-label", "Buka menu");
-mobileMenu.setAttribute("aria-controls", "sidebar");
-mobileMenu.setAttribute("aria-expanded", "false");
-mobileMenu.innerHTML = "<span></span><span></span><span></span>";
-document.body.appendChild(mobileMenu);
+const mobileHeader = document.createElement("header");
+mobileHeader.className = "mobile-app-header";
+mobileHeader.innerHTML = `
+  <div class="mobile-app-brand">
+    <button
+      type="button"
+      id="mobile-menu-toggle"
+      class="mobile-menu-toggle"
+      aria-label="Buka menu"
+      aria-controls="sidebar"
+      aria-expanded="false"
+    ><span></span><span></span><span></span></button>
+    <div class="mobile-app-brand-copy">
+      <h1>NUSANTARA</h1>
+      <span>Business Management</span>
+    </div>
+  </div>
+`;
+document.body.appendChild(mobileHeader);
 
 function setMobileNav(open) {
   document.body.classList.toggle("mobile-nav-open", open);
