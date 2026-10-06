@@ -674,8 +674,9 @@ textarea:focus-visible {
 }
 
 .page-content {
-  max-width: 1600px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
   padding: 28px 30px 42px;
 }
 
@@ -1623,5 +1624,27 @@ textarea:focus-visible {
 
   .app-version {
     font-size: 10px;
+  }
+}
+
+
+/* ---------- Unified main-page width ---------- */
+.page-content > * {
+  width: 100%;
+  max-width: none;
+}
+
+.page-content .page-heading,
+.page-content .summary-grid,
+.page-content .card.panel,
+.page-content .dashboard-chart-grid,
+.page-content .dashboard-kpis {
+  width: 100%;
+}
+
+@media (max-width: 800px) {
+  .page-content {
+    width: 100%;
+    padding: 20px;
   }
 }
