@@ -38,6 +38,12 @@ function setMobileNav(open) {
   const sidebar = document.querySelector("#sidebar");
   if (menuButton) menuButton.setAttribute("aria-expanded", open ? "true" : "false");
   if (sidebar) sidebar.setAttribute("aria-hidden", open ? "false" : "true");
+  const backdrop = document.querySelector("#mobile-nav-backdrop");
+  if (backdrop) {
+    backdrop.classList.toggle("is-visible", open);
+    backdrop.setAttribute("aria-hidden", open ? "false" : "true");
+    backdrop.tabIndex = open ? 0 : -1;
+  }
 }
 
 function closeMobileNav() {
@@ -141,6 +147,8 @@ function initMobileNavigation() {
     backdrop.id = "mobile-nav-backdrop";
     backdrop.className = "mobile-nav-backdrop";
     backdrop.setAttribute("aria-label", "Tutup menu");
+    backdrop.setAttribute("aria-hidden", "true");
+    backdrop.tabIndex = -1;
     document.body.appendChild(backdrop);
   }
 
