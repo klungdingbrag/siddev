@@ -103,6 +103,7 @@ function bindEvents() {
   });
   document.querySelector("#action-close").addEventListener("click", closeActionModal);
   document.querySelector("#action-modal").addEventListener("click", actionModalClick);
+  document.addEventListener("keydown", handleDetailEscape);
 }
 
 async function loadPiutang(force = false) {
@@ -883,6 +884,10 @@ function closeActionModal() {
   modal.setAttribute("aria-hidden", "true");
 }
 
+
+function handleDetailEscape(event) {
+  if (event.key === "Escape") closeDetail();
+}
 function closeDetail() {
   const modal = document.querySelector("#piutang-modal");
   modal.classList.add("hidden");
