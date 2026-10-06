@@ -21,7 +21,7 @@ function buildUrl(action, params = {}) {
   return url.toString();
 }
 
-async function fetchJson(url, timeoutMs = 12000) {
+async function fetchJson(url, timeoutMs) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -50,6 +50,27 @@ async function fetchJson(url, timeoutMs = 12000) {
   return { response, text, result };
 }
 
+const API_TIMEOUTS = Object.freeze({
+  health: 12000,
+  piutang: 45000,
+  customerPiutangDetail: 30000,
+  tabungan: 30000,
+  dashboardSalesDaily: 30000,
+  dashboardProfitMonthly: 30000,
+  dashboardSummary: 30000,
+  pdfRingkasanPiutang: 60000,
+  pdfSemuaDetailPiutang6D1: 60000,
+  pdfSemuaDetailPiutang6D2: 60000,
+  pdfCustomerStatementV1: 60000,
+  pdfInvoice: 60000
+});
+
+const DEFAULT_API_TIMEOUT = 30000;
+
+function getApiTimeout(action) {
+  return API_TIMEOUTS[action] || DEFAULT_API_TIMEOUT;
+}
+
 export async function apiRequest(action, params = {}) {
   const url = buildUrl(action, params);
   let lastError = null;
@@ -58,7 +79,7 @@ export async function apiRequest(action, params = {}) {
   // Retry once for transient redirect/service failures without changing the backend.
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const { response, text, result } = await fetchJson(url);
+      const { response, text, result } = await fetchJson(url, getApiTimeout(action));
 
       if (!response.ok) {
         const finalUrl = response.url || url;
@@ -107,17 +128,16 @@ export async function apiRequest(action, params = {}) {
       lastError = error;
 
       const message = error?.name === "AbortError"
-        ? `timeout setelah 12 detik`
+        ? `timeout setelah ${getApiTimeout(action) / 1000} detik`
         : (error?.message || "Unknown error");
 
-      // Network/CORS/timeout failures are retried once because GAS may redirect
-      // through script.googleusercontent.com before returning JSON.
+      // Retry transient network failures, but do not retry a timeout.
+      // A timed-out Piutang request can be expensive on the backend, so retrying
+      // it immediately would duplicate the same heavy operation.
       if (
         attempt === 0 &&
-        (
-          error?.name === "AbortError" ||
-          /Failed to fetch|NetworkError|Load failed|fetch failed/i.test(message)
-        )
+        error?.name !== "AbortError" &&
+        /Failed to fetch|NetworkError|Load failed|fetch failed/i.test(message)
       ) {
         await new Promise(resolve => setTimeout(resolve, 250));
         continue;
