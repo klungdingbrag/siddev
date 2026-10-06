@@ -391,7 +391,7 @@ function getDetailPiutangPelanggan(kodePelanggan) {
    * - Laporan utama getPiutangPelangganLaporan() tidak disentuh.
    */
   const query =
-    "SELECT kode,tanggal,pelanggan,nama_pelanggan,jt,piutang " +
+    "SELECT kode,tanggal,pelanggan,nama_pelanggan,jt,jumlah,piutang " +
     "FROM penjualan WHERE pelanggan = '" + kode.replace(/'/g, "''") + "' " +
     'AND piutang > 0 LIMIT ' + SID_CONFIG.DETAIL_LIMIT;
 
@@ -424,6 +424,7 @@ function getDetailPiutangPelanggan(kodePelanggan) {
       jt_hari: jtHari,
       jatuh_tempo: formatSidDate(jatuhTempo),
       umur_hari: umurHari,
+      jumlah: parseMoney(row.jumlah),
       piutang: parseMoney(row.piutang)
     };
   });
