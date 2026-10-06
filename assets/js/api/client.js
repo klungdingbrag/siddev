@@ -96,6 +96,12 @@ export async function apiRequest(action, params = {}) {
         );
       }
 
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("sid-api-success", {
+          detail: { action }
+        }));
+      }
+
       return result.data;
     } catch (error) {
       lastError = error;
@@ -115,6 +121,12 @@ export async function apiRequest(action, params = {}) {
       ) {
         await new Promise(resolve => setTimeout(resolve, 250));
         continue;
+      }
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("sid-api-failure", {
+          detail: { action, message }
+        }));
       }
 
       throw new Error(
