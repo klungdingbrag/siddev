@@ -30,7 +30,7 @@ mobileHeader.innerHTML = `
     </div>
   </div>
 `;
-document.body.appendChild(mobileHeader);
+document.querySelector(".app-shell")?.insertBefore(mobileHeader, content);
 
 function setMobileNav(open) {
   document.body.classList.toggle("mobile-nav-open", open);
