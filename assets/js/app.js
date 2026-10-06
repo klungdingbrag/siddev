@@ -180,7 +180,7 @@ window.addEventListener("sid-api-success", (event) => {
 });
 
 window.addEventListener("sid-api-failure", (event) => {
-  setApiStatus("API Error");
+  setApiStatus("Request Error");
   console.warn("[API] request failed:", event.detail);
 });
 
