@@ -173,7 +173,7 @@ export function renderPelangganPage() {
         '<div class="search-box"><span>⌕</span><input id="customer-search" type="search" placeholder="Cari kode atau nama..." autocomplete="off"></div>' +
         '<label class="page-size"><span>Baris</span><select id="customer-page-size"><option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label>' +
       '</div>' +
-      '<div id="customer-state" class="table-state loading">Memuat seluruh pelanggan aktif finansial...</div>' +
+      '<div id="customer-state" class="table-state loading">Memuat data pelanggan...</div>' +
       '<div id="customer-table-wrap" class="table-scroll hidden"><table class="data-table"><thead><tr><th>Pelanggan</th><th>Telepon</th><th>Saldo Tabungan</th><th>Piutang</th><th>Nota Outstanding</th><th></th></tr></thead><tbody id="customer-body"></tbody></table></div>' +
       '<div id="customer-cards" class="mobile-data-cards hidden"></div>' +
       '<div id="customer-pagination" class="pagination hidden"><button id="customer-prev" class="btn btn-light">← Sebelumnya</button><span id="customer-page-info">Halaman 1 / 1</span><button id="customer-next" class="btn btn-light">Berikutnya →</button></div>' +
