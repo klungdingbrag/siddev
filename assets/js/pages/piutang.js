@@ -750,6 +750,7 @@ function openWhatsAppPicker(type, code, name) {
 
 function buildWhatsAppMessage(type, code, name) {
   const customerName = name || "Bapak/Ibu";
+  const reportDate = formatWhatsAppReportDate();
 
   if (type === "customer") {
     const row = state.detailRow || {};
@@ -765,21 +766,23 @@ function buildWhatsAppMessage(type, code, name) {
     return [
       "Halo Bapak/Ibu *" + customerName + "*",
       "",
-      "Kami dari *TB NUSANTARA* ingin menginformasikan posisi piutang berdasarkan data kami.",
+      "Kami dari *TB NUSANTARA* ingin menginformasikan kondisi semua nota berdasarkan data kami.",
+      "",
+      "*PER TANGGAL: " + reportDate + "*",
       "",
       "*KODE PELANGGAN: " + code + "*",
       "",
       "*SALDO TABUNGAN: " + formatMoney(state.tabungan) + "*",
       "",
-      "*TOTAL NOTA PIUTANG: " + formatMoney(total) + "*",
+      "*TOTAL PIUTANG: " + formatMoney(total) + "*",
       "",
-      "*Pembayaran dapat dilakukan melalui transfer:*",
+      "Untuk pembayaran atau tabungan pelanggan, dapat dilakukan melalui transfer:",
       "",
       "*BRI*",
-      "a.n. Wasimun",
-      "No. Rekening: 003201105050505",
+      "a.n. *Wasimun*",
+      "No. Rekening: *003201105050505*",
       "",
-      "Mohon dapat melakukan pengecekan. Apabila pembayaran sudah dilakukan, silakan informasikan kepada kami.",
+      "Mohon dapat melakukan pengecekan. Apabila pembayaran sudah dilakukan, silakan informasikan kepada kami dengan menyertakan bukti pembayaran agar dapat segera kami proses.",
       "",
       "Terima kasih atas perhatian dan kerja samanya.",
       "",
@@ -819,7 +822,8 @@ function buildWhatsAppMessage(type, code, name) {
       "Berikut informasi nota yang dimaksud dari *TB NUSANTARA*.",
       "",
       "*NO. NOTA: " + code + "*",
-      "Tanggal: " + tanggal,
+      "*PER TANGGAL: " + reportDate + "*",
+      "Tanggal Nota: " + tanggal,
       "Jatuh Tempo: " + jatuhTempo,
       "",
       "*TOTAL INVOICE: " + formatMoney(totalInvoice) + "*",
@@ -851,6 +855,13 @@ function buildWhatsAppMessage(type, code, name) {
     "",
     "*TB NUSANTARA*"
   ].join("\n");
+}
+
+function formatWhatsAppReportDate(date = new Date()) {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return day + "/" + month + "/" + year;
 }
 
 function openWhatsApp(phone, message) {
