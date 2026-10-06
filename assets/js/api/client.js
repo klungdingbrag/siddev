@@ -21,13 +21,22 @@ function buildUrl(action, params = {}) {
   return url.toString();
 }
 
-async function fetchJson(url) {
-  const response = await fetch(url, {
-    method: "GET",
-    mode: "cors",
-    redirect: "follow",
-    cache: "no-store"
-  });
+async function fetchJson(url, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      mode: "cors",
+      redirect: "follow",
+      cache: "no-store",
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const text = await response.text();
 
@@ -91,14 +100,25 @@ export async function apiRequest(action, params = {}) {
     } catch (error) {
       lastError = error;
 
-      // Network/CORS failures are not safely retryable unless fetch itself failed.
-      if (attempt === 0 && /Failed to fetch|NetworkError|Load failed/i.test(error?.message || "")) {
+      const message = error?.name === "AbortError"
+        ? `timeout setelah 12 detik`
+        : (error?.message || "Unknown error");
+
+      // Network/CORS/timeout failures are retried once because GAS may redirect
+      // through script.googleusercontent.com before returning JSON.
+      if (
+        attempt === 0 &&
+        (
+          error?.name === "AbortError" ||
+          /Failed to fetch|NetworkError|Load failed|fetch failed/i.test(message)
+        )
+      ) {
         await new Promise(resolve => setTimeout(resolve, 250));
         continue;
       }
 
       throw new Error(
-        `API "${action}" gagal: ${error?.message || "Unknown error"}`
+        `API "${action}" gagal: ${message}`
       );
     }
   }
