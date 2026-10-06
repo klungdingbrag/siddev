@@ -560,7 +560,7 @@ function setDashboardLoading(isLoading) {
   const state = document.querySelector("#dashboard-state");
   if (state) {
     state.className = `dashboard-state ${isLoading ? "is-loading" : ""}`;
-    state.innerHTML = isLoading ? '<span class="dashboard-spinner"></span><span>Memuat data Dashboard...</span>' : "";
+    state.innerHTML = isLoading ? '<span class="dashboard-spinner"></span><span>Memuat data dashboard...</span>' : "";
   }
 }
 
