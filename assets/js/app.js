@@ -1,17 +1,26 @@
 import { APP_CONFIG } from "./config.js";
 import { apiHealth } from "./api/client.js";
-import { renderPiutangPage } from "./pages/piutang.js?v=20260930-pdf-transport-5";
-import { renderDashboardPage } from "./pages/dashboard.js?v=20261002-dashboard-v4";
-import { renderPelangganPage } from "./pages/pelanggan.js?v=20261004-customer-v1-renderfix";
+import { renderPiutangPage } from "./pages/piutang.js?v=20261006-piutang-current-1";
+import { renderDashboardPage } from "./pages/dashboard.js?v=20261006-dashboard-current-1";
+import { renderPelangganPage } from "./pages/pelanggan.js?v=20261006-customer-current-1";
 
 const sidebar = document.querySelector("#sidebar");
-const topbar = document.querySelector("#topbar");
 const content = document.querySelector("#page-content");
 
 const appFooter = document.createElement("footer");
 appFooter.className = "app-footer";
 appFooter.innerHTML = `<span>${APP_CONFIG.appName}</span><span>·</span><span>${APP_CONFIG.companyName}</span><span>·</span><strong>${APP_CONFIG.version}</strong>`;
 document.querySelector(".app-shell")?.appendChild(appFooter);
+
+const mobileMenu = document.createElement("button");
+mobileMenu.type = "button";
+mobileMenu.id = "mobile-menu-toggle";
+mobileMenu.className = "mobile-menu-toggle mobile-menu-toggle-floating";
+mobileMenu.setAttribute("aria-label", "Buka menu");
+mobileMenu.setAttribute("aria-controls", "sidebar");
+mobileMenu.setAttribute("aria-expanded", "false");
+mobileMenu.innerHTML = "<span></span><span></span><span></span>";
+document.body.appendChild(mobileMenu);
 
 function setMobileNav(open) {
   document.body.classList.toggle("mobile-nav-open", open);
@@ -50,19 +59,6 @@ sidebar.innerHTML = `
   </div>
 `;
 
-topbar.innerHTML = `
-  <div class="topbar-left">
-    <button class="mobile-menu-toggle" id="mobile-menu-toggle" type="button" aria-label="Buka menu" aria-controls="sidebar" aria-expanded="false">
-      <span></span><span></span><span></span>
-    </button>
-    <div>
-      <p class="eyebrow">TB Nusantara</p>
-      <h1>Dashboard</h1>
-    </div>
-  </div>
-  <div class="app-version">${APP_CONFIG.version}</div>
-`;
-
 function setActiveNav(hash) {
   document.querySelectorAll(".nav-item").forEach((item) => {
     item.classList.toggle("active", item.getAttribute("href") === hash);
@@ -83,8 +79,6 @@ function renderComingSoonPage(title, description) {
 
 function route() {
   const hash = window.location.hash || "#dashboard";
-  const titleElement = document.querySelector(".topbar h1");
-
   const routes = {
     "#dashboard": {
       title: "Dashboard",
@@ -115,10 +109,6 @@ function route() {
   };
 
   const routeConfig = routes[hash] || routes["#dashboard"];
-
-  if (titleElement) {
-    titleElement.textContent = routeConfig.title;
-  }
 
   routeConfig.render();
   setActiveNav(routes[hash] ? hash : "#dashboard");
