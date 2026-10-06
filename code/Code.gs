@@ -6036,3 +6036,340 @@ function diagnosticPiutangPerformanceV2() {
     scenarios: results
   };
 }
+
+
+/**
+ * PIUTANG FULL PERFORMANCE DIAGNOSTIC V1 - READ ONLY
+ *
+ * Tujuan:
+ * - menguji alur end-to-end laporan Piutang dengan batch 2000;
+ * - mengukur waktu fetch SID Retail, processing aging, build customer map,
+ *   dan sorting;
+ * - memvalidasi jumlah transaksi, pelanggan, total piutang, dan unclassified;
+ * - tidak mengubah getPiutangPelangganLaporan() atau business logic produksi.
+ *
+ * Jalankan langsung dari Apps Script:
+ *   diagnosticPiutangFullV1()
+ *
+ * PENTING:
+ * - Read-only.
+ * - Tidak menjadi endpoint API publik.
+ * - Tidak mengubah SID_CONFIG.
+ * - Query menggunakan struktur yang sama dengan laporan Piutang.
+ */
+function diagnosticPiutangFullV1() {
+  const reportStarted = Date.now();
+  const batchSize = 2000;
+  const maxBatches = SID_CONFIG.MAX_TRANSACTION_BATCHES;
+  const transactions = [];
+  let lastKode = '';
+  let totalFetchMs = 0;
+  let totalSleepMs = 0;
+  let batchCount = 0;
+  const batchMetrics = [];
+
+  Logger.log('==================================================');
+  Logger.log('PIUTANG FULL PERFORMANCE DIAGNOSTIC V1');
+  Logger.log('MODE: READ ONLY');
+  Logger.log('BATCH SIZE: ' + batchSize);
+  Logger.log('MAX BATCHES: ' + maxBatches);
+  Logger.log('==================================================');
+
+  // ==========================================================
+  // STAGE 1 — FETCH OUTSTANDING TRANSACTIONS
+  // ==========================================================
+  const fetchStarted = Date.now();
+
+  while (true) {
+    batchCount++;
+
+    if (batchCount > maxBatches) {
+      throw new Error(
+        'Diagnostic Full mencapai batas maksimum batch: ' + maxBatches
+      );
+    }
+
+    let query =
+      'SELECT kode,tanggal,pelanggan,nama_pelanggan,jt,piutang ' +
+      'FROM penjualan ' +
+      'WHERE piutang > 0 ';
+
+    if (lastKode !== '') {
+      query +=
+        "AND kode > '" +
+        lastKode.replace(/'/g, "''") +
+        "' ";
+    }
+
+    query += 'ORDER BY kode LIMIT ' + batchSize;
+
+    const requestStarted = Date.now();
+    let result;
+
+    try {
+      result = sidRetailQuery(query);
+    } catch (error) {
+      throw new Error(
+        'Diagnostic Full gagal pada batch #' + batchCount + ': ' +
+        (error && error.message ? error.message : String(error))
+      );
+    }
+
+    const requestMs = Date.now() - requestStarted;
+    totalFetchMs += requestMs;
+
+    if (!result || result.status !== 'success') {
+      throw new Error(
+        'Diagnostic Full menerima response tidak valid pada batch #' +
+        batchCount + ': ' + JSON.stringify(result)
+      );
+    }
+
+    const rows = Array.isArray(result.data) ? result.data : [];
+    const firstKode = rows.length
+      ? String(rows[0].kode || '').trim()
+      : '';
+    const newLastKode = rows.length
+      ? String(rows[rows.length - 1].kode || '').trim()
+      : '';
+
+    batchMetrics.push({
+      batch: batchCount,
+      request_ms: requestMs,
+      rows: rows.length,
+      first_kode: firstKode,
+      last_kode: newLastKode,
+      cursor_before: lastKode || '(awal)'
+    });
+
+    Logger.log(
+      'FETCH BATCH ' + batchCount +
+      ' | REQUEST=' + requestMs + ' ms' +
+      ' | ROWS=' + rows.length +
+      ' | FIRST=' + (firstKode || '-') +
+      ' | LAST=' + (newLastKode || '-')
+    );
+
+    transactions.push.apply(transactions, rows);
+
+    if (rows.length === 0) {
+      Logger.log('FETCH SELESAI: batch kosong.');
+      break;
+    }
+
+    if (!newLastKode) {
+      throw new Error(
+        'Diagnostic Full menemukan batch tanpa kode transaksi terakhir.'
+      );
+    }
+
+    if (lastKode !== '' && newLastKode <= lastKode) {
+      throw new Error(
+        'Diagnostic Full menemukan cursor tidak bergerak: ' +
+        newLastKode + ' <= ' + lastKode
+      );
+    }
+
+    lastKode = newLastKode;
+
+    if (rows.length < batchSize) {
+      Logger.log('FETCH SELESAI: batch terakhir.');
+      break;
+    }
+
+    Utilities.sleep(SID_CONFIG.REQUEST_DELAY_MS);
+    totalSleepMs += SID_CONFIG.REQUEST_DELAY_MS;
+  }
+
+  const fetchMs = Date.now() - fetchStarted;
+
+  Logger.log('--------------------------------------------------');
+  Logger.log('FETCH RESULT');
+  Logger.log('FETCH TIME: ' + fetchMs + ' ms (' + (fetchMs / 1000).toFixed(3) + ' s)');
+  Logger.log('TOTAL BATCH: ' + batchCount);
+  Logger.log('TOTAL ROWS: ' + transactions.length);
+  Logger.log('TOTAL REQUEST TIME: ' + totalFetchMs + ' ms');
+  Logger.log('TOTAL SLEEP: ' + totalSleepMs + ' ms');
+
+  // ==========================================================
+  // STAGE 2 — PROCESS AGING + CUSTOMER MAP
+  // Meniru business calculation getPiutangPelangganLaporan().
+  // ==========================================================
+  const processingStarted = Date.now();
+  const today = startOfDay(new Date());
+  const customerMap = {};
+  let totalPiutang = 0;
+  let totalUnclassified = 0;
+  let totalProcessedTransactions = 0;
+
+  transactions.forEach(function(row) {
+    const kode = String(row.pelanggan || '').trim();
+    const piutang = parseMoney(row.piutang);
+
+    if (!kode || piutang <= 0) return;
+
+    if (!customerMap[kode]) {
+      customerMap[kode] = {
+        kd_pelanggan: kode,
+        nm_pelanggan: String(row.nama_pelanggan || '').trim(),
+        belum_jatuh_tempo: 0,
+        aging_1_30: 0,
+        aging_31_60: 0,
+        aging_61_90: 0,
+        aging_91_120: 0,
+        aging_121_plus: 0,
+        total_piutang: 0,
+        unclassified: 0
+      };
+    } else if (
+      !customerMap[kode].nm_pelanggan &&
+      row.nama_pelanggan
+    ) {
+      customerMap[kode].nm_pelanggan =
+        String(row.nama_pelanggan).trim();
+    }
+
+    const customer = customerMap[kode];
+    const tanggalTransaksi = parseSidDate(row.tanggal);
+    const jtHari = parseJtDays(row.jt);
+    let bucket = 'unclassified';
+
+    if (tanggalTransaksi && jtHari !== null) {
+      const jatuhTempo = addDays(tanggalTransaksi, jtHari);
+      const umurHari = Math.floor(
+        (today.getTime() - jatuhTempo.getTime()) / 86400000
+      );
+
+      if (umurHari <= 0) {
+        bucket = 'belum_jatuh_tempo';
+      } else if (umurHari <= 30) {
+        bucket = 'aging_1_30';
+      } else if (umurHari <= 60) {
+        bucket = 'aging_31_60';
+      } else if (umurHari <= 90) {
+        bucket = 'aging_61_90';
+      } else if (umurHari <= 120) {
+        bucket = 'aging_91_120';
+      } else {
+        bucket = 'aging_121_plus';
+      }
+    }
+
+    customer[bucket] += piutang;
+    customer.total_piutang += piutang;
+
+    if (bucket === 'unclassified') {
+      customer.unclassified += piutang;
+      totalUnclassified += piutang;
+    }
+
+    totalPiutang += piutang;
+    totalProcessedTransactions++;
+  });
+
+  const processingMs = Date.now() - processingStarted;
+
+  Logger.log('--------------------------------------------------');
+  Logger.log('PROCESSING RESULT');
+  Logger.log('PROCESSING TIME: ' + processingMs + ' ms (' + (processingMs / 1000).toFixed(3) + ' s)');
+  Logger.log('TOTAL PROCESSED: ' + totalProcessedTransactions);
+  Logger.log('TOTAL CUSTOMERS: ' + Object.keys(customerMap).length);
+  Logger.log('TOTAL PIUTANG: ' + totalPiutang);
+  Logger.log('TOTAL UNCLASSIFIED: ' + totalUnclassified);
+
+  // ==========================================================
+  // STAGE 3 — BUILD RESPONSE DATA + SORT
+  // ==========================================================
+  const sortStarted = Date.now();
+
+  const data = Object.keys(customerMap).map(function(kode) {
+    const item = customerMap[kode];
+
+    return {
+      kd_pelanggan: item.kd_pelanggan,
+      nm_pelanggan: item.nm_pelanggan || item.kd_pelanggan,
+      telp: '',
+      alamat: '',
+      belum_jatuh_tempo: item.belum_jatuh_tempo,
+      aging_1_30: item.aging_1_30,
+      aging_31_60: item.aging_31_60,
+      aging_61_90: item.aging_61_90,
+      aging_91_120: item.aging_91_120,
+      aging_121_plus: item.aging_121_plus,
+      total_piutang: item.total_piutang,
+      unclassified: item.unclassified
+    };
+  });
+
+  data.sort(function(a, b) {
+    return String(a.nm_pelanggan).localeCompare(
+      String(b.nm_pelanggan),
+      'id'
+    );
+  });
+
+  const sortMs = Date.now() - sortStarted;
+
+  Logger.log('--------------------------------------------------');
+  Logger.log('BUILD + SORT RESULT');
+  Logger.log('BUILD + SORT TIME: ' + sortMs + ' ms (' + (sortMs / 1000).toFixed(3) + ' s)');
+  Logger.log('FINAL DATA LENGTH: ' + data.length);
+
+  // ==========================================================
+  // STAGE 4 — FINAL VALIDATION
+  // ==========================================================
+  const totalMs = Date.now() - reportStarted;
+
+  const validation = {
+    rows_2224: transactions.length === 2224,
+    processed_matches_rows: totalProcessedTransactions === transactions.length,
+    customers_positive: data.length > 0,
+    total_piutang_positive: totalPiutang > 0,
+    data_length_matches_customers:
+      data.length === Object.keys(customerMap).length
+  };
+
+  const validationPass =
+    validation.rows_2224 &&
+    validation.processed_matches_rows &&
+    validation.customers_positive &&
+    validation.total_piutang_positive &&
+    validation.data_length_matches_customers;
+
+  Logger.log('==================================================');
+  Logger.log('PIUTANG FULL PERFORMANCE DIAGNOSTIC RESULT');
+  Logger.log('TOTAL TIME: ' + totalMs + ' ms (' + (totalMs / 1000).toFixed(3) + ' s)');
+  Logger.log('FETCH TIME: ' + fetchMs + ' ms (' + (fetchMs / 1000).toFixed(3) + ' s)');
+  Logger.log('PROCESSING TIME: ' + processingMs + ' ms (' + (processingMs / 1000).toFixed(3) + ' s)');
+  Logger.log('BUILD + SORT TIME: ' + sortMs + ' ms (' + (sortMs / 1000).toFixed(3) + ' s)');
+  Logger.log('TOTAL BATCH: ' + batchCount);
+  Logger.log('TOTAL ROWS: ' + transactions.length);
+  Logger.log('TOTAL PROCESSED: ' + totalProcessedTransactions);
+  Logger.log('TOTAL CUSTOMERS: ' + data.length);
+  Logger.log('TOTAL PIUTANG: ' + totalPiutang);
+  Logger.log('TOTAL UNCLASSIFIED: ' + totalUnclassified);
+  Logger.log('VALIDATION: ' + (validationPass ? 'PASS' : 'FAIL'));
+  Logger.log('VALIDATION DETAIL: ' + JSON.stringify(validation));
+  Logger.log('BATCH METRICS: ' + JSON.stringify(batchMetrics));
+  Logger.log('==================================================');
+
+  return {
+    diagnostic: 'piutang_full_performance_v1',
+    read_only: true,
+    batch_size: batchSize,
+    total_ms: totalMs,
+    total_seconds: Number((totalMs / 1000).toFixed(3)),
+    fetch_ms: fetchMs,
+    processing_ms: processingMs,
+    build_sort_ms: sortMs,
+    total_batches: batchCount,
+    total_rows: transactions.length,
+    total_processed_transactions: totalProcessedTransactions,
+    total_customers: data.length,
+    total_piutang: totalPiutang,
+    total_unclassified: totalUnclassified,
+    validation_pass: validationPass,
+    validation: validation,
+    batch_metrics: batchMetrics
+  };
+}
