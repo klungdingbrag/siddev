@@ -1235,12 +1235,22 @@ textarea:focus-visible {
   }
 
   .mobile-nav-backdrop {
+    display: none;
     position: fixed !important;
     inset: 0 !important;
     z-index: 290;
     width: 100vw !important;
     height: 100dvh !important;
     max-width: 100vw;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .16s ease;
+  }
+
+  .mobile-nav-backdrop.is-visible {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .topbar {
