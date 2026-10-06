@@ -151,23 +151,35 @@ window.addEventListener("hashchange", () => {
 initMobileNavigation();
 route();
 
+function setApiStatus(label) {
+  const status = document.querySelector("#api-status");
+  if (status) status.textContent = label;
+}
+
+window.addEventListener("sid-api-success", (event) => {
+  setApiStatus("API Online");
+  console.info("[API] success:", event.detail);
+});
+
+window.addEventListener("sid-api-failure", (event) => {
+  setApiStatus("API Error");
+  console.warn("[API] request failed:", event.detail);
+});
+
 async function checkApi() {
+  setApiStatus("API Checking...");
   try {
     const data = await apiHealth();
-    const online = data?.status === "ok";
 
-    const status = document.querySelector("#api-status");
-    if (status) {
-      status.textContent = online ? "API Online" : "API Response";
+    if (data?.status === "ok") {
+      setApiStatus("API Online");
+    } else {
+      setApiStatus("API Response");
     }
 
     console.info("[API] health:", data);
   } catch (error) {
-    const status = document.querySelector("#api-status");
-    if (status) {
-      status.textContent = "API Offline";
-    }
-
+    setApiStatus("API Error");
     console.warn("[API] health check failed:", error);
   }
 }
