@@ -60,7 +60,7 @@ const API_TIMEOUTS = Object.freeze({
   dashboardSummary: 30000,
   pdfRingkasanPiutang: 60000,
   pdfSemuaDetailPiutang6D1: 60000,
-  pdfSemuaDetailPiutang6D2: 60000,
+  pdfSemuaDetailPiutang6D2: 180000,
   pdfCustomerStatementV1: 60000,
   pdfInvoice: 60000
 });
