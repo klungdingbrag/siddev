@@ -113,7 +113,10 @@ button, input, select {
 
 .app-shell {
   width: calc(100% - 250px);
+  min-height: 100vh;
   margin-left: 250px;
+  display: flex;
+  flex-direction: column;
 }
 
 .topbar {
@@ -150,6 +153,7 @@ button, input, select {
 }
 
 .page-content {
+  flex: 1 1 auto;
   padding: 32px;
 }
 
@@ -221,10 +225,10 @@ button, input, select {
 
   .app-shell {
     width: 100%;
+    min-height: 100vh;
     margin-left: 0;
   }
 
-  .topbar,
   .page-content {
     padding: 20px;
   }
@@ -1525,5 +1529,47 @@ button, input, select {
   .sidebar,
   .mobile-nav-backdrop {
     transition: none;
+  }
+}
+
+
+/* ---------- Minimal shell / mobile navigation ---------- */
+
+.topbar {
+  display: none !important;
+}
+
+.app-footer {
+  margin-top: auto;
+}
+
+.mobile-menu-toggle-floating {
+  display: none;
+}
+
+@media (max-width: 800px) {
+  .mobile-menu-toggle-floating {
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 1100;
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    gap: 4px;
+    padding: 9px;
+    border: 1px solid var(--ui-border-soft, #e7ebf0);
+    border-radius: 12px;
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 8px 22px rgba(16,24,40,.12);
+  }
+
+  .mobile-menu-toggle-floating span {
+    display: block;
+    width: 19px;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--ui-text-body, #344054);
   }
 }
