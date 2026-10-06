@@ -371,6 +371,219 @@ function fetchOutstandingSalesInBatches() {
   return all;
 }
 
+
+/**
+ * ============================================================
+ * PIUTANG PERFORMANCE DIAGNOSTIC V1 - READ ONLY
+ * ============================================================
+ *
+ * Tujuan:
+ * - mengukur durasi query SID Retail per batch;
+ * - mengukur jumlah batch dan row;
+ * - mengukur waktu jeda/retry;
+ * - menemukan batch/cursor yang menjadi bottleneck.
+ *
+ * PENTING:
+ * - Tidak mengubah data SID Retail.
+ * - Tidak mengubah getPiutangPelangganLaporan().
+ * - Tidak mengubah accounting/aging logic.
+ * - Tidak menjadi endpoint API publik.
+ *
+ * Jalankan langsung dari Apps Script:
+ *   diagnosticPiutangPerformanceV1()
+ */
+function diagnosticPiutangPerformanceV1() {
+  const started = Date.now();
+  const batchSize = SID_CONFIG.TRANSACTION_BATCH_SIZE;
+  const maxBatches = SID_CONFIG.MAX_TRANSACTION_BATCHES;
+  const rowsAll = [];
+  const metrics = [];
+  let lastKode = '';
+  let totalSleepMs = 0;
+  let totalRetryCount = 0;
+
+  Logger.log('==================================================');
+  Logger.log('PIUTANG PERFORMANCE DIAGNOSTIC V1');
+  Logger.log('MODE: READ ONLY');
+  Logger.log('BATCH SIZE: ' + batchSize);
+  Logger.log('MAX BATCHES: ' + maxBatches);
+  Logger.log('==================================================');
+
+  for (let batchNo = 1; batchNo <= maxBatches; batchNo++) {
+    let query =
+      'SELECT kode,tanggal,pelanggan,nama_pelanggan,jt,piutang ' +
+      'FROM penjualan ' +
+      'WHERE piutang > 0 ';
+
+    if (lastKode !== '') {
+      query += "AND kode > '" + lastKode.replace(/'/g, "''") + "' ";
+    }
+
+    query += 'ORDER BY kode LIMIT ' + batchSize;
+
+    let result = null;
+    let lastError = null;
+    let attempts = 0;
+    const batchStarted = Date.now();
+
+    for (let attempt = 1; attempt <= SID_CONFIG.RETRY_COUNT + 1; attempt++) {
+      attempts = attempt;
+      const requestStarted = Date.now();
+
+      try {
+        result = sidRetailQuery(query);
+
+        const requestMs = Date.now() - requestStarted;
+        lastError = null;
+
+        const rows = Array.isArray(result.data) ? result.data : [];
+        const newLastKode = rows.length
+          ? String(rows[rows.length - 1].kode || '').trim()
+          : '';
+
+        metrics.push({
+          batch: batchNo,
+          attempt: attempt,
+          request_ms: requestMs,
+          batch_ms: Date.now() - batchStarted,
+          rows: rows.length,
+          first_kode: rows.length ? String(rows[0].kode || '') : '',
+          last_kode: newLastKode,
+          cursor_before: lastKode || '(awal)',
+          status: 'success'
+        });
+
+        Logger.log(
+          'DIAG BATCH ' + batchNo +
+          ' | ATTEMPT ' + attempt +
+          ' | REQUEST=' + requestMs + ' ms' +
+          ' | BATCH=' + (Date.now() - batchStarted) + ' ms' +
+          ' | ROWS=' + rows.length +
+          ' | FIRST=' + (rows.length ? String(rows[0].kode || '') : '-') +
+          ' | LAST=' + (newLastKode || '-')
+        );
+
+        rowsAll.push.apply(rowsAll, rows);
+        break;
+      } catch (error) {
+        const requestMs = Date.now() - requestStarted;
+        lastError = error;
+        totalRetryCount++;
+
+        metrics.push({
+          batch: batchNo,
+          attempt: attempt,
+          request_ms: requestMs,
+          batch_ms: Date.now() - batchStarted,
+          rows: 0,
+          first_kode: '',
+          last_kode: '',
+          cursor_before: lastKode || '(awal)',
+          status: 'error',
+          error: error && error.message ? error.message : String(error)
+        });
+
+        Logger.log(
+          'DIAG BATCH ' + batchNo +
+          ' | ATTEMPT ' + attempt +
+          ' | ERROR=' + requestMs + ' ms' +
+          ' | ' + (error && error.message ? error.message : String(error))
+        );
+
+        if (attempt <= SID_CONFIG.RETRY_COUNT) {
+          Utilities.sleep(SID_CONFIG.RETRY_DELAY_MS);
+          totalSleepMs += SID_CONFIG.RETRY_DELAY_MS;
+        }
+      }
+    }
+
+    if (lastError) {
+      throw new Error(
+        'Diagnostic gagal pada batch #' + batchNo +
+        ' setelah ' + attempts + ' percobaan: ' +
+        (lastError.message || lastError)
+      );
+    }
+
+    const rows = metrics[metrics.length - 1].rows;
+
+    if (rows === 0) {
+      Logger.log('DIAG SELESAI: batch kosong.');
+      break;
+    }
+
+    const newLastKode = metrics[metrics.length - 1].last_kode;
+
+    if (!newLastKode) {
+      throw new Error('Diagnostic menemukan batch tanpa kode transaksi terakhir.');
+    }
+
+    if (lastKode !== '' && newLastKode <= lastKode) {
+      throw new Error(
+        'Diagnostic menemukan cursor tidak bergerak: ' +
+        newLastKode + ' <= ' + lastKode
+      );
+    }
+
+    lastKode = newLastKode;
+
+    if (rows < batchSize) {
+      Logger.log('DIAG SELESAI: batch terakhir.');
+      break;
+    }
+
+    Utilities.sleep(SID_CONFIG.REQUEST_DELAY_MS);
+    totalSleepMs += SID_CONFIG.REQUEST_DELAY_MS;
+  }
+
+  const totalMs = Date.now() - started;
+  const successful = metrics.filter(function(item) {
+    return item.status === 'success';
+  });
+  const requestTimes = successful.map(function(item) {
+    return item.request_ms;
+  });
+
+  const slowest = successful.slice().sort(function(a, b) {
+    return b.request_ms - a.request_ms;
+  }).slice(0, 5);
+
+  Logger.log('==================================================');
+  Logger.log('PIUTANG PERFORMANCE DIAGNOSTIC RESULT');
+  Logger.log('TOTAL TIME: ' + totalMs + ' ms (' + (totalMs / 1000).toFixed(3) + ' s)');
+  Logger.log('TOTAL BATCH: ' + successful.length);
+  Logger.log('TOTAL ROWS: ' + rowsAll.length);
+  Logger.log('TOTAL RETRY: ' + totalRetryCount);
+  Logger.log('TOTAL SLEEP: ' + totalSleepMs + ' ms');
+  Logger.log('AVG REQUEST: ' +
+    (requestTimes.length
+      ? (requestTimes.reduce(function(a, b) { return a + b; }, 0) / requestTimes.length).toFixed(1)
+      : 0) + ' ms');
+  Logger.log('SLOWEST BATCHES: ' + JSON.stringify(slowest));
+  Logger.log('==================================================');
+
+  return {
+    diagnostic: 'piutang_performance_v1',
+    read_only: true,
+    total_ms: totalMs,
+    total_seconds: Number((totalMs / 1000).toFixed(3)),
+    batch_size: batchSize,
+    max_batches: maxBatches,
+    total_batches: successful.length,
+    total_rows: rowsAll.length,
+    total_retries: totalRetryCount,
+    total_sleep_ms: totalSleepMs,
+    average_request_ms: requestTimes.length
+      ? Number((
+          requestTimes.reduce(function(a, b) { return a + b; }, 0) /
+          requestTimes.length
+        ).toFixed(1))
+      : 0,
+    slowest_batches: slowest,
+    batches: metrics
+  };
+}
+
 /**
  * Validasi apakah kode transaksi unik pada data outstanding.
  * Digunakan sebelum keyset pagination dijadikan metode produksi penuh.
