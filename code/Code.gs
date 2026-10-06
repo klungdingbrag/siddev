@@ -5831,3 +5831,208 @@ function doGet(e) {
 function doPost(e) {
   return apiV1Handle_(e, 'POST');
 }
+
+/**
+ * PIUTANG PERFORMANCE DIAGNOSTIC V2 - READ ONLY
+ *
+ * Tujuan:
+ * - menguji apakah LIMIT 1000 dan LIMIT 2000 mengurangi total request;
+ * - mengukur durasi setiap query;
+ * - membandingkan total waktu dengan Diagnostic V1 (LIMIT 500);
+ * - tidak mengubah fungsi produksi Piutang atau konfigurasi SID_CONFIG.
+ *
+ * Jalankan langsung dari Apps Script:
+ *   diagnosticPiutangPerformanceV2()
+ *
+ * Catatan:
+ * - Setiap skenario membaca dataset outstanding dari awal.
+ * - Skenario A dan B dijalankan berurutan agar hasil mudah dibandingkan.
+ * - Tidak ada perubahan data SID Retail.
+ */
+function diagnosticPiutangPerformanceV2() {
+  const scenarios = [
+    { name: 'LIMIT_1000', batchSize: 1000 },
+    { name: 'LIMIT_2000', batchSize: 2000 }
+  ];
+
+  const results = [];
+
+  Logger.log('==================================================');
+  Logger.log('PIUTANG PERFORMANCE DIAGNOSTIC V2');
+  Logger.log('MODE: READ ONLY');
+  Logger.log('SCENARIO: LIMIT 1000 vs LIMIT 2000');
+  Logger.log('==================================================');
+
+  scenarios.forEach(function(scenario) {
+    const started = Date.now();
+    const rowsAll = [];
+    const metrics = [];
+    let lastKode = '';
+    let batchNo = 0;
+
+    Logger.log('--------------------------------------------------');
+    Logger.log('SCENARIO: ' + scenario.name);
+    Logger.log('BATCH SIZE: ' + scenario.batchSize);
+    Logger.log('--------------------------------------------------');
+
+    while (true) {
+      batchNo++;
+
+      if (batchNo > SID_CONFIG.MAX_TRANSACTION_BATCHES) {
+        throw new Error(
+          'Diagnostic V2 mencapai batas maksimum batch pada ' +
+          scenario.name + '.'
+        );
+      }
+
+      let query =
+        'SELECT kode,tanggal,pelanggan,nama_pelanggan,jt,piutang ' +
+        'FROM penjualan ' +
+        'WHERE piutang > 0 ';
+
+      if (lastKode !== '') {
+        query +=
+          "AND kode > '" +
+          lastKode.replace(/'/g, "''") +
+          "' ";
+      }
+
+      query +=
+        'ORDER BY kode LIMIT ' +
+        scenario.batchSize;
+
+      const requestStarted = Date.now();
+      let result;
+
+      try {
+        result = sidRetailQuery(query);
+      } catch (error) {
+        const requestMs = Date.now() - requestStarted;
+
+        Logger.log(
+          'V2 ' + scenario.name +
+          ' | BATCH ' + batchNo +
+          ' | ERROR=' + requestMs + ' ms' +
+          ' | ' + (error && error.message ? error.message : String(error))
+        );
+
+        throw new Error(
+          scenario.name + ' gagal pada batch #' + batchNo + ': ' +
+          (error && error.message ? error.message : String(error))
+        );
+      }
+
+      const requestMs = Date.now() - requestStarted;
+      const rows = Array.isArray(result.data) ? result.data : [];
+      const firstKode = rows.length
+        ? String(rows[0].kode || '').trim()
+        : '';
+      const newLastKode = rows.length
+        ? String(rows[rows.length - 1].kode || '').trim()
+        : '';
+
+      metrics.push({
+        batch: batchNo,
+        request_ms: requestMs,
+        rows: rows.length,
+        first_kode: firstKode,
+        last_kode: newLastKode,
+        cursor_before: lastKode || '(awal)',
+        status: 'success'
+      });
+
+      Logger.log(
+        'V2 ' + scenario.name +
+        ' | BATCH ' + batchNo +
+        ' | REQUEST=' + requestMs + ' ms' +
+        ' | ROWS=' + rows.length +
+        ' | FIRST=' + (firstKode || '-') +
+        ' | LAST=' + (newLastKode || '-')
+      );
+
+      rowsAll.push.apply(rowsAll, rows);
+
+      if (rows.length === 0) {
+        Logger.log(
+          'V2 ' + scenario.name + ': batch kosong / selesai.'
+        );
+        break;
+      }
+
+      if (!newLastKode) {
+        throw new Error(
+          'Diagnostic V2 menemukan batch tanpa kode transaksi terakhir pada ' +
+          scenario.name + '.'
+        );
+      }
+
+      if (lastKode !== '' && newLastKode <= lastKode) {
+        throw new Error(
+          'Diagnostic V2 menemukan cursor tidak bergerak pada ' +
+          scenario.name + ': ' + newLastKode + ' <= ' + lastKode
+        );
+      }
+
+      lastKode = newLastKode;
+
+      if (rows.length < scenario.batchSize) {
+        Logger.log(
+          'V2 ' + scenario.name + ': batch terakhir.'
+        );
+        break;
+      }
+
+      Utilities.sleep(SID_CONFIG.REQUEST_DELAY_MS);
+    }
+
+    const totalMs = Date.now() - started;
+    const requestTimes = metrics.map(function(item) {
+      return item.request_ms;
+    });
+
+    const totalRequestMs = requestTimes.reduce(function(sum, value) {
+      return sum + value;
+    }, 0);
+
+    const averageRequestMs = requestTimes.length
+      ? totalRequestMs / requestTimes.length
+      : 0;
+
+    const resultSummary = {
+      scenario: scenario.name,
+      batch_size: scenario.batchSize,
+      total_ms: totalMs,
+      total_seconds: Number((totalMs / 1000).toFixed(3)),
+      total_batches: metrics.length,
+      total_rows: rowsAll.length,
+      total_request_ms: totalRequestMs,
+      average_request_ms: Number(averageRequestMs.toFixed(1)),
+      batches: metrics
+    };
+
+    results.push(resultSummary);
+
+    Logger.log('V2 RESULT ' + scenario.name);
+    Logger.log(
+      'TOTAL TIME: ' + totalMs +
+      ' ms (' + (totalMs / 1000).toFixed(3) + ' s)'
+    );
+    Logger.log('TOTAL BATCH: ' + metrics.length);
+    Logger.log('TOTAL ROWS: ' + rowsAll.length);
+    Logger.log('TOTAL REQUEST TIME: ' + totalRequestMs + ' ms');
+    Logger.log(
+      'AVG REQUEST: ' + averageRequestMs.toFixed(1) + ' ms'
+    );
+  });
+
+  Logger.log('==================================================');
+  Logger.log('PIUTANG PERFORMANCE DIAGNOSTIC V2 RESULT');
+  Logger.log(JSON.stringify(results));
+  Logger.log('==================================================');
+
+  return {
+    diagnostic: 'piutang_performance_v2',
+    read_only: true,
+    scenarios: results
+  };
+}
