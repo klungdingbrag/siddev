@@ -8,6 +8,11 @@ const sidebar = document.querySelector("#sidebar");
 const topbar = document.querySelector("#topbar");
 const content = document.querySelector("#page-content");
 
+const appFooter = document.createElement("footer");
+appFooter.className = "app-footer";
+appFooter.innerHTML = `<span>${APP_CONFIG.appName}</span><span>·</span><span>${APP_CONFIG.companyName}</span><span>·</span><strong>${APP_CONFIG.version}</strong>`;
+document.querySelector(".app-shell")?.appendChild(appFooter);
+
 function setMobileNav(open) {
   document.body.classList.toggle("mobile-nav-open", open);
   const menuButton = document.querySelector("#mobile-menu-toggle");
@@ -55,7 +60,7 @@ topbar.innerHTML = `
       <h1>Dashboard</h1>
     </div>
   </div>
-  <div class="environment-badge">${APP_CONFIG.environment}</div>
+  <div class="app-version">${APP_CONFIG.version}</div>
 `;
 
 function setActiveNav(hash) {
