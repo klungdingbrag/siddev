@@ -117,29 +117,24 @@ function observeModalFocus() {
 
       const dialog = mutation.target;
       if (!dialog.matches?.('[role="dialog"][aria-modal="true"]')) continue;
+      if (mutation.attributeName !== "aria-hidden" && mutation.attributeName !== "class") continue;
 
-      if (mutation.attributeName === "aria-hidden" || mutation.attributeName === "class") {
-        const visible = isVisibleDialog(dialog);
-        const oldValue = String(mutation.oldValue || "");
-        const oldHidden = mutation.attributeName === "class"
-          ? oldValue.split(/\\s+/).includes("hidden")
-          : oldValue === "true";
-        const oldVisible = mutation.attributeName === "class"
-          ? !oldHidden && dialog.getAttribute("aria-hidden") !== "true"
-          : !oldHidden && !dialog.classList.contains("hidden");
+      const visible = isVisibleDialog(dialog);
+      const oldValue = String(mutation.oldValue || "");
+      const oldHidden = mutation.attributeName === "class"
+        ? oldValue.split(/\s+/).includes("hidden")
+        : oldValue === "true";
+      const oldVisible = mutation.attributeName === "class"
+        ? !oldHidden && dialog.getAttribute("aria-hidden") !== "true"
+        : !oldHidden && !dialog.classList.contains("hidden");
 
-        if (visible && !oldVisible) {
-          rememberDialogTrigger(dialog);
-          activeDialog = dialog;
-          focusDialog(dialog);
-        } else if (!visible && oldVisible) {
-          restoreDialogFocus(dialog);
-          if (activeDialog === dialog) activeDialog = null;
-        }
-      }else if (!visible && wasVisible) {
-          restoreDialogFocus(dialog);
-          if (activeDialog === dialog) activeDialog = null;
-        }
+      if (visible && !oldVisible) {
+        rememberDialogTrigger(dialog);
+        activeDialog = dialog;
+        focusDialog(dialog);
+      } else if (!visible && oldVisible) {
+        restoreDialogFocus(dialog);
+        if (activeDialog === dialog) activeDialog = null;
       }
     }
   });
