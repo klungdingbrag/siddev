@@ -5633,3 +5633,121 @@ function doPost(e) {
   return apiV1Handle_(e, 'POST');
 }
 
+
+/**
+ * CUSTOMER DETAIL DIAGNOSTIC V1
+ * Read-only diagnostic untuk mencari sumber timeout customerPiutangDetail.
+ *
+ * Mengukur secara terpisah:
+ * 1. query detail penjualan outstanding untuk satu pelanggan;
+ * 2. jumlah row yang dikembalikan;
+ * 3. query COUNT(*) untuk mengetahui volume transaksi pelanggan;
+ * 4. lookup master pelanggan/contact.
+ *
+ * Tidak mengubah fungsi produksi dan tidak dipanggil oleh API frontend.
+ *
+ * Default pelanggan: 2606030.
+ */
+function diagnosticCustomerDetailV1(kodePelanggan) {
+  var kode = String(kodePelanggan || '2606030').trim();
+
+  if (!kode) throw new Error('Kode pelanggan kosong.');
+  if (!/^[a-zA-Z0-9._\- ]+$/.test(kode)) {
+    throw new Error('Kode pelanggan tidak valid.');
+  }
+
+  var safeKode = kode.replace(/'/g, "''");
+  var started = Date.now();
+
+  Logger.log('==============================================');
+  Logger.log('CUSTOMER DETAIL PERFORMANCE DIAGNOSTIC V1');
+  Logger.log('KODE PELANGGAN: ' + kode);
+  Logger.log('MODE: READ-ONLY');
+  Logger.log('==============================================');
+
+  // 1. Query yang sama dengan getDetailPiutangPelanggan().
+  var detailQueryStart = Date.now();
+  var detailQuery =
+    "SELECT kode,tanggal,pelanggan,nama_pelanggan,jt,jumlah,piutang " +
+    "FROM penjualan WHERE pelanggan = '" + safeKode + "' " +
+    'AND piutang > 0 LIMIT ' + SID_CONFIG.DETAIL_LIMIT;
+
+  var detailResult = sidRetailQuery(detailQuery);
+  var detailRows = Array.isArray(detailResult.data) ? detailResult.data : [];
+  var detailQueryMs = Date.now() - detailQueryStart;
+
+  Logger.log('DETAIL QUERY MS: ' + detailQueryMs);
+  Logger.log('DETAIL ROWS: ' + detailRows.length);
+
+  // 2. Volume transaksi pelanggan tanpa mengambil seluruh data detail.
+  var countQueryStart = Date.now();
+  var countQuery =
+    "SELECT COUNT(*) AS total_transaksi, " +
+    "COUNT(CASE WHEN COALESCE(piutang,0) > 0 THEN 1 ELSE NULL END) AS outstanding " +
+    "FROM penjualan WHERE pelanggan = '" + safeKode + "'";
+
+  var countResult = sidRetailQuery(countQuery);
+  var countRows = Array.isArray(countResult.data) ? countResult.data : [];
+  var countRow = countRows[0] || {};
+  var countQueryMs = Date.now() - countQueryStart;
+
+  var totalTransaksi = Number(countRow.total_transaksi || 0);
+  var totalOutstanding = Number(countRow.outstanding || 0);
+
+  Logger.log('COUNT QUERY MS: ' + countQueryMs);
+  Logger.log('TOTAL TRANSAKSI PELANGGAN: ' + totalTransaksi);
+  Logger.log('TOTAL OUTSTANDING: ' + totalOutstanding);
+
+  // 3. Lookup contact/master yang juga dijalankan fungsi produksi.
+  var contactQueryStart = Date.now();
+  var contactQuery =
+    "SELECT kode,nama,alamat,telp,saldo_piutang " +
+    "FROM pelanggan WHERE kode = '" + safeKode + "' LIMIT 1";
+
+  var contactResult = sidRetailQuery(contactQuery);
+  var contactRows = Array.isArray(contactResult.data) ? contactResult.data : [];
+  var contactQueryMs = Date.now() - contactQueryStart;
+
+  Logger.log('CONTACT QUERY MS: ' + contactQueryMs);
+  Logger.log('CONTACT ROWS: ' + contactRows.length);
+
+  var totalMs = Date.now() - started;
+
+  var result = {
+    diagnostic: 'customer_detail_performance_v1',
+    read_only: true,
+    kode_pelanggan: kode,
+
+    detail: {
+      limit: Number(SID_CONFIG.DETAIL_LIMIT),
+      rows_returned: detailRows.length,
+      query_ms: detailQueryMs,
+      capped_by_limit: detailRows.length >= Number(SID_CONFIG.DETAIL_LIMIT)
+    },
+
+    volume: {
+      count_query_ms: countQueryMs,
+      total_transaksi: totalTransaksi,
+      total_outstanding: totalOutstanding
+    },
+
+    contact: {
+      rows_returned: contactRows.length,
+      query_ms: contactQueryMs
+    },
+
+    total_ms: totalMs,
+
+    production_shape: {
+      query_count: 2,
+      detail_query: 'penjualan WHERE pelanggan = kode AND piutang > 0 LIMIT DETAIL_LIMIT',
+      contact_query: 'pelanggan WHERE kode = kode LIMIT 1',
+      apps_script_filtering: false
+    }
+  };
+
+  Logger.log('TOTAL DIAGNOSTIC MS: ' + totalMs);
+  Logger.log('==============================================');
+
+  return result;
+}
