@@ -372,85 +372,13 @@ async function openDetail(code) {
   document.body.classList.add("modal-open");
 
   try {
-    const diagnosticStart = performance.now();
-    const diagnosticId = "customer-detail-" + Date.now();
-
-    console.info("[SID Diagnostic] DETAIL START", {
-      id: diagnosticId,
-      code: String(code),
-      at: new Date().toISOString()
-    });
-
-    const detailRequestStart = performance.now();
-    const detailPromise = api.customerPiutangDetail(code)
-      .then(result => {
-        console.info("[SID Diagnostic] DETAIL END", {
-          id: diagnosticId,
-          code: String(code),
-          ms: Math.round(performance.now() - detailRequestStart),
-          status: "success"
-        });
-        return result;
-      })
-      .catch(error => {
-        console.warn("[SID Diagnostic] DETAIL END", {
-          id: diagnosticId,
-          code: String(code),
-          ms: Math.round(performance.now() - detailRequestStart),
-          status: "error",
-          message: error?.message || String(error)
-        });
-        throw error;
-      });
-
-    const tabunganRequestStart = performance.now();
-    const tabunganPromise = api.tabungan(code)
-      .then(result => {
-        console.info("[SID Diagnostic] TABUNGAN END", {
-          id: diagnosticId,
-          code: String(code),
-          ms: Math.round(performance.now() - tabunganRequestStart),
-          status: "success"
-        });
-        return result;
-      })
-      .catch(error => {
-        console.warn("[SID Diagnostic] TABUNGAN END", {
-          id: diagnosticId,
-          code: String(code),
-          ms: Math.round(performance.now() - tabunganRequestStart),
-          status: "error",
-          message: error?.message || String(error)
-        });
-        return null;
-      });
-
-    console.info("[SID Diagnostic] REQUESTS START", {
-      id: diagnosticId,
-      code: String(code)
-    });
-
     const [detailResult, tabunganResult] = await Promise.all([
-      detailPromise,
-      tabunganPromise
+      api.customerPiutangDetail(code),
+      api.tabungan(code).catch(() => null)
     ]);
-
-    console.info("[SID Diagnostic] PROMISE.ALL END", {
-      id: diagnosticId,
-      code: String(code),
-      ms: Math.round(performance.now() - diagnosticStart)
-    });
-
     state.detailData = detailResult;
     state.tabungan = extractTabungan(tabunganResult, detailResult);
     renderDetail(detailResult, row);
-
-    console.info("[SID Diagnostic] DETAIL FLOW END", {
-      id: diagnosticId,
-      code: String(code),
-      ms: Math.round(performance.now() - diagnosticStart),
-      status: "success"
-    });
   } catch (error) {
     document.querySelector("#detail-content").innerHTML =
       '<div class="detail-error"><strong>Detail tidak berhasil dimuat.</strong><span>' +
