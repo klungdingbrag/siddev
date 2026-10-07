@@ -5635,118 +5635,147 @@ function doPost(e) {
 
 
 /**
- * CUSTOMER DETAIL DIAGNOSTIC V1
- * Read-only diagnostic untuk mencari sumber timeout customerPiutangDetail.
+ * ============================================================
+ * CUSTOMER DETAIL PERFORMANCE DIAGNOSTIC V2
+ * ============================================================
  *
- * Mengukur secara terpisah:
- * 1. query detail penjualan outstanding untuk satu pelanggan;
- * 2. jumlah row yang dikembalikan;
- * 3. query COUNT(*) untuk mengetahui volume transaksi pelanggan;
- * 4. lookup master pelanggan/contact.
+ * Tujuan:
+ * - Menguji jalur API produksi customerPiutangDetail dan tabungan.
+ * - Membandingkan request SEQUENTIAL vs PARALLEL.
+ * - Menguji concurrency pada level HTTP yang sama dengan frontend.
  *
- * Tidak mengubah fungsi produksi dan tidak dipanggil oleh API frontend.
+ * PENTING:
+ * - READ-ONLY.
+ * - Tidak mengubah fungsi produksi.
+ * - Tidak mengubah SID_CONFIG.
+ * - Tidak mengubah database.
+ * - Tidak melakukan INSERT / UPDATE / DELETE.
+ * - V1 dihapus setelah V2 tersedia agar file tidak dipenuhi diagnostic lama.
+ *
+ * Cara kerja:
+ * 1. Sequential: panggil customerPiutangDetail lalu tabungan.
+ * 2. Parallel: panggil kedua endpoint dengan UrlFetchApp.fetchAll().
+ * 3. Request parallel masuk sebagai execution HTTP terpisah, sehingga
+ *    lebih mendekati Promise.all() pada frontend.
  *
  * Default pelanggan: 2606030.
  */
-function diagnosticCustomerDetailV1(kodePelanggan) {
+function diagnosticCustomerDetailV2(kodePelanggan) {
   var kode = String(kodePelanggan || '2606030').trim();
 
   if (!kode) throw new Error('Kode pelanggan kosong.');
-  if (!/^[a-zA-Z0-9._\- ]+$/.test(kode)) {
+  if (!/^[a-zA-Z0-9._\\- ]+$/.test(kode)) {
     throw new Error('Kode pelanggan tidak valid.');
   }
 
-  var safeKode = kode.replace(/'/g, "''");
-  var started = Date.now();
+  var endpoint = ScriptApp.getService().getUrl();
+  if (!endpoint) {
+    throw new Error(
+      'URL Web App tidak tersedia. Jalankan diagnostic ini dari deployment Web App Development.'
+    );
+  }
+
+  var detailUrl = endpoint +
+    '?action=customerPiutangDetail&kode_pelanggan=' + encodeURIComponent(kode);
+  var tabunganUrl = endpoint +
+    '?action=tabungan&kode_pelanggan=' + encodeURIComponent(kode);
+
+  var requestOptions = {
+    method: 'get',
+    muteHttpExceptions: true,
+    followRedirects: true
+  };
 
   Logger.log('==============================================');
-  Logger.log('CUSTOMER DETAIL PERFORMANCE DIAGNOSTIC V1');
+  Logger.log('CUSTOMER DETAIL PERFORMANCE DIAGNOSTIC V2');
   Logger.log('KODE PELANGGAN: ' + kode);
   Logger.log('MODE: READ-ONLY');
+  Logger.log('TEST: SEQUENTIAL vs PARALLEL HTTP');
   Logger.log('==============================================');
 
-  // 1. Query yang sama dengan getDetailPiutangPelanggan().
-  var detailQueryStart = Date.now();
-  var detailQuery =
-    "SELECT kode,tanggal,pelanggan,nama_pelanggan,jt,jumlah,piutang " +
-    "FROM penjualan WHERE pelanggan = '" + safeKode + "' " +
-    'AND piutang > 0 LIMIT ' + SID_CONFIG.DETAIL_LIMIT;
+  // 1. SEQUENTIAL
+  var sequentialStart = Date.now();
 
-  var detailResult = sidRetailQuery(detailQuery);
-  var detailRows = Array.isArray(detailResult.data) ? detailResult.data : [];
-  var detailQueryMs = Date.now() - detailQueryStart;
+  var detailStart = Date.now();
+  var detailResponse = UrlFetchApp.fetch(detailUrl, requestOptions);
+  var detailMs = Date.now() - detailStart;
 
-  Logger.log('DETAIL QUERY MS: ' + detailQueryMs);
-  Logger.log('DETAIL ROWS: ' + detailRows.length);
+  var tabunganStart = Date.now();
+  var tabunganResponse = UrlFetchApp.fetch(tabunganUrl, requestOptions);
+  var tabunganMs = Date.now() - tabunganStart;
 
-  // 2. Volume transaksi pelanggan tanpa mengambil seluruh data detail.
-  var countQueryStart = Date.now();
-  var countQuery =
-    "SELECT COUNT(*) AS total_transaksi, " +
-    "COUNT(CASE WHEN COALESCE(piutang,0) > 0 THEN 1 ELSE NULL END) AS outstanding " +
-    "FROM penjualan WHERE pelanggan = '" + safeKode + "'";
+  var sequentialMs = Date.now() - sequentialStart;
+  var detailHttp = detailResponse.getResponseCode();
+  var tabunganHttp = tabunganResponse.getResponseCode();
 
-  var countResult = sidRetailQuery(countQuery);
-  var countRows = Array.isArray(countResult.data) ? countResult.data : [];
-  var countRow = countRows[0] || {};
-  var countQueryMs = Date.now() - countQueryStart;
+  Logger.log('SEQUENTIAL DETAIL MS: ' + detailMs);
+  Logger.log('SEQUENTIAL DETAIL HTTP: ' + detailHttp);
+  Logger.log('SEQUENTIAL TABUNGAN MS: ' + tabunganMs);
+  Logger.log('SEQUENTIAL TABUNGAN HTTP: ' + tabunganHttp);
+  Logger.log('SEQUENTIAL TOTAL MS: ' + sequentialMs);
 
-  var totalTransaksi = Number(countRow.total_transaksi || 0);
-  var totalOutstanding = Number(countRow.outstanding || 0);
+  // 2. PARALLEL — mendekati Promise.all() frontend.
+  var parallelStart = Date.now();
+  var parallelResponses = UrlFetchApp.fetchAll([
+    {
+      url: detailUrl,
+      method: 'get',
+      muteHttpExceptions: true,
+      followRedirects: true
+    },
+    {
+      url: tabunganUrl,
+      method: 'get',
+      muteHttpExceptions: true,
+      followRedirects: true
+    }
+  ]);
+  var parallelMs = Date.now() - parallelStart;
 
-  Logger.log('COUNT QUERY MS: ' + countQueryMs);
-  Logger.log('TOTAL TRANSAKSI PELANGGAN: ' + totalTransaksi);
-  Logger.log('TOTAL OUTSTANDING: ' + totalOutstanding);
+  var parallelDetailHttp = parallelResponses[0].getResponseCode();
+  var parallelTabunganHttp = parallelResponses[1].getResponseCode();
 
-  // 3. Lookup contact/master yang juga dijalankan fungsi produksi.
-  var contactQueryStart = Date.now();
-  var contactQuery =
-    "SELECT kode,nama,alamat,telp,saldo_piutang " +
-    "FROM pelanggan WHERE kode = '" + safeKode + "' LIMIT 1";
+  Logger.log('PARALLEL DETAIL HTTP: ' + parallelDetailHttp);
+  Logger.log('PARALLEL TABUNGAN HTTP: ' + parallelTabunganHttp);
+  Logger.log('PARALLEL TOTAL MS: ' + parallelMs);
 
-  var contactResult = sidRetailQuery(contactQuery);
-  var contactRows = Array.isArray(contactResult.data) ? contactResult.data : [];
-  var contactQueryMs = Date.now() - contactQueryStart;
-
-  Logger.log('CONTACT QUERY MS: ' + contactQueryMs);
-  Logger.log('CONTACT ROWS: ' + contactRows.length);
-
-  var totalMs = Date.now() - started;
+  var improvementMs = sequentialMs - parallelMs;
+  var improvementPct = sequentialMs > 0
+    ? (improvementMs / sequentialMs) * 100
+    : 0;
 
   var result = {
-    diagnostic: 'customer_detail_performance_v1',
+    diagnostic: 'customer_detail_performance_v2',
     read_only: true,
     kode_pelanggan: kode,
-
-    detail: {
-      limit: Number(SID_CONFIG.DETAIL_LIMIT),
-      rows_returned: detailRows.length,
-      query_ms: detailQueryMs,
-      capped_by_limit: detailRows.length >= Number(SID_CONFIG.DETAIL_LIMIT)
+    endpoint_source: 'ScriptApp.getService().getUrl()',
+    sequential: {
+      detail_ms: detailMs,
+      detail_http: detailHttp,
+      tabungan_ms: tabunganMs,
+      tabungan_http: tabunganHttp,
+      total_ms: sequentialMs
     },
-
-    volume: {
-      count_query_ms: countQueryMs,
-      total_transaksi: totalTransaksi,
-      total_outstanding: totalOutstanding
+    parallel: {
+      detail_http: parallelDetailHttp,
+      tabungan_http: parallelTabunganHttp,
+      total_ms: parallelMs
     },
-
-    contact: {
-      rows_returned: contactRows.length,
-      query_ms: contactQueryMs
+    comparison: {
+      improvement_ms: improvementMs,
+      improvement_pct: Number(improvementPct.toFixed(2)),
+      parallel_faster: parallelMs < sequentialMs
     },
-
-    total_ms: totalMs,
-
-    production_shape: {
-      query_count: 2,
-      detail_query: 'penjualan WHERE pelanggan = kode AND piutang > 0 LIMIT DETAIL_LIMIT',
-      contact_query: 'pelanggan WHERE kode = kode LIMIT 1',
-      apps_script_filtering: false
+    production_integrity: {
+      functions_called: ['customerPiutangDetail', 'tabungan'],
+      writes_performed: false,
+      production_functions_modified: false,
+      database_modified: false
     }
   };
 
-  Logger.log('TOTAL DIAGNOSTIC MS: ' + totalMs);
+  Logger.log('PARALLEL IMPROVEMENT MS: ' + improvementMs);
+  Logger.log('PARALLEL IMPROVEMENT PCT: ' + improvementPct.toFixed(2) + '%');
   Logger.log('==============================================');
 
   return result;
