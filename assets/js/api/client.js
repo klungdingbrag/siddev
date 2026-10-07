@@ -21,8 +21,7 @@ function buildUrl(action, params = {}) {
   return url.toString();
 }
 
-async function fetchJson(url, timeoutMs, diagnostic = null) {
-  const fetchStart = performance.now();
+async function fetchJson(url, timeoutMs) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -35,81 +34,17 @@ async function fetchJson(url, timeoutMs, diagnostic = null) {
       cache: "no-store",
       signal: controller.signal
     });
-
-    if (diagnostic) {
-      diagnostic.fetchMs = Math.round(performance.now() - fetchStart);
-
-      const resourceEntries = typeof performance !== "undefined"
-        ? performance.getEntriesByName(url, "resource")
-        : [];
-      const resource = resourceEntries.length
-        ? resourceEntries[resourceEntries.length - 1]
-        : null;
-
-      diagnostic.responseUrl = response.url || null;
-      diagnostic.resourceTiming = resource
-        ? {
-            durationMs: Math.round(resource.duration),
-            redirectMs: Math.round(
-              Math.max(0, (resource.redirectEnd || 0) - (resource.redirectStart || 0))
-            ),
-            dnsMs: Math.round(
-              Math.max(0, (resource.domainLookupEnd || 0) - (resource.domainLookupStart || 0))
-            ),
-            connectMs: Math.round(
-              Math.max(0, (resource.connectEnd || 0) - (resource.connectStart || 0))
-            ),
-            requestMs: Math.round(
-              Math.max(0, (resource.responseStart || 0) - (resource.requestStart || 0))
-            ),
-            responseMs: Math.round(
-              Math.max(0, (resource.responseEnd || 0) - (resource.responseStart || 0))
-            ),
-            transferSize: resource.transferSize,
-            encodedBodySize: resource.encodedBodySize
-          }
-        : null;
-
-      console.info("[SID API Diagnostic] FETCH RESPONSE", {
-        action: diagnostic.action,
-        ms: diagnostic.fetchMs,
-        http: response.status,
-        responseUrl: diagnostic.responseUrl,
-        resourceTiming: diagnostic.resourceTiming
-      });
-    }
   } finally {
     clearTimeout(timeout);
   }
 
-  const textStart = performance.now();
   const text = await response.text();
 
-  if (diagnostic) {
-    diagnostic.textMs = Math.round(performance.now() - textStart);
-    console.info("[SID API Diagnostic] RESPONSE TEXT", {
-      action: diagnostic.action,
-      ms: diagnostic.textMs,
-      bytes: text.length
-    });
-  }
-
-  const parseStart = performance.now();
   let result = null;
   try {
     result = text ? JSON.parse(text) : null;
   } catch {
     result = null;
-  }
-
-  if (diagnostic) {
-    diagnostic.parseMs = Math.round(performance.now() - parseStart);
-    diagnostic.totalMs = Math.round(performance.now() - fetchStart);
-    console.info("[SID API Diagnostic] JSON PARSE / FETCH TOTAL", {
-      action: diagnostic.action,
-      parseMs: diagnostic.parseMs,
-      totalMs: diagnostic.totalMs
-    });
   }
 
   return { response, text, result };
@@ -144,21 +79,7 @@ export async function apiRequest(action, params = {}) {
   // Retry once for transient redirect/service failures without changing the backend.
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const diagnostic = {
-        action,
-        requestId: action + "-" + Date.now()
-      };
-
-      console.info("[SID API Diagnostic] REQUEST START", {
-        action,
-        requestId: diagnostic.requestId
-      });
-
-      const { response, text, result } = await fetchJson(
-        url,
-        getApiTimeout(action),
-        diagnostic
-      );
+      const { response, text, result } = await fetchJson(url, getApiTimeout(action));
 
       if (!response.ok) {
         const finalUrl = response.url || url;
