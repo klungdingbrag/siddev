@@ -5664,7 +5664,7 @@ function diagnosticCustomerDetailV2(kodePelanggan) {
   var kode = String(kodePelanggan || '2606030').trim();
 
   if (!kode) throw new Error('Kode pelanggan kosong.');
-  if (!/^[a-zA-Z0-9._- ]+$/.test(kode)) {
+  if (!/[-a-zA-Z0-9._ ]+$/.test(kode)) {
     throw new Error('Kode pelanggan tidak valid.');
   }
 
