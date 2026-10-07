@@ -1,4 +1,4 @@
-import { apiRequest } from "./client.js?v=20261006-api-timeout-1";
+import { apiRequest } from "./client.js?v=20261007-api-diagnostic-1";
 
 export const api = Object.freeze({
   health: () => apiRequest("health"),
