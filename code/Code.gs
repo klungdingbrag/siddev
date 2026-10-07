@@ -24,6 +24,19 @@ const SID_CONFIG = {
 };
 
 /*
+ * Batch khusus laporan Piutang.
+ *
+ * Hasil diagnostic read-only:
+ * - LIMIT 500  -> 16.145 s
+ * - LIMIT 1000 -> 10.082 s
+ * - LIMIT 2000 ->  8.630 s end-to-end
+ *
+ * Nilai ini sengaja dipisahkan dari SID_CONFIG.TRANSACTION_BATCH_SIZE
+ * agar perubahan hanya memengaruhi jalur laporan Piutang.
+ */
+const PIUTANG_TRANSACTION_BATCH_SIZE = 2000;
+
+/*
  * Generator kode transaksi yang aman untuk request berurutan maupun paralel.
  *
  * Apps Script dapat menjalankan beberapa execution secara bersamaan.
@@ -266,7 +279,7 @@ function getPiutangPelangganLaporan() {
  */
 function fetchOutstandingSalesInBatches() {
   const all = [];
-  const batchSize = SID_CONFIG.TRANSACTION_BATCH_SIZE;
+  const batchSize = PIUTANG_TRANSACTION_BATCH_SIZE;
   let lastKode = '';
 
   for (let batchNo = 1; batchNo <= SID_CONFIG.MAX_TRANSACTION_BATCHES; batchNo++) {
