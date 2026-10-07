@@ -1787,3 +1787,92 @@ textarea:focus-visible {
     padding-top: 16px;
   }
 }
+
+
+/* =========================================================
+   PHASE 2 — CUSTOMER DETAIL ACTION HIERARCHY
+   Visual-only hierarchy; existing action handlers remain unchanged.
+   ========================================================= */
+
+.detail-report-actions {
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-action-group-label {
+  margin-right: 2px;
+  color: var(--ui-text-muted);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.detail-action-secondary {
+  min-height: 38px;
+}
+
+.detail-primary-actions {
+  align-items: center;
+  gap: 9px;
+}
+
+.detail-action-close {
+  min-height: 40px;
+}
+
+.detail-action-primary {
+  min-height: 42px;
+  padding-inline: 18px;
+  font-weight: 750;
+  box-shadow: 0 5px 14px rgba(16,24,40,.12);
+}
+
+.detail-action-primary:focus-visible,
+.detail-action-secondary:focus-visible,
+.detail-action-close:focus-visible {
+  outline: 3px solid rgba(37,99,235,.22);
+  outline-offset: 2px;
+}
+
+@media (max-width: 700px) {
+  .detail-report-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto 1fr 1fr;
+  }
+
+  .detail-action-group-label {
+    align-self: center;
+  }
+
+  .detail-primary-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+  }
+
+  .detail-action-primary,
+  .detail-action-close {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .detail-report-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .detail-action-group-label {
+    grid-column: 1 / -1;
+    margin-bottom: 1px;
+  }
+
+  .detail-primary-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-action-primary {
+    order: -1;
+  }
+}
