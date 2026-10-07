@@ -38,10 +38,44 @@ async function fetchJson(url, timeoutMs, diagnostic = null) {
 
     if (diagnostic) {
       diagnostic.fetchMs = Math.round(performance.now() - fetchStart);
+
+      const resourceEntries = typeof performance !== "undefined"
+        ? performance.getEntriesByName(url, "resource")
+        : [];
+      const resource = resourceEntries.length
+        ? resourceEntries[resourceEntries.length - 1]
+        : null;
+
+      diagnostic.responseUrl = response.url || null;
+      diagnostic.resourceTiming = resource
+        ? {
+            durationMs: Math.round(resource.duration),
+            redirectMs: Math.round(
+              Math.max(0, (resource.redirectEnd || 0) - (resource.redirectStart || 0))
+            ),
+            dnsMs: Math.round(
+              Math.max(0, (resource.domainLookupEnd || 0) - (resource.domainLookupStart || 0))
+            ),
+            connectMs: Math.round(
+              Math.max(0, (resource.connectEnd || 0) - (resource.connectStart || 0))
+            ),
+            requestMs: Math.round(
+              Math.max(0, (resource.responseStart || 0) - (resource.requestStart || 0))
+            ),
+            responseMs: Math.round(
+              Math.max(0, (resource.responseEnd || 0) - (resource.responseStart || 0))
+            ),
+            transferSize: resource.transferSize,
+            encodedBodySize: resource.encodedBodySize
+          }
+        : null;
+
       console.info("[SID API Diagnostic] FETCH RESPONSE", {
         action: diagnostic.action,
         ms: diagnostic.fetchMs,
-        http: response.status
+        http: response.status,
+        responseUrl: diagnostic.responseUrl,
+        resourceTiming: diagnostic.resourceTiming
       });
     }
   } finally {
