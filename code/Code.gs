@@ -5636,32 +5636,19 @@ function doPost(e) {
 
 /**
  * ============================================================
- * CUSTOMER DETAIL PERFORMANCE DIAGNOSTIC V2
+ * CUSTOMER DETAIL PERFORMANCE DIAGNOSTIC V3
  * ============================================================
  *
- * Tujuan:
- * - Menguji jalur API produksi customerPiutangDetail dan tabungan.
- * - Membandingkan request SEQUENTIAL vs PARALLEL.
- * - Menguji concurrency pada level HTTP yang sama dengan frontend.
+ * Read-only. Menguji konsistensi latency customerPiutangDetail + tabungan
+ * melalui HTTP, dengan pola sequential dan parallel seperti frontend.
  *
- * PENTING:
- * - READ-ONLY.
- * - Tidak mengubah fungsi produksi.
- * - Tidak mengubah SID_CONFIG.
- * - Tidak mengubah database.
- * - Tidak melakukan INSERT / UPDATE / DELETE.
- * - V1 dihapus setelah V2 tersedia agar file tidak dipenuhi diagnostic lama.
- *
- * Cara kerja:
- * 1. Sequential: panggil customerPiutangDetail lalu tabungan.
- * 2. Parallel: panggil kedua endpoint dengan UrlFetchApp.fetchAll().
- * 3. Request parallel masuk sebagai execution HTTP terpisah, sehingga
- *    lebih mendekati Promise.all() pada frontend.
- *
+ * Tidak mengubah fungsi produksi, API contract, database, atau SID_CONFIG.
+ * V2 diganti oleh V3 agar Code.gs tidak dipenuhi diagnostic lama.
  * Default pelanggan: 2606030.
  */
-function diagnosticCustomerDetailV2(kodePelanggan) {
+function diagnosticCustomerDetailV3(kodePelanggan) {
   var kode = String(kodePelanggan || '2606030').trim();
+  var rounds = 5;
 
   if (!kode) throw new Error('Kode pelanggan kosong.');
   if (!/^[-a-zA-Z0-9._ ]+$/.test(kode)) {
@@ -5670,113 +5657,108 @@ function diagnosticCustomerDetailV2(kodePelanggan) {
 
   var endpoint = ScriptApp.getService().getUrl();
   if (!endpoint) {
-    throw new Error(
-      'URL Web App tidak tersedia. Jalankan diagnostic ini dari deployment Web App Development.'
-    );
+    throw new Error('URL Web App tidak tersedia. Jalankan diagnostic ini dari deployment Web App Development.');
   }
 
-  var detailUrl = endpoint +
-    '?action=customerPiutangDetail&kode_pelanggan=' + encodeURIComponent(kode);
-  var tabunganUrl = endpoint +
-    '?action=tabungan&kode_pelanggan=' + encodeURIComponent(kode);
+  var detailUrl = endpoint + '?action=customerPiutangDetail&kode_pelanggan=' + encodeURIComponent(kode);
+  var tabunganUrl = endpoint + '?action=tabungan&kode_pelanggan=' + encodeURIComponent(kode);
+  var requestOptions = { method: 'get', muteHttpExceptions: true, followRedirects: true };
 
-  var requestOptions = {
-    method: 'get',
-    muteHttpExceptions: true,
-    followRedirects: true
-  };
+  var detailTimes = [], tabunganTimes = [], parallelTimes = [];
+  var detailHttp = [], tabunganHttp = [], parallelDetailHttp = [], parallelTabunganHttp = [];
 
   Logger.log('==============================================');
-  Logger.log('CUSTOMER DETAIL PERFORMANCE DIAGNOSTIC V2');
+  Logger.log('CUSTOMER DETAIL PERFORMANCE DIAGNOSTIC V3');
   Logger.log('KODE PELANGGAN: ' + kode);
   Logger.log('MODE: READ-ONLY');
-  Logger.log('TEST: SEQUENTIAL vs PARALLEL HTTP');
+  Logger.log('ROUNDS: ' + rounds);
+  Logger.log('TEST: CONSISTENCY / SEQUENTIAL vs PARALLEL HTTP');
   Logger.log('==============================================');
 
-  // 1. SEQUENTIAL
-  var sequentialStart = Date.now();
+  for (var i = 0; i < rounds; i++) {
+    var round = i + 1;
+    Logger.log('----------------------------------------------');
+    Logger.log('ROUND ' + round);
 
-  var detailStart = Date.now();
-  var detailResponse = UrlFetchApp.fetch(detailUrl, requestOptions);
-  var detailMs = Date.now() - detailStart;
+    var detailStart = Date.now();
+    var detailResponse = UrlFetchApp.fetch(detailUrl, requestOptions);
+    var detailMs = Date.now() - detailStart;
+    detailTimes.push(detailMs);
+    detailHttp.push(detailResponse.getResponseCode());
 
-  var tabunganStart = Date.now();
-  var tabunganResponse = UrlFetchApp.fetch(tabunganUrl, requestOptions);
-  var tabunganMs = Date.now() - tabunganStart;
+    var tabunganStart = Date.now();
+    var tabunganResponse = UrlFetchApp.fetch(tabunganUrl, requestOptions);
+    var tabunganMs = Date.now() - tabunganStart;
+    tabunganTimes.push(tabunganMs);
+    tabunganHttp.push(tabunganResponse.getResponseCode());
 
-  var sequentialMs = Date.now() - sequentialStart;
-  var detailHttp = detailResponse.getResponseCode();
-  var tabunganHttp = tabunganResponse.getResponseCode();
+    var parallelStart = Date.now();
+    var parallelResponses = UrlFetchApp.fetchAll([
+      { url: detailUrl, method: 'get', muteHttpExceptions: true, followRedirects: true },
+      { url: tabunganUrl, method: 'get', muteHttpExceptions: true, followRedirects: true }
+    ]);
+    var parallelMs = Date.now() - parallelStart;
+    parallelTimes.push(parallelMs);
+    parallelDetailHttp.push(parallelResponses[0].getResponseCode());
+    parallelTabunganHttp.push(parallelResponses[1].getResponseCode());
 
-  Logger.log('SEQUENTIAL DETAIL MS: ' + detailMs);
-  Logger.log('SEQUENTIAL DETAIL HTTP: ' + detailHttp);
-  Logger.log('SEQUENTIAL TABUNGAN MS: ' + tabunganMs);
-  Logger.log('SEQUENTIAL TABUNGAN HTTP: ' + tabunganHttp);
-  Logger.log('SEQUENTIAL TOTAL MS: ' + sequentialMs);
+    Logger.log('DETAIL MS: ' + detailMs + ' | HTTP: ' + detailHttp[i]);
+    Logger.log('TABUNGAN MS: ' + tabunganMs + ' | HTTP: ' + tabunganHttp[i]);
+    Logger.log('PARALLEL MS: ' + parallelMs + ' | DETAIL HTTP: ' + parallelDetailHttp[i] + ' | TABUNGAN HTTP: ' + parallelTabunganHttp[i]);
+  }
 
-  // 2. PARALLEL — mendekati Promise.all() frontend.
-  var parallelStart = Date.now();
-  var parallelResponses = UrlFetchApp.fetchAll([
-    {
-      url: detailUrl,
-      method: 'get',
-      muteHttpExceptions: true,
-      followRedirects: true
-    },
-    {
-      url: tabunganUrl,
-      method: 'get',
-      muteHttpExceptions: true,
-      followRedirects: true
-    }
-  ]);
-  var parallelMs = Date.now() - parallelStart;
+  function sum(values) {
+    return values.reduce(function(total, value) { return total + Number(value || 0); }, 0);
+  }
+  function average(values) { return values.length ? sum(values) / values.length : 0; }
+  function sorted(values) { return values.slice().sort(function(a, b) { return a - b; }); }
+  function median(values) {
+    if (!values.length) return 0;
+    var s = sorted(values), middle = Math.floor(s.length / 2);
+    return s.length % 2 ? s[middle] : (s[middle - 1] + s[middle]) / 2;
+  }
+  function countOver(values, threshold) {
+    return values.filter(function(value) { return Number(value) > threshold; }).length;
+  }
+  function stats(values) {
+    var s = sorted(values);
+    return {
+      min_ms: s.length ? s[0] : 0,
+      max_ms: s.length ? s[s.length - 1] : 0,
+      average_ms: average(values),
+      median_ms: median(values),
+      over_5000_ms: countOver(values, 5000),
+      over_10000_ms: countOver(values, 10000),
+      over_20000_ms: countOver(values, 20000),
+      over_30000_ms: countOver(values, 30000)
+    };
+  }
 
-  var parallelDetailHttp = parallelResponses[0].getResponseCode();
-  var parallelTabunganHttp = parallelResponses[1].getResponseCode();
+  var detailStats = stats(detailTimes);
+  var tabunganStats = stats(tabunganTimes);
+  var parallelStats = stats(parallelTimes);
 
-  Logger.log('PARALLEL DETAIL HTTP: ' + parallelDetailHttp);
-  Logger.log('PARALLEL TABUNGAN HTTP: ' + parallelTabunganHttp);
-  Logger.log('PARALLEL TOTAL MS: ' + parallelMs);
+  Logger.log('==============================================');
+  Logger.log('SUMMARY DETAIL | MIN=' + detailStats.min_ms + ' MAX=' + detailStats.max_ms + ' AVG=' + detailStats.average_ms.toFixed(1) + ' MEDIAN=' + detailStats.median_ms);
+  Logger.log('DETAIL >5S=' + detailStats.over_5000_ms + ' >10S=' + detailStats.over_10000_ms + ' >20S=' + detailStats.over_20000_ms + ' >30S=' + detailStats.over_30000_ms);
+  Logger.log('SUMMARY TABUNGAN | MIN=' + tabunganStats.min_ms + ' MAX=' + tabunganStats.max_ms + ' AVG=' + tabunganStats.average_ms.toFixed(1) + ' MEDIAN=' + tabunganStats.median_ms);
+  Logger.log('TABUNGAN >5S=' + tabunganStats.over_5000_ms + ' >10S=' + tabunganStats.over_10000_ms + ' >20S=' + tabunganStats.over_20000_ms + ' >30S=' + tabunganStats.over_30000_ms);
+  Logger.log('SUMMARY PARALLEL | MIN=' + parallelStats.min_ms + ' MAX=' + parallelStats.max_ms + ' AVG=' + parallelStats.average_ms.toFixed(1) + ' MEDIAN=' + parallelStats.median_ms);
+  Logger.log('PARALLEL >5S=' + parallelStats.over_5000_ms + ' >10S=' + parallelStats.over_10000_ms + ' >20S=' + parallelStats.over_20000_ms + ' >30S=' + parallelStats.over_30000_ms);
+  Logger.log('HTTP DETAIL: ' + JSON.stringify(detailHttp));
+  Logger.log('HTTP TABUNGAN: ' + JSON.stringify(tabunganHttp));
+  Logger.log('HTTP PARALLEL DETAIL: ' + JSON.stringify(parallelDetailHttp));
+  Logger.log('HTTP PARALLEL TABUNGAN: ' + JSON.stringify(parallelTabunganHttp));
+  Logger.log('==============================================');
 
-  var improvementMs = sequentialMs - parallelMs;
-  var improvementPct = sequentialMs > 0
-    ? (improvementMs / sequentialMs) * 100
-    : 0;
-
-  var result = {
-    diagnostic: 'customer_detail_performance_v2',
+  return {
+    diagnostic: 'customer_detail_performance_v3',
     read_only: true,
     kode_pelanggan: kode,
-    endpoint_source: 'ScriptApp.getService().getUrl()',
-    sequential: {
-      detail_ms: detailMs,
-      detail_http: detailHttp,
-      tabungan_ms: tabunganMs,
-      tabungan_http: tabunganHttp,
-      total_ms: sequentialMs
-    },
-    parallel: {
-      detail_http: parallelDetailHttp,
-      tabungan_http: parallelTabunganHttp,
-      total_ms: parallelMs
-    },
-    comparison: {
-      improvement_ms: improvementMs,
-      improvement_pct: Number(improvementPct.toFixed(2)),
-      parallel_faster: parallelMs < sequentialMs
-    },
-    production_integrity: {
-      functions_called: ['customerPiutangDetail', 'tabungan'],
-      writes_performed: false,
-      production_functions_modified: false,
-      database_modified: false
-    }
+    rounds: rounds,
+    detail: { times_ms: detailTimes, http: detailHttp, stats: detailStats },
+    tabungan: { times_ms: tabunganTimes, http: tabunganHttp, stats: tabunganStats },
+    parallel: { times_ms: parallelTimes, detail_http: parallelDetailHttp, tabungan_http: parallelTabunganHttp, stats: parallelStats }
   };
-
-  Logger.log('PARALLEL IMPROVEMENT MS: ' + improvementMs);
-  Logger.log('PARALLEL IMPROVEMENT PCT: ' + improvementPct.toFixed(2) + '%');
-  Logger.log('==============================================');
-
-  return result;
 }
+
