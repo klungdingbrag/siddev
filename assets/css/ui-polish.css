@@ -902,6 +902,50 @@ textarea:focus-visible {
   color: #667085;
 }
 
+.detail-table td:first-child .invoice-code {
+  color: var(--ui-text-strong);
+  font-weight: 800;
+}
+
+.detail-table .invoice-balance {
+  color: var(--ui-text-strong);
+  font-weight: 800;
+}
+
+.invoice-age {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-weight: 750;
+}
+
+.invoice-age-current {
+  background: #f1f5f9;
+  color: #475467;
+}
+
+.invoice-age-attention {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.invoice-age-warning {
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.invoice-age-danger {
+  background: var(--ui-danger-soft);
+  color: #b42318;
+}
+
+.invoice-age-neutral {
+  background: #f8fafc;
+  color: #667085;
+}
+
 .detail-footer {
   background: rgba(255,255,255,.985);
   border-top-color: var(--ui-border-soft);
