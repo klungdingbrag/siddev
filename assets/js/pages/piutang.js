@@ -456,6 +456,7 @@ function renderDetail(result, row) {
     '<div class="detail-financial-grid">' +
       '<div class="financial-card savings"><span>Saldo Tabungan</span><strong>' + formatMoney(state.tabungan) + '</strong></div>' +
       '<div class="financial-card debt"><span>Total Piutang</span><strong>' + formatMoney(total) + '</strong></div>' +
+      '<div class="financial-card reconciliation"><span>Selisih</span><strong>' + formatMoney(money(state.tabungan) - total) + '</strong></div>' +
     '</div>' +
 
     '<div class="detail-heading">Transaksi Outstanding</div>' +
