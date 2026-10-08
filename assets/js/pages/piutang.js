@@ -374,6 +374,36 @@ function priorityRank(priority) {
   return { urgent: 4, high: 3, monitor: 2, normal: 1 }[priority] || 0;
 }
 
+function collectionPriorityMeta(r) {
+  const priority = getCollectionPriority(r);
+  const age = Number(r.oldest_aging_days);
+  let ageLabel = "";
+
+  if (Number.isFinite(age) && age >= 0) {
+    ageLabel = number.format(age) + " hari";
+  } else if (money(r.aging_121_plus) > 0) {
+    ageLabel = "≥121 hari";
+  } else if (money(r.aging_91_120) > 0) {
+    ageLabel = "91–120 hari";
+  } else if (money(r.aging_61_90) > 0) {
+    ageLabel = "61–90 hari";
+  } else if (money(r.aging_31_60) > 0) {
+    ageLabel = "31–60 hari";
+  } else if (money(r.aging_1_30) > 0) {
+    ageLabel = "1–30 hari";
+  } else {
+    ageLabel = "Belum jatuh tempo";
+  }
+
+  return {
+    priority,
+    label: { urgent: "Segera", high: "Tinggi", monitor: "Monitor", normal: "Normal" }[priority],
+    ageLabel,
+    totalLabel: formatMoney(r.total_piutang),
+    notesLabel: number.format(Number(r.outstanding_notes || 0)) + " nota"
+  };
+}
+
 function updatePrioritySummary(rows) {
   const counts = { urgent: 0, high: 0, monitor: 0, normal: 0 };
   rows.forEach(r => { counts[getCollectionPriority(r)]++; });
@@ -470,15 +500,15 @@ function renderTable() {
 }
 
 function rowHtml(r) {
-  const priority = getCollectionPriority(r);
-  const age = Number.isFinite(Number(r.oldest_aging_days)) ? Number(r.oldest_aging_days) : null;
-  const priorityLabel = { urgent: "Segera", high: "Tinggi", monitor: "Monitor", normal: "Normal" }[priority];
+  const meta = collectionPriorityMeta(r);
+  const reason = meta.ageLabel + " · " + meta.totalLabel + " · " + meta.notesLabel + " outstanding";
   return '<tr><td><div class="customer-cell"><strong>' + esc(r.nm_pelanggan || r.kd_pelanggan) + '</strong><span>' + esc(r.kd_pelanggan) + '</span></div></td>' +
-    '<td>' + formatMoney(r.belum_jatuh_tempo) + '</td><td>' + formatMoney(r.aging_1_30) + '</td><td>' + formatMoney(r.aging_31_60) + '</td><td>' + formatMoney(r.aging_61_90) + '</td><td>' + formatMoney(r.aging_91_120) + '</td><td>' + formatMoney(r.aging_121_plus) + '</td><td><strong>' + formatMoney(r.total_piutang) + '</strong></td><td><span class="collection-priority-badge priority-badge-' + priority + '" title="' + esc((age !== null ? "Aging tertua " + age + " hari · " : "") + "Piutang " + formatMoney(r.total_piutang) + " · " + Number(r.outstanding_notes || 0) + " nota outstanding") + '">' + priorityLabel + '</span></td><td><button class="icon-btn detail-trigger" data-code="' + esc(r.kd_pelanggan) + '">Detail</button></td></tr>';
+    '<td>' + formatMoney(r.belum_jatuh_tempo) + '</td><td>' + formatMoney(r.aging_1_30) + '</td><td>' + formatMoney(r.aging_31_60) + '</td><td>' + formatMoney(r.aging_61_90) + '</td><td>' + formatMoney(r.aging_91_120) + '</td><td>' + formatMoney(r.aging_121_plus) + '</td><td><strong>' + formatMoney(r.total_piutang) + '</strong></td><td><div class="collection-priority-info"><span class="collection-priority-badge priority-badge-' + meta.priority + '">' + meta.label + '</span><span class="collection-priority-age">' + esc(meta.ageLabel) + '</span><span class="collection-priority-context">' + esc(meta.totalLabel + " · " + meta.notesLabel) + '</span></div></td><td><button class="icon-btn detail-trigger" data-code="' + esc(r.kd_pelanggan) + '">Detail</button></td></tr>';
 }
 
 function cardHtml(r) {
-  return '<article class="mobile-customer-card"><div class="mobile-customer-head"><div><strong>' + esc(r.nm_pelanggan || r.kd_pelanggan) + '</strong><span>' + esc(r.kd_pelanggan) + '</span></div><button class="icon-btn detail-trigger" data-code="' + esc(r.kd_pelanggan) + '">Detail</button></div><div class="mobile-customer-total"><span>Total Piutang</span><strong>' + formatMoney(r.total_piutang) + '</strong></div><div class="mobile-aging-grid">' +
+  const meta = collectionPriorityMeta(r);
+  return '<article class="mobile-customer-card"><div class="mobile-customer-head"><div><strong>' + esc(r.nm_pelanggan || r.kd_pelanggan) + '</strong><span>' + esc(r.kd_pelanggan) + '</span></div><button class="icon-btn detail-trigger" data-code="' + esc(r.kd_pelanggan) + '">Detail</button></div><div class="mobile-collection-info"><span class="collection-priority-badge priority-badge-' + meta.priority + '">' + meta.label + '</span><strong>' + esc(meta.ageLabel) + '</strong><small>' + esc(meta.totalLabel + " · " + meta.notesLabel) + '</small></div><div class="mobile-customer-total"><span>Total Piutang</span><strong>' + formatMoney(r.total_piutang) + '</strong></div><div class="mobile-aging-grid">' +
     '<span>Belum tempo <b>' + formatMoney(r.belum_jatuh_tempo) + '</b></span><span>1–30 <b>' + formatMoney(r.aging_1_30) + '</b></span><span>31–60 <b>' + formatMoney(r.aging_31_60) + '</b></span><span>61–90 <b>' + formatMoney(r.aging_61_90) + '</b></span><span>91–120 <b>' + formatMoney(r.aging_91_120) + '</b></span><span>≥121 <b>' + formatMoney(r.aging_121_plus) + '</b></span></div></article>';
 }
 
