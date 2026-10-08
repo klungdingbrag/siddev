@@ -1973,3 +1973,324 @@ SEBELUM MASUK main
 SETELAH STABIL
     -> New Baseline
 ```
+
+---
+
+## 28. Checkpoint Piutang — Final Sementara 2026-10-08
+
+**Status: LOCKED / FINAL SEMENTARA**
+
+Per **8 Oktober 2026**, modul **Piutang** telah mencapai kondisi yang dianggap stabil untuk sementara dan dikunci sebagai checkpoint sebelum pengembangan modul berikutnya dilanjutkan.
+
+Checkpoint ini dibuat agar posisi arsitektur dan hasil review UI tidak hilang ketika pengembangan dilanjutkan pada branch atau percakapan berikutnya.
+
+### 28.1 Recovery Point
+
+    Branch:
+    stable/piutang-final-2026-10-08
+
+    Commit:
+    45c7a421e22c174373c3bf79fd407844500f6e4d
+
+    Commit message:
+    ui: polish collection priority vertical rhythm
+
+Checkpoint ini berasal dari branch development:
+
+    ui/ux-polish-v2
+
+**Aturan:** branch `stable/piutang-final-2026-10-08` tidak digunakan untuk eksperimen. Jika modul Piutang perlu dikembangkan kembali, buat branch baru dari checkpoint ini.
+
+### 28.2 Piutang UI Contract Saat Ini
+
+Struktur tabel desktop yang telah disepakati:
+
+    Pelanggan | Aging | Total Piutang | Collection | Detail
+
+Proporsi grid desktop saat ini:
+
+    Pelanggan   18%
+    Aging       48%
+    Total       11%
+    Collection  16%
+    Detail       7%
+    ----------------
+    Total      100%
+
+Keputusan ini dibuat berdasarkan kebutuhan ruang horizontal, bukan jumlah informasi.
+
+**Aging** mendapatkan ruang lebih besar karena terdiri dari beberapa kolom nominal rupiah yang membutuhkan lebar horizontal.
+
+**Collection** menggunakan informasi bertingkat/vertikal sehingga tidak memerlukan kolom horizontal besar.
+
+**Detail** hanya berisi satu tombol aksi sehingga kolomnya dipadatkan.
+
+### 28.3 Collection Priority Contract
+
+Prioritas Collection mengikuti aging bucket backend:
+
+    >= 121 hari
+        -> Segera / urgent
+
+    61–120 hari
+        -> Tinggi / high
+
+    31–60 hari
+        -> Monitor / monitor
+
+    < 31 hari / belum overdue
+        -> Normal / normal
+
+Implementasi frontend memprioritaskan bucket aging terlebih dahulu dan menggunakan `oldest_aging_days` sebagai fallback.
+
+Prinsip penting:
+
+    Saldo Tabungan
+           |
+           X
+           |
+           v
+    TIDAK mengurangi Collection Priority
+
+Pelanggan dengan tabungan cukup dan pelanggan dengan tabungan tidak cukup diperlakukan **sama dalam penentuan Collection Priority**.
+
+Saldo tabungan tetap dapat ditampilkan sebagai informasi finansial, tetapi bukan faktor pengurang prioritas collection.
+
+### 28.4 Collection Information Hierarchy
+
+Kolom Collection menggunakan tiga lapisan informasi:
+
+           [Segera]
+           626 hari
+    Rp 1.215.000 · 1 nota
+
+Maknanya:
+
+1. **Priority badge** — tindakan yang perlu diperhatikan.
+2. **Oldest aging** — umur piutang tertua.
+3. **Context** — total piutang dan jumlah nota outstanding.
+
+Ketiga elemen harus berada pada **satu sumbu tengah vertikal**.
+
+Header `COLLECTION`, badge, umur, dan context harus center terhadap cell yang sama.
+
+### 28.5 Detail Column Contract
+
+Kolom Detail:
+
+                    DETAIL
+                       |
+                    [Detail]
+
+Detail hanya menjadi action column.
+
+Prinsipnya:
+
+- tidak perlu diperlebar hanya untuk memenuhi ruang kosong,
+- tombol tetap compact,
+- header dan tombol berada pada sumbu tengah yang sama,
+- ruang horizontal lebih baik diberikan kepada data yang memang membutuhkan ruang.
+
+### 28.6 Piutang Table Alignment Rule
+
+Alignment tabel Piutang sekarang mengikuti prinsip:
+
+    HEADER
+       |
+       v
+    COLUMN GRID
+       |
+       v
+    DATA CELL
+       |
+       v
+    ACTION / INFORMATION
+
+Khusus Collection:
+
+                  COLLECTION
+                       |
+                   [Segera]
+                       |
+                    626 hari
+                       |
+              Rp1.215.000 · 1 nota
+
+Khusus Detail:
+
+                    DETAIL
+                       |
+                    [Detail]
+
+Jangan mengubah lebar kolom atau alignment hanya berdasarkan satu screenshot tanpa melakukan review visual terlebih dahulu.
+
+### 28.7 Aging Number Alignment
+
+Nilai nominal Aging tetap menggunakan **right alignment**.
+
+Alasannya:
+
+- angka rupiah lebih mudah dibandingkan secara vertikal,
+- digit satuan/ribuan berada pada posisi yang konsisten,
+- pola ini mengikuti kebiasaan tabel finansial/accounting.
+
+Header Aging tetap dapat menggunakan center alignment agar struktur kolom mudah dipindai.
+
+### 28.8 Piutang Architecture Setelah UI Polish
+
+Arsitektur Piutang saat ini:
+
+    SID RETAIL
+        |
+        v
+    GAS Backend
+        |
+    API piutang
+        |
+        v
+    GitHub Frontend
+        |
+    +---+---+
+    |       |
+    v       v
+Piutang State  SWR Cache
+    |       |
+    +---+---+
+        |
+        v
+    Filter / Sort
+        |
+    +---+---+
+    |       |
+    v       v
+Desktop Table  Mobile Cards
+        |
+        v
+Collection Priority
+        |
+    +---+---+
+    |   |   |
+    v   v   v
+  Aging Total Detail
+
+Frontend tetap bertanggung jawab atas:
+
+- rendering,
+- filtering,
+- sorting,
+- pagination,
+- Collection Priority presentation,
+- responsive presentation,
+- cache UX,
+- lifecycle protection.
+
+Backend tetap menjadi sumber data dan business logic.
+
+### 28.9 Piutang Caching
+
+Piutang tetap menggunakan:
+
+    Stale-While-Revalidate
+    TTL = 2 menit
+    storage = sessionStorage
+
+Prinsip:
+
+    Cache fresh
+        -> tampilkan langsung
+
+    Cache stale
+        -> tampilkan cache
+        -> refresh backend di background
+
+    Manual Refresh
+        -> request backend terbaru
+
+Cache bukan source of truth accounting.
+
+Jika background refresh gagal tetapi cache tersedia, data lama dipertahankan dan user diberi feedback.
+
+### 28.10 Backend Reliability Note
+
+Selama review 2026-10-08 ditemukan bahwa request API Piutang kadang dapat mengalami `Request Error`, tetapi kemudian API kembali Online tanpa perubahan pada frontend.
+
+Perubahan UI pada checkpoint ini **tidak mengubah API, backend, atau business logic**.
+
+Karena itu untuk sementara masalah intermittent backend/server diperlakukan sebagai **reliability issue terpisah**, bukan alasan untuk membuka kembali UI Piutang.
+
+`client.js` saat ini memiliki timeout dan retry terbatas untuk transient network failure.
+
+Jika masalah Request Error kembali sering terjadi, lakukan diagnosis berdasarkan error aktual browser/network dan backend sebelum mengubah API client atau backend.
+
+### 28.11 Locked Scope
+
+Yang dianggap **locked** pada checkpoint ini:
+
+- Collection Priority logic.
+- Aging bucket interpretation.
+- Collection information hierarchy.
+- Table column proportions.
+- Collection alignment.
+- Detail alignment.
+- Desktop table structure.
+- Mobile/card fallback yang sudah ada.
+- Piutang SWR/cache architecture.
+- Piutang lifecycle/stale-request protection.
+- Backend/API contract yang sudah berjalan.
+
+Yang **tidak** boleh diubah hanya untuk eksperimen visual:
+
+    Backend
+    API contract
+    Accounting logic
+    Collection priority logic
+    Aging calculation
+
+Perubahan baru harus dibuat pada feature branch baru dan direview terlebih dahulu.
+
+### 28.12 Posisi Pengembangan Saat Ini
+
+Urutan posisi repository:
+
+    stable foundation
+           |
+           v
+    Development / feature work
+           |
+           v
+    Piutang UI/UX refinement
+           |
+           v
+    Review visual
+           |
+           v
+    LOCK
+           |
+           v
+    stable/piutang-final-2026-10-08
+           |
+           v
+    Modul berikutnya
+
+**Checkpoint ini menjadi referensi resmi untuk kondisi Piutang sebelum kita berpindah mengerjakan modul berikutnya.**
+
+Jika Piutang dibuka kembali di masa depan:
+
+    stable/piutang-final-2026-10-08
+                |
+                v
+    feature/piutang-<nama-perubahan>
+                |
+                v
+           Development
+                |
+                v
+              Test
+                |
+                v
+             Review
+                |
+                v
+          Baseline baru
+
+---
