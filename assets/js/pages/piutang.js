@@ -14,7 +14,8 @@ const state = {
   detailCode: null,
   detailRow: null,
   detailData: null,
-  tabungan: 0
+  tabungan: 0,
+  detailRequestId: 0
 };
 
 const rupiah = new Intl.NumberFormat("id-ID", {
@@ -144,7 +145,6 @@ function bindEvents() {
     }
     detailClick(e);
   });
-  document.querySelector("#piutang-body").addEventListener("click", detailClick);
   document.querySelector("#piutang-cards").addEventListener("click", detailClick);
   document.querySelector("#detail-close").addEventListener("click", closeDetail);
   document.querySelector("#piutang-modal").addEventListener("click", (e) => {
@@ -520,6 +520,8 @@ async function openDetail(code) {
   const row = state.rows.find(r => String(r.kd_pelanggan) === String(code));
   if (!row) return;
 
+  const requestId = ++state.detailRequestId;
+
   state.detailCode = code;
   state.detailRow = row;
   state.detailData = null;
@@ -539,10 +541,14 @@ async function openDetail(code) {
       api.customerPiutangDetail(code),
       api.tabungan(code).catch(() => null)
     ]);
+    if (requestId !== state.detailRequestId) return;
+
     state.detailData = detailResult;
     state.tabungan = extractTabungan(tabunganResult, detailResult);
     renderDetail(detailResult, row);
   } catch (error) {
+    if (requestId !== state.detailRequestId) return;
+
     document.querySelector("#detail-content").innerHTML =
       '<div class="detail-error"><strong>Detail tidak berhasil dimuat.</strong><span>' +
       esc(error.message || "Unknown error") + '</span></div>';
@@ -1064,6 +1070,8 @@ function handleDetailEscape(event) {
   if (event.key === "Escape") closeDetail();
 }
 function closeDetail() {
+  state.detailRequestId += 1;
+
   const modal = document.querySelector("#piutang-modal");
   modal.classList.add("hidden");
   modal.setAttribute("aria-hidden", "true");
