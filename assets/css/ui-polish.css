@@ -2017,3 +2017,118 @@ textarea:focus-visible {
     min-width: 0;
   }
 }
+
+
+/* =========================================================
+   PHASE 3 — COLLECTION PRIORITY
+   ========================================================= */
+
+.collection-priority-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.collection-priority-card {
+  appearance: none;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 12px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+
+.collection-priority-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(16, 24, 40, .07);
+}
+
+.collection-priority-card.is-active {
+  box-shadow: 0 0 0 2px var(--ui-focus);
+}
+
+.collection-priority-card span,
+.collection-priority-card small {
+  display: block;
+}
+
+.collection-priority-card span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.collection-priority-card strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.collection-priority-card small {
+  margin-top: 3px;
+  color: var(--ui-text-muted);
+  font-size: 10px;
+}
+
+.priority-urgent { background: #fff5f5; border-color: #fecaca; }
+.priority-urgent span { color: #b42318; }
+
+.priority-high { background: #fff8ed; border-color: #fed7aa; }
+.priority-high span { color: #c2410c; }
+
+.priority-monitor { background: #fffdf0; border-color: #fde68a; }
+.priority-monitor span { color: #a15c00; }
+
+.priority-normal { background: #f8fafc; border-color: #dbe2ea; }
+.priority-normal span { color: #475467; }
+
+.collection-priority-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.priority-badge-urgent {
+  background: #fee2e2;
+  color: #b42318;
+  border: 1px solid #f87171;
+}
+
+.priority-badge-high {
+  background: #ffe4b5;
+  color: #9a3412;
+  border: 1px solid #fb923c;
+}
+
+.priority-badge-monitor {
+  background: #fff3cd;
+  color: #a15c00;
+  border: 1px solid #f5c451;
+}
+
+.priority-badge-normal {
+  background: #e8eef7;
+  color: #344054;
+  border: 1px solid #cbd5e1;
+}
+
+@media (max-width: 760px) {
+  .collection-priority-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .collection-priority-card {
+    padding: 10px 12px;
+  }
+}
