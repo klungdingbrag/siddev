@@ -782,15 +782,20 @@ function renderDashboardData() {
     normalizedSalesRows
   );
   renderDashboardCalendar(normalizedSalesRows);
+  const profitRows = normalizeProfitRows(profit?.data);
   renderProfitChart(
     document.querySelector("#dashboard-profit-chart"),
-    normalizeProfitRows(profit?.data)
+    profitRows
   );
+
+  const selectedMonthKey = dashboardState.year + "-" + pad2(dashboardState.month);
+  const selectedMonthProfit = profitRows.find((row) => row.bulan === selectedMonthKey)?.total_laba || 0;
+
   renderProfitDailyChart(
     document.querySelector("#dashboard-profit-daily-chart"),
     normalizeProfitDailyRows(profitDaily?.data),
     normalizedSalesRows,
-    profitSummary.total_laba
+    selectedMonthProfit
   );
 }
 
