@@ -206,10 +206,11 @@ function getPiutangPelangganLaporan() {
     const tanggalTransaksi = parseSidDate(row.tanggal);
     const jtHari = parseJtDays(row.jt);
     let bucket = 'unclassified';
+    let umurHari = null;
 
     if (tanggalTransaksi && jtHari !== null) {
       const jatuhTempo = addDays(tanggalTransaksi, jtHari);
-      const umurHari = Math.floor(
+      umurHari = Math.floor(
         (today.getTime() - jatuhTempo.getTime()) / 86400000
       );
 
@@ -223,6 +224,12 @@ function getPiutangPelangganLaporan() {
 
     customer[bucket] += piutang;
     customer.total_piutang += piutang;
+    customer.outstanding_notes++;
+    if (umurHari !== null && Number.isFinite(umurHari)) {
+      customer.oldest_aging_days = customer.oldest_aging_days === null
+        ? umurHari
+        : Math.max(customer.oldest_aging_days, umurHari);
+    }
     if (bucket === 'unclassified') {
       customer.unclassified += piutang;
       totalUnclassified += piutang;
