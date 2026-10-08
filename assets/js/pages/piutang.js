@@ -492,15 +492,25 @@ function invoiceRowHtml(t, name) {
   const code = t.kode_transaksi || t.kode || "";
   const date = t.tanggal || "—";
   const due = t.jatuh_tempo || t.jatuhTempo || "—";
-  const age = t.umur_hari == null ? "—" : number.format(t.umur_hari) + " hari";
+  const ageDays = t.umur_hari == null ? null : Number(t.umur_hari);
+  const age = ageDays == null || !Number.isFinite(ageDays) ? "—" : number.format(ageDays) + " hari";
+  const ageTone = ageDays == null || !Number.isFinite(ageDays)
+    ? "neutral"
+    : ageDays >= 121
+      ? "danger"
+      : ageDays >= 61
+        ? "warning"
+        : ageDays >= 31
+          ? "attention"
+          : "current";
   const balance = t.piutang ?? t.saldo_hutang ?? t.saldo ?? 0;
 
   return '<tr>' +
-    '<td>' + esc(code) + '</td>' +
+    '<td><strong class="invoice-code">' + esc(code) + '</strong></td>' +
     '<td>' + esc(date) + '</td>' +
     '<td>' + esc(due) + '</td>' +
-    '<td>' + esc(age) + '</td>' +
-    '<td><strong>' + formatMoney(balance) + '</strong></td>' +
+    '<td><span class="invoice-age invoice-age-' + ageTone + '">' + esc(age) + '</span></td>' +
+    '<td><strong class="invoice-balance">' + formatMoney(balance) + '</strong></td>' +
     '<td><div class="invoice-actions">' +
       '<button class="mini-action" data-pdf-action="invoice" data-code="' + esc(code) + '" title="Buka PDF Invoice"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h5"></path><path d="M9 13h6M9 17h6"></path></svg></span>PDF</button>' +
       '<button class="mini-action whatsapp-mini" data-wa-action="invoice" data-code="' + esc(code) + '" data-name="' + esc(name) + '" title="Bagikan Invoice ke WhatsApp"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z"></path><path d="M9 8.5c.2 1.6 1.4 3.4 3.2 4.4 1.4.8 2.5.9 3.2.5"></path></svg></span>WhatsApp</button>' +
