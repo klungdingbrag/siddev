@@ -2251,17 +2251,17 @@ textarea:focus-visible {
 
   .table-scroll .data-table th:nth-child(8),
   .table-scroll .data-table td:nth-child(8) {
-    width: 10.5%;
+    width: 11%;
   }
 
   .table-scroll .data-table th:nth-child(9),
   .table-scroll .data-table td:nth-child(9) {
-    width: 16%;
+    width: 14%;
   }
 
   .table-scroll .data-table th:nth-child(10),
   .table-scroll .data-table td:nth-child(10) {
-    width: 7.5%;
+    width: 12%;
   }
 
   .customer-cell {
@@ -2354,6 +2354,15 @@ textarea:focus-visible {
   .table-scroll .data-table td:nth-child(10) {
     text-align: center;
     padding-inline: 4px;
+  }
+
+  .table-scroll .data-table th:nth-child(10) {
+    font-size: 11px;
+    font-weight: 750;
+  }
+
+  .table-scroll .data-table td:nth-child(10) .detail-trigger {
+    min-width: 52px;
   }
 
   .table-scroll .aging-header-filter {
