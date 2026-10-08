@@ -9,6 +9,7 @@ const state = {
   pageSize: 25,
   search: "",
   agingFilter: "all",
+  priorityFilter: "all",
   sortBy: "default",
   detailCode: null,
   detailRow: null,
@@ -67,7 +68,13 @@ export function renderPiutangPage() {
       '<article class="summary-card"><span>Belum Jatuh Tempo</span><strong id="sum-current">—</strong><small>belum melewati jatuh tempo</small></article>' +
       '<article class="summary-card"><span>Jatuh Tempo</span><strong id="sum-overdue">—</strong><small>seluruh aging overdue</small></article>' +
     '</section>' +
-    '<section class="card panel"><div class="toolbar"><div class="search-box"><span>⌕</span><input id="piutang-search" type="search" placeholder="Cari kode atau nama pelanggan..." autocomplete="off"></div><label class="piutang-filter"><span>Aging</span><select id="piutang-aging-filter"><option value="all">Semua umur</option><option value="current">Belum jatuh tempo</option><option value="1_30">1–30 hari</option><option value="31_60">31–60 hari</option><option value="61_90">61–90 hari</option><option value="91_120">91–120 hari</option><option value="121_plus">≥121 hari</option></select></label><label class="piutang-filter"><span>Urutkan</span><select id="piutang-sort"><option value="default">Default</option><option value="aging_desc">Aging tertua</option><option value="total_desc">Piutang terbesar</option><option value="total_asc">Piutang terkecil</option><option value="name_asc">Nama A–Z</option></select></label><label class="page-size"><span>Baris</span><select id="piutang-page-size"><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label></div>' +
+    '<section class="collection-priority-strip" aria-label="Prioritas collection">' +
+      '<button class="collection-priority-card priority-urgent" data-priority-filter="urgent" type="button"><span>Segera</span><strong id="priority-urgent-count">0</strong><small>collection utama</small></button>' +
+      '<button class="collection-priority-card priority-high" data-priority-filter="high" type="button"><span>Tinggi</span><strong id="priority-high-count">0</strong><small>perlu tindakan</small></button>' +
+      '<button class="collection-priority-card priority-monitor" data-priority-filter="monitor" type="button"><span>Monitor</span><strong id="priority-monitor-count">0</strong><small>perlu diperhatikan</small></button>' +
+      '<button class="collection-priority-card priority-normal" data-priority-filter="normal" type="button"><span>Normal</span><strong id="priority-normal-count">0</strong><small>kondisi normal</small></button>' +
+    '</section>' +
+    '<section class="card panel"><div class="toolbar"><div class="search-box"><span>⌕</span><input id="piutang-search" type="search" placeholder="Cari kode atau nama pelanggan..." autocomplete="off"></div><label class="piutang-filter"><span>Aging</span><select id="piutang-aging-filter"><option value="all">Semua umur</option><option value="current">Belum jatuh tempo</option><option value="1_30">1–30 hari</option><option value="31_60">31–60 hari</option><option value="61_90">61–90 hari</option><option value="91_120">91–120 hari</option><option value="121_plus">≥121 hari</option></select></label><label class="piutang-filter"><span>Collection</span><select id="piutang-priority-filter"><option value="all">Semua prioritas</option><option value="urgent">Segera</option><option value="high">Tinggi</option><option value="monitor">Monitor</option><option value="normal">Normal</option></select></label><label class="piutang-filter"><span>Urutkan</span><select id="piutang-sort"><option value="default">Default</option><option value="priority_desc">Collection priority</option><option value="aging_desc">Aging tertua</option><option value="total_desc">Piutang terbesar</option><option value="total_asc">Piutang terkecil</option><option value="name_asc">Nama A–Z</option></select></label><label class="page-size"><span>Baris</span><select id="piutang-page-size"><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label></div>' +
     '<div id="piutang-state" class="table-state loading">Memuat data piutang...</div>' +
     '<div id="piutang-table-wrap" class="table-scroll hidden"><table class="data-table"><thead><tr><th>Pelanggan</th><th><button class="aging-header-filter" data-aging-filter="current" type="button">Belum Jatuh Tempo</button></th><th><button class="aging-header-filter" data-aging-filter="1_30" type="button">1–30</button></th><th><button class="aging-header-filter" data-aging-filter="31_60" type="button">31–60</button></th><th><button class="aging-header-filter" data-aging-filter="61_90" type="button">61–90</button></th><th><button class="aging-header-filter" data-aging-filter="91_120" type="button">91–120</button></th><th><button class="aging-header-filter" data-aging-filter="121_plus" type="button">≥121</button></th><th>Total Piutang</th><th></th></tr></thead><tbody id="piutang-body"></tbody></table></div>' +
     '<div id="piutang-cards" class="mobile-data-cards hidden"></div>' +
@@ -84,6 +91,23 @@ function bindEvents() {
   document.querySelector("#piutang-search").addEventListener("input", (e) => {
     state.search = e.target.value.trim().toLowerCase();
     state.page = 1;
+    filterAndRender();
+  });
+  document.querySelectorAll(".collection-priority-card").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.priorityFilter = button.dataset.priorityFilter || "all";
+      state.sortBy = state.priorityFilter === "all" ? "default" : "priority_desc";
+      state.page = 1;
+      document.querySelector("#piutang-priority-filter").value = state.priorityFilter;
+      document.querySelector("#piutang-sort").value = state.sortBy;
+      filterAndRender();
+    });
+  });
+  document.querySelector("#piutang-priority-filter").addEventListener("change", (e) => {
+    state.priorityFilter = e.target.value;
+    if (state.priorityFilter !== "all") state.sortBy = "priority_desc";
+    state.page = 1;
+    document.querySelector("#piutang-sort").value = state.sortBy;
     filterAndRender();
   });
   document.querySelector("#piutang-aging-filter").addEventListener("change", (e) => {
@@ -324,6 +348,32 @@ function updateSummary(result) {
   document.querySelector("#sum-total").textContent = formatMoney(Number(result?.total_piutang ?? total));
   document.querySelector("#sum-current").textContent = formatMoney(current);
   document.querySelector("#sum-overdue").textContent = formatMoney(overdue);
+  updatePrioritySummary(rows);
+}
+
+function getCollectionPriority(r) {
+  const age = Number(r.oldest_aging_days);
+  if (!Number.isFinite(age)) return "normal";
+  if (age > 100) return "urgent";
+  if (age > 60) return "high";
+  if (age > 30) return "monitor";
+  return "normal";
+}
+
+function priorityRank(priority) {
+  return { urgent: 4, high: 3, monitor: 2, normal: 1 }[priority] || 0;
+}
+
+function updatePrioritySummary(rows) {
+  const counts = { urgent: 0, high: 0, monitor: 0, normal: 0 };
+  rows.forEach(r => { counts[getCollectionPriority(r)]++; });
+  Object.keys(counts).forEach(key => {
+    const el = document.querySelector("#priority-" + key + "-count");
+    if (el) el.textContent = number.format(counts[key]);
+  });
+  document.querySelectorAll(".collection-priority-card").forEach(button => {
+    button.classList.toggle("is-active", button.dataset.priorityFilter === state.priorityFilter);
+  });
 }
 
 function filterAndRender() {
@@ -343,11 +393,14 @@ function filterAndRender() {
       String(r.kd_pelanggan || "").toLowerCase().includes(q) ||
       String(r.nm_pelanggan || "").toLowerCase().includes(q);
     const matchesAging = !agingKey || money(r[agingKey]) > 0;
-    return matchesSearch && matchesAging;
+    const matchesPriority = state.priorityFilter === "all" || getCollectionPriority(r) === state.priorityFilter;
+    return matchesSearch && matchesAging && matchesPriority;
   });
 
   state.filtered.sort((a, b) => {
     switch (state.sortBy) {
+      case "priority_desc":
+        return priorityRank(getCollectionPriority(b)) - priorityRank(getCollectionPriority(a)) || money(b.total_piutang) - money(a.total_piutang);
       case "aging_desc":
         return highestAgingBucket(b) - highestAgingBucket(a) || money(b.total_piutang) - money(a.total_piutang);
       case "total_desc":
@@ -407,6 +460,9 @@ function renderTable() {
 }
 
 function rowHtml(r) {
+  const priority = getCollectionPriority(r);
+  const age = Number.isFinite(Number(r.oldest_aging_days)) ? Number(r.oldest_aging_days) : null;
+  const priorityLabel = { urgent: "Segera", high: "Tinggi", monitor: "Monitor", normal: "Normal" }[priority];
   return '<tr><td><div class="customer-cell"><strong>' + esc(r.nm_pelanggan || r.kd_pelanggan) + '</strong><span>' + esc(r.kd_pelanggan) + '</span></div></td>' +
     '<td>' + formatMoney(r.belum_jatuh_tempo) + '</td><td>' + formatMoney(r.aging_1_30) + '</td><td>' + formatMoney(r.aging_31_60) + '</td><td>' + formatMoney(r.aging_61_90) + '</td><td>' + formatMoney(r.aging_91_120) + '</td><td>' + formatMoney(r.aging_121_plus) + '</td><td><strong>' + formatMoney(r.total_piutang) + '</strong></td><td><button class="icon-btn detail-trigger" data-code="' + esc(r.kd_pelanggan) + '">Detail</button></td></tr>';
 }
