@@ -30,6 +30,12 @@ function formatMoney(v) {
   return rupiah.format(money(v));
 }
 
+function formatWhatsAppMoney(v) {
+  const value = money(v);
+  const absolute = Math.abs(value).toLocaleString("id-ID", { maximumFractionDigits: 0 });
+  return value < 0 ? "-Rp " + absolute : "Rp " + absolute;
+}
+
 function esc(v) {
   return String(v ?? "")
     .replaceAll("&", "&amp;")
@@ -784,10 +790,10 @@ function buildWhatsAppMessage(type, code, name) {
       "",
       "*PER TANGGAL: " + reportDate + "*",
       "",
-      "- *KODE PELANGGAN: " + code + "*",
-      "- *SALDO TABUNGAN: " + formatMoney(state.tabungan) + "*",
-      "- *TOTAL PIUTANG: " + formatMoney(total) + "*",
-      "- *SELISIH: " + formatMoney(selisih) + "*",
+      "*KODE PELANGGAN: " + code + "*",
+      "- *SALDO TABUNGAN: " + formatWhatsAppMoney(state.tabungan) + "*",
+      "- *TOTAL PIUTANG: " + formatWhatsAppMoney(total) + "*",
+      "- *SELISIH: " + formatWhatsAppMoney(selisih) + "*",
       "",
       "Untuk pembayaran nota dan tabungan pelanggan, dapat dilakukan melalui transfer:",
       "",
