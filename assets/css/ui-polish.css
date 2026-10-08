@@ -2121,6 +2121,72 @@ textarea:focus-visible {
   border: 1px solid #cbd5e1;
 }
 
+.collection-priority-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 112px;
+}
+
+.collection-priority-info .collection-priority-badge {
+  min-height: 23px;
+}
+
+.collection-priority-age {
+  color: var(--ui-text-strong);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.collection-priority-context {
+  color: var(--ui-text-muted);
+  font-size: 10px;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.mobile-collection-info {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 10px 0 12px;
+  padding: 9px 10px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.mobile-collection-info strong {
+  color: var(--ui-text-strong);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.mobile-collection-info small {
+  margin-left: auto;
+  color: var(--ui-text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .collection-priority-context {
+    white-space: normal;
+  }
+
+  .mobile-collection-info {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .mobile-collection-info small {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
 @media (max-width: 760px) {
   .collection-priority-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
