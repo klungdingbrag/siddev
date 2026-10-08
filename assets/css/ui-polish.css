@@ -2416,3 +2416,129 @@ textarea:focus-visible {
     line-height: 1.2;
   }
 }
+
+
+/* =========================================================
+   CUSTOMER V1 — DESKTOP TABLE ALIGNMENT
+   Keep customer table header/body on one stable column grid.
+   Visual/layout only; no API or business-logic changes.
+   ========================================================= */
+
+@media (min-width: 1101px) {
+  #customer-table-wrap {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  #customer-table-wrap .data-table {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  #customer-table-wrap .data-table th,
+  #customer-table-wrap .data-table td {
+    box-sizing: border-box;
+    vertical-align: middle;
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  /* 100% total:
+     Pelanggan 28% | Telepon 16% | Tabungan 18% |
+     Piutang 18% | Nota 12% | Detail 8% */
+  #customer-table-wrap .data-table th:nth-child(1),
+  #customer-table-wrap .data-table td:nth-child(1) {
+    width: 28%;
+    text-align: left;
+    padding-left: 10px;
+  }
+
+  #customer-table-wrap .data-table th:nth-child(2),
+  #customer-table-wrap .data-table td:nth-child(2) {
+    width: 16%;
+    text-align: left;
+  }
+
+  #customer-table-wrap .data-table th:nth-child(3),
+  #customer-table-wrap .data-table td:nth-child(3) {
+    width: 18%;
+    text-align: right;
+  }
+
+  #customer-table-wrap .data-table th:nth-child(4),
+  #customer-table-wrap .data-table td:nth-child(4) {
+    width: 18%;
+    text-align: right;
+  }
+
+  #customer-table-wrap .data-table th:nth-child(5),
+  #customer-table-wrap .data-table td:nth-child(5) {
+    width: 12%;
+    text-align: right;
+  }
+
+  #customer-table-wrap .data-table th:nth-child(6),
+  #customer-table-wrap .data-table td:nth-child(6) {
+    width: 8%;
+    text-align: center;
+    padding-inline: 4px;
+  }
+
+  #customer-table-wrap .data-table th {
+    height: 48px;
+    white-space: normal;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  #customer-table-wrap .data-table th:first-child {
+    text-align: left;
+    padding-left: 10px;
+  }
+
+  #customer-table-wrap .data-table td {
+    height: 56px;
+    white-space: nowrap;
+  }
+
+  #customer-table-wrap .customer-cell {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  #customer-table-wrap .customer-cell strong,
+  #customer-table-wrap .customer-cell span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #customer-table-wrap .customer-cell strong {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  #customer-table-wrap .customer-cell span {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  #customer-table-wrap .data-table td:nth-child(2) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #customer-table-wrap .data-table th:nth-child(6) {
+    font-size: 11px;
+    font-weight: 750;
+  }
+
+  #customer-table-wrap .data-table td:nth-child(6) .icon-btn {
+    min-width: 52px;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+}
