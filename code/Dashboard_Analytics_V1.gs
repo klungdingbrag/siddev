@@ -177,6 +177,78 @@ function getDashboardProfitMonthly_V1(tanggalAwal, tanggalAkhir) {
   };
 }
 
+
+function getDashboardProfitDaily_V1(tanggalAwal, tanggalAkhir) {
+  const started = Date.now();
+
+  const start = dashboardAnalyticsValidateDate_V1_(tanggalAwal, 'tanggalAwal');
+  const end = dashboardAnalyticsValidateDate_V1_(tanggalAkhir, 'tanggalAkhir');
+
+  if (start > end) {
+    throw new Error('tanggalAwal tidak boleh lebih besar dari tanggalAkhir.');
+  }
+
+  const dayCount = dashboardAnalyticsDaysBetween_V1_(start, end);
+
+  if (dayCount > DASHBOARD_ANALYTICS_V1_CONFIG.maxDays) {
+    throw new Error(
+      'Periode terlalu panjang. Maksimum ' +
+      DASHBOARD_ANALYTICS_V1_CONFIG.maxDays + ' hari per request.'
+    );
+  }
+
+  const query =
+    'SELECT DATE(tanggal) AS tanggal,' +
+    'SUM(labarugi) AS total_laba ' +
+    'FROM labarugi ' +
+    "WHERE tanggal >= '" + start + " 00:00:00' " +
+    "AND tanggal < DATE_ADD('" + end + "', INTERVAL 1 DAY) " +
+    'GROUP BY DATE(tanggal) ' +
+    'ORDER BY DATE(tanggal) ASC';
+
+  const result = dashboardAnalyticsQuery_V1_(query);
+  const rows = Array.isArray(result.data) ? result.data : [];
+
+  const data = rows.map(function(row) {
+    return {
+      tanggal: dashboardAnalyticsNormalizeDate_V1_(row.tanggal),
+      total_laba: dashboardAnalyticsMoney_V1_(row.total_laba)
+    };
+  });
+
+  let totalLaba = 0;
+
+  data.forEach(function(row) {
+    totalLaba += row.total_laba;
+  });
+
+  return {
+    status: 'success',
+    analytics_version: 'v1',
+    metric: 'laba_harian',
+    definition:
+      'Total laba harian berdasarkan SUM(labarugi.labarugi), mengikuti sumber Grafik Laba SID Retail.',
+    period: {
+      tanggal_awal: start,
+      tanggal_akhir: end,
+      jumlah_hari: dayCount
+    },
+    summary: {
+      total_laba: dashboardAnalyticsMoney_V1_(totalLaba),
+      jumlah_hari_berdata: data.length
+    },
+    data: data,
+    query_metadata: {
+      source_table: 'labarugi',
+      amount_field: 'labarugi',
+      aggregation: 'SUM(labarugi)',
+      date_field: 'tanggal',
+      grouping: 'DAY'
+    },
+    duration_ms: Date.now() - started
+  };
+}
+
 function getDashboardSummary_V1(tanggalAwal, tanggalAkhir) {
   const daily = getDashboardSalesDaily_V1(tanggalAwal, tanggalAkhir);
 
