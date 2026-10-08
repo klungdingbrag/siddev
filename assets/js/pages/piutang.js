@@ -764,6 +764,7 @@ function buildWhatsAppMessage(type, code, name) {
         row.total_piutang
       )
     );
+    const selisih = money(state.tabungan) - total;
 
     return [
       "Halo Bapak/Ibu *" + customerName + "*",
@@ -772,13 +773,12 @@ function buildWhatsAppMessage(type, code, name) {
       "",
       "*PER TANGGAL: " + reportDate + "*",
       "",
-      "*KODE PELANGGAN: " + code + "*",
+      "- *KODE PELANGGAN: " + code + "*",
+      "- *SALDO TABUNGAN: " + formatMoney(state.tabungan) + "*",
+      "- *TOTAL PIUTANG: " + formatMoney(total) + "*",
+      "- *SELISIH: " + formatMoney(selisih) + "*",
       "",
-      "*SALDO TABUNGAN: " + formatMoney(state.tabungan) + "*",
-      "",
-      "*TOTAL PIUTANG: " + formatMoney(total) + "*",
-      "",
-      "Untuk pembayaran atau tabungan pelanggan, dapat dilakukan melalui transfer:",
+      "Untuk pembayaran nota dan tabungan pelanggan, dapat dilakukan melalui transfer:",
       "",
       "*BRI*",
       "a.n. *Wasimun*",
