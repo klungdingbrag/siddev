@@ -108,7 +108,7 @@ function bindEvents() {
     const pages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
     if (state.page < pages) { state.page++; renderTable(); }
   });
-  document.querySelector("#piutang-body").addEventListener("click", (e) => {
+  document.querySelector("#piutang-table-wrap").addEventListener("click", (e) => {
     const aging = e.target.closest(".aging-header-filter");
     if (aging) {
       state.agingFilter = aging.dataset.agingFilter || "all";
@@ -120,6 +120,7 @@ function bindEvents() {
     }
     detailClick(e);
   });
+  document.querySelector("#piutang-body").addEventListener("click", detailClick);
   document.querySelector("#piutang-cards").addEventListener("click", detailClick);
   document.querySelector("#detail-close").addEventListener("click", closeDetail);
   document.querySelector("#piutang-modal").addEventListener("click", (e) => {
