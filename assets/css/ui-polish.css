@@ -2379,7 +2379,7 @@ textarea:focus-visible {
     align-items: center;
     justify-content: center;
     text-align: center;
-    gap: 2px;
+    gap: 1px;
   }
 
   .table-scroll .collection-priority-info > * {
@@ -2399,7 +2399,7 @@ textarea:focus-visible {
   .table-scroll .collection-priority-context {
     width: 100%;
     font-size: 9px;
-    line-height: 1.2;
+    line-height: 1.15;
   }
 
   .table-scroll .customer-cell {
