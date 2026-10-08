@@ -1935,3 +1935,85 @@ textarea:focus-visible {
     order: -1;
   }
 }
+
+
+/* =========================================================
+   PHASE 3 — PIUTANG COLLECTION FILTERS
+   Frontend-only filtering and sorting controls.
+   ========================================================= */
+
+.piutang-filter {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ui-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.piutang-filter select {
+  min-height: 38px;
+  padding: 7px 30px 7px 10px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ui-text-body);
+  font: inherit;
+  cursor: pointer;
+}
+
+.piutang-filter select:focus {
+  border-color: #9dbcf6;
+  box-shadow: 0 0 0 3px var(--ui-focus);
+  outline: none;
+}
+
+.aging-header-filter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 4px 7px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+  transition: background-color .14s ease, border-color .14s ease, color .14s ease;
+}
+
+.aging-header-filter:hover {
+  background: var(--ui-primary-soft);
+  border-color: #cfe0ff;
+  color: var(--ui-primary);
+}
+
+.aging-header-filter:focus-visible {
+  outline: 3px solid var(--ui-focus);
+  outline-offset: 1px;
+}
+
+@media (max-width: 900px) {
+  .toolbar {
+    flex-wrap: wrap;
+  }
+
+  .piutang-filter {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .piutang-filter {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .piutang-filter select {
+    flex: 1;
+    min-width: 0;
+  }
+}
