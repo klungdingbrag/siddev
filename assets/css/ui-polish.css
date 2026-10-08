@@ -888,6 +888,15 @@ textarea:focus-visible {
   box-shadow: 0 8px 22px rgba(23,47,73,.14);
 }
 
+.financial-card.reconciliation {
+  background: #f8fafc;
+  border-color: var(--ui-border-soft);
+}
+
+.financial-card.reconciliation strong {
+  color: var(--ui-text-strong);
+}
+
 .detail-table th {
   background: #f8fafc;
   color: #667085;
