@@ -2256,12 +2256,12 @@ textarea:focus-visible {
 
   .table-scroll .data-table th:nth-child(9),
   .table-scroll .data-table td:nth-child(9) {
-    width: 14%;
+    width: 18%;
   }
 
   .table-scroll .data-table th:nth-child(10),
   .table-scroll .data-table td:nth-child(10) {
-    width: 12%;
+    width: 8%;
   }
 
   .customer-cell {
@@ -2346,8 +2346,8 @@ textarea:focus-visible {
 
   .table-scroll .data-table th:nth-child(9),
   .table-scroll .data-table td:nth-child(9) {
-    text-align: left;
-    padding-left: 8px;
+    text-align: center;
+    padding-inline: 4px;
   }
 
   .table-scroll .data-table th:nth-child(10),
