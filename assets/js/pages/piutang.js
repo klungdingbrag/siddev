@@ -8,6 +8,8 @@ const state = {
   page: 1,
   pageSize: 25,
   search: "",
+  agingFilter: "all",
+  sortBy: "default",
   detailCode: null,
   detailRow: null,
   detailData: null,
@@ -65,9 +67,9 @@ export function renderPiutangPage() {
       '<article class="summary-card"><span>Belum Jatuh Tempo</span><strong id="sum-current">—</strong><small>belum melewati jatuh tempo</small></article>' +
       '<article class="summary-card"><span>Jatuh Tempo</span><strong id="sum-overdue">—</strong><small>seluruh aging overdue</small></article>' +
     '</section>' +
-    '<section class="card panel"><div class="toolbar"><div class="search-box"><span>⌕</span><input id="piutang-search" type="search" placeholder="Cari kode atau nama pelanggan..." autocomplete="off"></div><label class="page-size"><span>Baris</span><select id="piutang-page-size"><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label></div>' +
+    '<section class="card panel"><div class="toolbar"><div class="search-box"><span>⌕</span><input id="piutang-search" type="search" placeholder="Cari kode atau nama pelanggan..." autocomplete="off"></div><label class="piutang-filter"><span>Aging</span><select id="piutang-aging-filter"><option value="all">Semua umur</option><option value="current">Belum jatuh tempo</option><option value="1_30">1–30 hari</option><option value="31_60">31–60 hari</option><option value="61_90">61–90 hari</option><option value="91_120">91–120 hari</option><option value="121_plus">≥121 hari</option></select></label><label class="piutang-filter"><span>Urutkan</span><select id="piutang-sort"><option value="default">Default</option><option value="aging_desc">Aging tertua</option><option value="total_desc">Piutang terbesar</option><option value="total_asc">Piutang terkecil</option><option value="name_asc">Nama A–Z</option></select></label><label class="page-size"><span>Baris</span><select id="piutang-page-size"><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label></div>' +
     '<div id="piutang-state" class="table-state loading">Memuat data piutang...</div>' +
-    '<div id="piutang-table-wrap" class="table-scroll hidden"><table class="data-table"><thead><tr><th>Pelanggan</th><th>Belum Jatuh Tempo</th><th>1–30</th><th>31–60</th><th>61–90</th><th>91–120</th><th>≥121</th><th>Total Piutang</th><th></th></tr></thead><tbody id="piutang-body"></tbody></table></div>' +
+    '<div id="piutang-table-wrap" class="table-scroll hidden"><table class="data-table"><thead><tr><th>Pelanggan</th><th><button class="aging-header-filter" data-aging-filter="current" type="button">Belum Jatuh Tempo</button></th><th><button class="aging-header-filter" data-aging-filter="1_30" type="button">1–30</button></th><th><button class="aging-header-filter" data-aging-filter="31_60" type="button">31–60</button></th><th><button class="aging-header-filter" data-aging-filter="61_90" type="button">61–90</button></th><th><button class="aging-header-filter" data-aging-filter="91_120" type="button">91–120</button></th><th><button class="aging-header-filter" data-aging-filter="121_plus" type="button">≥121</button></th><th>Total Piutang</th><th></th></tr></thead><tbody id="piutang-body"></tbody></table></div>' +
     '<div id="piutang-cards" class="mobile-data-cards hidden"></div>' +
     '<div id="piutang-pagination" class="pagination hidden"><button id="piutang-prev" class="btn btn-light">← Sebelumnya</button><span id="piutang-page-info">Halaman 1 / 1</span><button id="piutang-next" class="btn btn-light">Berikutnya →</button></div></section>' +
     '<div id="piutang-modal" class="modal hidden" aria-hidden="true"><div class="modal-backdrop" data-close-detail></div><section class="modal-panel modal-panel-detail" role="dialog" aria-modal="true" aria-labelledby="detail-title"><div class="modal-header"><div><h3 id="detail-title">Detail Pelanggan</h3><span id="detail-code" class="modal-code"></span></div><button id="detail-close" class="modal-close" aria-label="Tutup">×</button></div><div id="detail-content" class="modal-body"></div><div id="detail-footer" class="detail-footer hidden"></div></section></div>' +
@@ -84,6 +86,16 @@ function bindEvents() {
     state.page = 1;
     filterAndRender();
   });
+  document.querySelector("#piutang-aging-filter").addEventListener("change", (e) => {
+    state.agingFilter = e.target.value;
+    state.page = 1;
+    filterAndRender();
+  });
+  document.querySelector("#piutang-sort").addEventListener("change", (e) => {
+    state.sortBy = e.target.value;
+    state.page = 1;
+    filterAndRender();
+  });
   document.querySelector("#piutang-page-size").addEventListener("change", (e) => {
     state.pageSize = Number(e.target.value);
     state.page = 1;
@@ -96,7 +108,18 @@ function bindEvents() {
     const pages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
     if (state.page < pages) { state.page++; renderTable(); }
   });
-  document.querySelector("#piutang-body").addEventListener("click", detailClick);
+  document.querySelector("#piutang-body").addEventListener("click", (e) => {
+    const aging = e.target.closest(".aging-header-filter");
+    if (aging) {
+      state.agingFilter = aging.dataset.agingFilter || "all";
+      state.page = 1;
+      const select = document.querySelector("#piutang-aging-filter");
+      if (select) select.value = state.agingFilter;
+      filterAndRender();
+      return;
+    }
+    detailClick(e);
+  });
   document.querySelector("#piutang-cards").addEventListener("click", detailClick);
   document.querySelector("#detail-close").addEventListener("click", closeDetail);
   document.querySelector("#piutang-modal").addEventListener("click", (e) => {
@@ -304,13 +327,51 @@ function updateSummary(result) {
 
 function filterAndRender() {
   const q = state.search;
-  state.filtered = q
-    ? state.rows.filter(r =>
-        String(r.kd_pelanggan || "").toLowerCase().includes(q) ||
-        String(r.nm_pelanggan || "").toLowerCase().includes(q))
-    : [...state.rows];
+  const filter = state.agingFilter;
+  const agingKey = {
+    current: "belum_jatuh_tempo",
+    "1_30": "aging_1_30",
+    "31_60": "aging_31_60",
+    "61_90": "aging_61_90",
+    "91_120": "aging_91_120",
+    "121_plus": "aging_121_plus"
+  }[filter];
+
+  state.filtered = state.rows.filter(r => {
+    const matchesSearch = !q ||
+      String(r.kd_pelanggan || "").toLowerCase().includes(q) ||
+      String(r.nm_pelanggan || "").toLowerCase().includes(q);
+    const matchesAging = !agingKey || money(r[agingKey]) > 0;
+    return matchesSearch && matchesAging;
+  });
+
+  state.filtered.sort((a, b) => {
+    switch (state.sortBy) {
+      case "aging_desc":
+        return highestAgingBucket(b) - highestAgingBucket(a) || money(b.total_piutang) - money(a.total_piutang);
+      case "total_desc":
+        return money(b.total_piutang) - money(a.total_piutang);
+      case "total_asc":
+        return money(a.total_piutang) - money(b.total_piutang);
+      case "name_asc":
+        return String(a.nm_pelanggan || a.kd_pelanggan || "").localeCompare(String(b.nm_pelanggan || b.kd_pelanggan || ""), "id");
+      default:
+        return 0;
+    }
+  });
+
   state.page = Math.min(state.page, Math.max(1, Math.ceil(state.filtered.length / state.pageSize)));
   renderTable();
+}
+
+function highestAgingBucket(r) {
+  if (money(r.aging_121_plus) > 0) return 6;
+  if (money(r.aging_91_120) > 0) return 5;
+  if (money(r.aging_61_90) > 0) return 4;
+  if (money(r.aging_31_60) > 0) return 3;
+  if (money(r.aging_1_30) > 0) return 2;
+  if (money(r.belum_jatuh_tempo) > 0) return 1;
+  return 0;
 }
 
 function renderTable() {
