@@ -352,9 +352,9 @@ function updateSummary(result) {
 }
 
 function getCollectionPriority(r) {
-  // Prioritas collection mengikuti bucket aging backend:
-  // ≥121 hari = Segera, ≥61 hari = Tinggi, ≥31 hari = Monitor, sisanya Normal.
-  // Bucket dipakai lebih dulu agar tetap benar walaupun deployed API tidak
+  // Prioritas mengikuti bucket aging backend:
+  // >=121 hari = Segera, >=61 hari = Tinggi, >=31 hari = Monitor.
+  // Bucket dipakai lebih dulu agar tetap benar jika deployed API tidak
   // menyertakan oldest_aging_days pada payload pelanggan.
   if (money(r.aging_121_plus) > 0) return "urgent";
   if (money(r.aging_61_90) > 0 || money(r.aging_91_120) > 0) return "high";
@@ -438,215 +438,161 @@ function highestAgingBucket(r) {
   return 0;
 }
 
-function priorityLabel(priority) {
-  return {
-    urgent: "Segera",
-    high: "Tinggi",
-    monitor: "Monitor",
-    normal: "Normal"
-  }[priority] || "Normal";
-}
+function renderTable() {
+  const wrap = document.querySelector("#piutang-table-wrap");
+  const cards = document.querySelector("#piutang-cards");
+  const pagination = document.querySelector("#piutang-pagination");
+  const body = document.querySelector("#piutang-body");
 
-function priorityTone(priority) {
-  return {
-    urgent: "danger",
-    high: "warning",
-    monitor: "attention",
-    normal: "neutral"
-  }[priority] || "neutral";
+  if (!state.filtered.length) {
+    wrap.classList.add("hidden");
+    cards.classList.add("hidden");
+    pagination.classList.add("hidden");
+    if (state.loaded) setState("empty", state.search ? "Tidak ada pelanggan yang cocok dengan pencarian." : "Backend berhasil terhubung, tetapi tidak ada piutang outstanding.");
+    return;
+  }
+
+  document.querySelector("#piutang-state").classList.add("hidden");
+  wrap.classList.remove("hidden");
+  cards.classList.remove("hidden");
+
+  const start = (state.page - 1) * state.pageSize;
+  const rows = state.filtered.slice(start, start + state.pageSize);
+  const pages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+
+  body.innerHTML = rows.map(rowHtml).join("");
+  cards.innerHTML = rows.map(cardHtml).join("");
+  pagination.classList.remove("hidden");
+  document.querySelector("#piutang-page-info").textContent =
+    "Halaman " + state.page + " / " + pages + " · " + number.format(state.filtered.length) + " pelanggan";
+  document.querySelector("#piutang-prev").disabled = state.page <= 1;
+  document.querySelector("#piutang-next").disabled = state.page >= pages;
 }
 
 function rowHtml(r) {
-  const code = r.kd_pelanggan || r.kode_pelanggan || "";
-  const name = r.nm_pelanggan || r.nama_pelanggan || "—";
   const priority = getCollectionPriority(r);
   const age = Number.isFinite(Number(r.oldest_aging_days)) ? Number(r.oldest_aging_days) : null;
-  const priorityText = priorityLabel(priority);
-  const priorityTitle = age == null
-    ? priorityText + " • aging bucket backend"
-    : priorityText + " • aging tertua " + number.format(age) + " hari";
-  const priorityHtml =
-    '<span class="priority-badge priority-' + priorityTone(priority) + '" title="' + esc(priorityTitle) + '">' +
-      esc(priorityText) +
-    '</span>';
-
-  return '<tr data-code="' + esc(code) + '">' +
-    '<td><div class="customer-cell"><strong>' + esc(name) + '</strong><span>' + esc(code) + '</span></div></td>' +
-    '<td class="money-cell">' + formatMoney(r.belum_jatuh_tempo) + '</td>' +
-    '<td class="money-cell">' + formatMoney(r.aging_1_30) + '</td>' +
-    '<td class="money-cell">' + formatMoney(r.aging_31_60) + '</td>' +
-    '<td class="money-cell">' + formatMoney(r.aging_61_90) + '</td>' +
-    '<td class="money-cell">' + formatMoney(r.aging_91_120) + '</td>' +
-    '<td class="money-cell">' + formatMoney(r.aging_121_plus) + '</td>' +
-    '<td class="money-cell total-cell">' + formatMoney(r.total_piutang) + '</td>' +
-    '<td>' + priorityHtml + '</td>' +
-    '<td><button class="btn btn-light btn-sm" data-detail-code="' + esc(code) + '">Detail</button></td>' +
-  '</tr>';
+  const priorityLabel = { urgent: "Segera", high: "Tinggi", monitor: "Monitor", normal: "Normal" }[priority];
+  return '<tr><td><div class="customer-cell"><strong>' + esc(r.nm_pelanggan || r.kd_pelanggan) + '</strong><span>' + esc(r.kd_pelanggan) + '</span></div></td>' +
+    '<td>' + formatMoney(r.belum_jatuh_tempo) + '</td><td>' + formatMoney(r.aging_1_30) + '</td><td>' + formatMoney(r.aging_31_60) + '</td><td>' + formatMoney(r.aging_61_90) + '</td><td>' + formatMoney(r.aging_91_120) + '</td><td>' + formatMoney(r.aging_121_plus) + '</td><td><strong>' + formatMoney(r.total_piutang) + '</strong></td><td><span class="collection-priority-badge priority-badge-' + priority + '" title="' + esc((age !== null ? "Aging tertua " + age + " hari · " : "") + "Piutang " + formatMoney(r.total_piutang) + " · " + Number(r.outstanding_notes || 0) + " nota outstanding") + '">' + priorityLabel + '</span></td><td><button class="icon-btn detail-trigger" data-code="' + esc(r.kd_pelanggan) + '">Detail</button></td></tr>';
 }
 
-function mobileRowHtml(r) {
-  const code = r.kd_pelanggan || r.kode_pelanggan || "";
-  const name = r.nm_pelanggan || r.nama_pelanggan || "—";
-  const priority = getCollectionPriority(r);
-  const priorityText = priorityLabel(priority);
-  const priorityTitle = Number.isFinite(Number(r.oldest_aging_days))
-    ? priorityText + " • aging tertua " + number.format(Number(r.oldest_aging_days)) + " hari"
-    : priorityText + " • aging bucket backend";
-
-  return '<article class="mobile-data-card" data-code="' + esc(code) + '">' +
-    '<div class="mobile-data-card-header"><div><strong>' + esc(name) + '</strong><span>' + esc(code) + '</span></div><span class="priority-badge priority-' + priorityTone(priority) + '" title="' + esc(priorityTitle) + '">' + esc(priorityText) + '</span></div>' +
-    '<div class="mobile-data-card-grid">' +
-      '<div><span>Belum Jatuh Tempo</span><strong>' + formatMoney(r.belum_jatuh_tempo) + '</strong></div>' +
-      '<div><span>1–30 hari</span><strong>' + formatMoney(r.aging_1_30) + '</strong></div>' +
-      '<div><span>31–60 hari</span><strong>' + formatMoney(r.aging_31_60) + '</strong></div>' +
-      '<div><span>61–90 hari</span><strong>' + formatMoney(r.aging_61_90) + '</strong></div>' +
-      '<div><span>91–120 hari</span><strong>' + formatMoney(r.aging_91_120) + '</strong></div>' +
-      '<div><span>≥121 hari</span><strong>' + formatMoney(r.aging_121_plus) + '</strong></div>' +
-      '<div class="wide"><span>Total Piutang</span><strong>' + formatMoney(r.total_piutang) + '</strong></div>' +
-    '</div>' +
-    '<button class="btn btn-light btn-sm" data-detail-code="' + esc(code) + '">Detail</button>' +
-  '</article>';
-}
-
-function renderTable() {
-  const tableWrap = document.querySelector("#piutang-table-wrap");
-  const cards = document.querySelector("#piutang-cards");
-  const body = document.querySelector("#piutang-body");
-  const stateEl = document.querySelector("#piutang-state");
-  const pagination = document.querySelector("#piutang-pagination");
-
-  if (!tableWrap || !cards || !body || !stateEl || !pagination) return;
-
-  if (!state.loaded) {
-    tableWrap.classList.add("hidden");
-    cards.classList.add("hidden");
-    pagination.classList.add("hidden");
-    return;
-  }
-
-  const start = (state.page - 1) * state.pageSize;
-  const pageRows = state.filtered.slice(start, start + state.pageSize);
-
-  if (!state.filtered.length) {
-    tableWrap.classList.add("hidden");
-    cards.classList.add("hidden");
-    pagination.classList.add("hidden");
-    setState("empty", "Tidak ada data yang sesuai filter.");
-    return;
-  }
-
-  stateEl.classList.add("hidden");
-  tableWrap.classList.remove("hidden");
-  cards.classList.remove("hidden");
-
-  body.innerHTML = pageRows.map(rowHtml).join("");
-  cards.innerHTML = pageRows.map(mobileRowHtml).join("");
-
-  const pages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
-  document.querySelector("#piutang-page-info").textContent = "Halaman " + state.page + " / " + pages;
-  document.querySelector("#piutang-prev").disabled = state.page <= 1;
-  document.querySelector("#piutang-next").disabled = state.page >= pages;
-  pagination.classList.remove("hidden");
+function cardHtml(r) {
+  return '<article class="mobile-customer-card"><div class="mobile-customer-head"><div><strong>' + esc(r.nm_pelanggan || r.kd_pelanggan) + '</strong><span>' + esc(r.kd_pelanggan) + '</span></div><button class="icon-btn detail-trigger" data-code="' + esc(r.kd_pelanggan) + '">Detail</button></div><div class="mobile-customer-total"><span>Total Piutang</span><strong>' + formatMoney(r.total_piutang) + '</strong></div><div class="mobile-aging-grid">' +
+    '<span>Belum tempo <b>' + formatMoney(r.belum_jatuh_tempo) + '</b></span><span>1–30 <b>' + formatMoney(r.aging_1_30) + '</b></span><span>31–60 <b>' + formatMoney(r.aging_31_60) + '</b></span><span>61–90 <b>' + formatMoney(r.aging_61_90) + '</b></span><span>91–120 <b>' + formatMoney(r.aging_91_120) + '</b></span><span>≥121 <b>' + formatMoney(r.aging_121_plus) + '</b></span></div></article>';
 }
 
 function detailClick(e) {
-  const btn = e.target.closest("[data-detail-code]");
-  if (!btn) return;
-  openDetail(btn.dataset.detailCode);
+  const btn = e.target.closest(".detail-trigger");
+  if (btn) openDetail(btn.dataset.code);
 }
 
 async function openDetail(code) {
+  const row = state.rows.find(r => String(r.kd_pelanggan) === String(code));
+  if (!row) return;
+
   state.detailCode = code;
-  state.detailRow = state.rows.find(r => String(r.kd_pelanggan || r.kode_pelanggan || "") === String(code)) || null;
-  document.querySelector("#detail-code").textContent = code || "";
-  document.querySelector("#detail-content").innerHTML = '<div class="detail-loading">Memuat detail...</div>';
+  state.detailRow = row;
+  state.detailData = null;
+  state.tabungan = 0;
+
+  const modal = document.querySelector("#piutang-modal");
+  document.querySelector("#detail-title").textContent = "Detail Pelanggan";
+  document.querySelector("#detail-code").textContent = code;
+  document.querySelector("#detail-content").innerHTML = '<div class="detail-loading">Mengambil detail pelanggan, piutang, dan saldo tabungan...</div>';
   document.querySelector("#detail-footer").classList.add("hidden");
-  document.querySelector("#piutang-modal").classList.remove("hidden");
-  document.querySelector("#piutang-modal").setAttribute("aria-hidden", "false");
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
 
   try {
-    const data = await api.pelangganDetail(code);
-    state.detailData = data;
-    state.tabungan = money(
-      customerValue(
-        data,
-        state.detailRow,
-        ["saldo_tabungan", "saldoTabungan", "tabungan", "saldo"],
-        0
-      )
-    );
-    renderDetail(data);
+    const [detailResult, tabunganResult] = await Promise.all([
+      api.customerPiutangDetail(code),
+      api.tabungan(code).catch(() => null)
+    ]);
+    state.detailData = detailResult;
+    state.tabungan = extractTabungan(tabunganResult, detailResult);
+    renderDetail(detailResult, row);
   } catch (error) {
     document.querySelector("#detail-content").innerHTML =
-      '<div class="detail-error">' + esc(error.message || "Gagal memuat detail pelanggan.") + '</div>';
+      '<div class="detail-error"><strong>Detail tidak berhasil dimuat.</strong><span>' +
+      esc(error.message || "Unknown error") + '</span></div>';
   }
 }
 
-function customerValue(data, row, keys, fallback = 0) {
-  const sources = [
-    data,
-    data?.data,
-    data?.customer,
-    data?.data?.customer,
-    row
+function extractTabungan(result, detail) {
+  const candidates = [
+    result?.saldo_tabungan,
+    result?.data?.saldo_tabungan,
+    detail?.saldo_tabungan,
+    detail?.data?.saldo_tabungan,
+    result?.saldo,
+    result?.data?.saldo,
+    typeof result === "number" ? result : null
   ];
-
-  for (const source of sources) {
-    if (!source || typeof source !== "object") continue;
-    for (const key of keys) {
-      if (source[key] !== undefined && source[key] !== null && source[key] !== "") {
-        return source[key];
-      }
-    }
+  for (const v of candidates) {
+    if (v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v))) return Number(v);
   }
-
-  return fallback;
+  return 0;
 }
 
-function extractTransactions(data) {
-  const sources = [
-    data?.transactions,
-    data?.transaksi,
-    data?.outstanding,
-    data?.data?.transactions,
-    data?.data?.transaksi,
-    data?.data?.outstanding,
-    data?.detail,
-    data?.data?.detail
-  ];
-
-  for (const source of sources) {
-    if (Array.isArray(source)) return source;
-  }
-
+function extractTransactions(result) {
+  if (Array.isArray(result)) return result;
+  if (Array.isArray(result?.data)) return result.data;
+  if (Array.isArray(result?.transaksi)) return result.transaksi;
+  if (Array.isArray(result?.data?.transaksi)) return result.data.transaksi;
+  if (Array.isArray(result?.rows)) return result.rows;
   return [];
 }
 
-function renderDetail(data) {
-  const row = state.detailRow || {};
-  const name = row.nm_pelanggan || row.nama_pelanggan || data?.nm_pelanggan || data?.data?.nm_pelanggan || "—";
-  const code = row.kd_pelanggan || row.kode_pelanggan || data?.kd_pelanggan || data?.data?.kd_pelanggan || state.detailCode || "—";
-  const total = money(
-    customerValue(
-      data,
-      row,
-      ["total_piutang", "saldo_hutang", "total_outstanding"],
-      row.total_piutang
-    )
-  );
-  const tx = extractTransactions(data);
+function customerValue(result, row, keys, fallback = "") {
+  for (const key of keys) {
+    const a = result?.[key];
+    const b = result?.data?.[key];
+    if (a !== undefined && a !== null && a !== "") return a;
+    if (b !== undefined && b !== null && b !== "") return b;
+  }
+  return fallback;
+}
+
+function renderDetail(result, row) {
+  const tx = extractTransactions(result);
+  const name = customerValue(result, row, ["nama_pelanggan", "nm_pelanggan", "nama"], row.nm_pelanggan || row.kd_pelanggan);
+  const address = customerValue(result, row, ["alamat", "alamat_pelanggan"], "—");
+  const phone = customerValue(result, row, ["telp", "telepon", "no_wa", "nomor_wa", "whatsapp"], "Tidak tersedia");
+
+  const total = money(customerValue(result, row, ["total_piutang", "saldo_hutang", "total_outstanding"], row.total_piutang));
+  const aging = {
+    current: money(row.belum_jatuh_tempo),
+    a30: money(row.aging_1_30),
+    a60: money(row.aging_31_60),
+    a90: money(row.aging_61_90),
+    a120: money(row.aging_91_120),
+    a121: money(row.aging_121_plus)
+  };
 
   let html =
-    '<div class="detail-hero"><div><span class="eyebrow">Pelanggan</span><h4>' + esc(name) + '</h4><p>' + esc(code) + '</p></div><div class="detail-total"><span>Total Piutang</span><strong>' + formatMoney(total) + '</strong></div></div>' +
-    '<div class="financial-grid">' +
-      agingCard("Belum Jatuh Tempo", customerValue(data, row, ["belum_jatuh_tempo"], 0), "current") +
-      agingCard("1–30 Hari", customerValue(data, row, ["aging_1_30"], 0), "attention") +
-      agingCard("31–60 Hari", customerValue(data, row, ["aging_31_60"], 0), "warning") +
-      agingCard("61–90 Hari", customerValue(data, row, ["aging_61_90"], 0), "danger") +
-      agingCard("91–120 Hari", customerValue(data, row, ["aging_91_120"], 0), "danger") +
-      agingCard("≥121 Hari", customerValue(data, row, ["aging_121_plus"], 0), "danger") +
+    '<div class="detail-customer">' +
+      '<div class="detail-customer-full"><span>Nama</span><strong>' + esc(name) + '</strong></div>' +
+      '<div><span>Alamat</span><strong>' + esc(address) + '</strong></div>' +
+      '<div><span>No. WhatsApp</span><strong>' + esc(phone) + '</strong></div>' +
     '</div>' +
+
+    '<div class="detail-aging-grid">' +
+      agingCard("Belum Jatuh Tempo", aging.current, "current") +
+      agingCard("1 s/d 30 Hari", aging.a30, "warning") +
+      agingCard("31 s/d 60 Hari", aging.a60, "warning") +
+      agingCard("61 s/d 90 Hari", aging.a90, "warning") +
+      agingCard("91 s/d 120 Hari", aging.a120, "warning") +
+      agingCard("≥121 Hari", aging.a121, "danger") +
+    '</div>' +
+
+    '<div class="detail-financial-grid">' +
+      '<div class="financial-card savings"><span>Saldo Tabungan</span><strong>' + formatMoney(state.tabungan) + '</strong></div>' +
+      '<div class="financial-card debt"><span>Total Piutang</span><strong>' + formatMoney(total) + '</strong></div>' +
+      '<div class="financial-card reconciliation"><span>Selisih</span><strong>' + formatMoney(money(state.tabungan) - total) + '</strong></div>' +
+    '</div>' +
+
     '<div class="detail-heading">Transaksi Outstanding</div>' +
     '<div class="detail-table-scroll"><table class="detail-table"><thead><tr><th>Kode</th><th>Tanggal</th><th>Jatuh Tempo</th><th>Umur</th><th>Piutang</th><th>Aksi</th></tr></thead><tbody>';
 
