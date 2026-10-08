@@ -194,6 +194,8 @@ function getPiutangPelangganLaporan() {
         aging_91_120: 0,
         aging_121_plus: 0,
         total_piutang: 0,
+        outstanding_notes: 0,
+        oldest_aging_days: null,
         unclassified: 0
       };
     } else if (!customerMap[kode].nm_pelanggan && row.nama_pelanggan) {
@@ -244,6 +246,8 @@ function getPiutangPelangganLaporan() {
       aging_91_120: item.aging_91_120,
       aging_121_plus: item.aging_121_plus,
       total_piutang: item.total_piutang,
+      outstanding_notes: item.outstanding_notes,
+      oldest_aging_days: item.oldest_aging_days,
       unclassified: item.unclassified
     };
   });
