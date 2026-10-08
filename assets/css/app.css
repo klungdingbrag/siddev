@@ -1573,3 +1573,98 @@ button, input, select {
     background: var(--ui-text-body, #344054);
   }
 }
+
+
+/* ---------- Dashboard Profit Daily V1 ---------- */
+
+.dashboard-chart-daily-profit {
+  min-width: 0;
+}
+
+.dashboard-chart-wrap-profit-daily {
+  min-height: 300px;
+}
+
+.dashboard-profit-daily-line {
+  fill: none;
+  stroke: var(--success);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.dashboard-profit-daily-point {
+  fill: var(--surface);
+  stroke: var(--success);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.dashboard-profit-daily-crosshair {
+  stroke: var(--success);
+}
+
+.dashboard-profit-daily-focus {
+  stroke: var(--success);
+}
+
+.dashboard-profit-daily-tooltip {
+  min-width: 174px;
+}
+
+.dashboard-profit-daily-tooltip span {
+  color: var(--success);
+}
+
+.dashboard-reconciliation {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 19px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-soft);
+}
+
+.dashboard-reconciliation span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.dashboard-reconciliation strong {
+  font-size: 11px;
+}
+
+.dashboard-reconciliation.is-ok {
+  background: #f0fdf4;
+}
+
+.dashboard-reconciliation.is-ok span,
+.dashboard-reconciliation.is-ok strong {
+  color: var(--success);
+}
+
+.dashboard-reconciliation.is-warning {
+  background: #fffbeb;
+}
+
+.dashboard-reconciliation.is-warning span,
+.dashboard-reconciliation.is-warning strong {
+  color: #b45309;
+}
+
+@media (max-width: 520px) {
+  .dashboard-reconciliation {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+    padding: 9px 15px;
+  }
+}
+
