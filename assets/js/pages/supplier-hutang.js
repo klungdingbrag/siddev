@@ -1,6 +1,8 @@
 import { api } from "../api/endpoints.js";
 
-const state = { mountId: 0, loading: false, rows: [], filtered: [], search: "", page: 1, pageSize: 25, selectedSupplier: null, detailRows: [], detailSummary: null };
+const state = { mountId: 0, loaded: false, loading: false, rows: [], filtered: [], search: "", page: 1, pageSize: 25, selectedSupplier: null, detailRows: [], detailSummary: null };
+const SUPPLIER_HUTANG_CACHE_KEY = "sidretail:supplier-hutang:v1";
+const SUPPLIER_HUTANG_CACHE_TTL_MS = 2 * 60 * 1000;
 const rupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
 const number = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 });
 const root = () => document.querySelector("#page-content");
@@ -40,7 +42,7 @@ function mounted(id) { return id === state.mountId && Boolean(document.querySele
 
 export function renderSupplierHutangPage() {
   const mountId = ++state.mountId;
-  Object.assign(state, { loading:false, rows:[], filtered:[], search:"", page:1, pageSize:25, selectedSupplier:null, detailRows:[], detailSummary:null });
+  Object.assign(state, { loaded:false, loading:false, rows:[], filtered:[], search:"", page:1, pageSize:25, selectedSupplier:null, detailRows:[], detailSummary:null });
   root().innerHTML = `
     <section id="supplier-hutang-page">
       <section class="page-heading supplier-hutang-heading"><div><p class="eyebrow">Keuangan · Supplier</p><h2>Hutang Supplier</h2><p class="page-description">Daftar saldo hutang supplier berdasarkan sisa hutang pada transaksi pembelian yang masih outstanding.</p></div><button id="supplier-hutang-refresh" class="btn btn-primary" type="button">↻ Refresh</button></section>
@@ -75,11 +77,145 @@ function bindEvents(mountId) {
   document.querySelector("#supplier-hutang-modal")?.addEventListener("click", e => { if(e.target.classList.contains("modal-backdrop")) closeDetail(); });
 }
 async function loadSupplierHutang(mountId, force=false) {
-  if(state.loading) return; state.loading=true; setRefreshButton(true); if(!force) setState("loading","Mengambil saldo hutang supplier...");
-  try { const result=await api.supplierHutang(); if(!mounted(mountId)) return; state.rows=getRows(result); state.page=1; updateSummary(result); applyFilterAndRender(); setState("",""); }
-  catch(error) { if(!mounted(mountId)) return; state.rows=[]; state.filtered=[]; updateSummary(null); renderRows(); setState("error",error?.message||"Gagal mengambil data hutang supplier."); }
-  finally { if(mounted(mountId)){state.loading=false;setRefreshButton(false);updatePagination();} }
+  if(state.loading) return;
+
+  const cached=readSupplierHutangCache();
+
+  if(!force && cached && cached.ageMs < SUPPLIER_HUTANG_CACHE_TTL_MS) {
+    applySupplierHutangData(cached.result, cached.savedAt);
+    return;
+  }
+
+  if(!force && cached) {
+    applySupplierHutangData(cached.result, cached.savedAt);
+    refreshSupplierHutangFromBackend(mountId, false);
+    return;
+  }
+
+  if(force && state.loaded) {
+    setRefreshButton(true);
+    await refreshSupplierHutangFromBackend(mountId, true);
+    return;
+  }
+
+  state.loading=true;
+  setRefreshButton(true);
+  setState("loading","Mengambil saldo hutang supplier...");
+
+  try {
+    await refreshSupplierHutangFromBackend(mountId, false);
+  } finally {
+    if(mounted(mountId)){
+      state.loading=false;
+      setRefreshButton(false);
+      updatePagination();
+    }
+  }
 }
+
+async function refreshSupplierHutangFromBackend(mountId, isManualRefresh) {
+  if(isManualRefresh) state.loading=true;
+
+  try {
+    const result=await api.supplierHutang();
+    if(!mounted(mountId)) return;
+
+    const rows=getRows(result);
+    if(!Array.isArray(rows)) throw new Error("Struktur respons hutang supplier tidak dikenali.");
+
+    const savedAt=Date.now();
+    writeSupplierHutangCache(result, savedAt);
+
+    state.rows=rows;
+    state.loaded=true;
+    state.page=1;
+    updateSummary(result);
+    applyFilterAndRender();
+    setRefreshButton(false, savedAt);
+  } catch(error) {
+    if(!mounted(mountId)) return;
+
+    if(!state.loaded){
+      state.rows=[];
+      state.filtered=[];
+      updateSummary(null);
+      renderRows();
+      setState("error",error?.message||"Gagal mengambil data hutang supplier.");
+    } else {
+      console.warn("[SUPPLIER HUTANG CACHE] refresh failed:", error);
+    }
+  } finally {
+    if(mounted(mountId) && isManualRefresh){
+      state.loading=false;
+      setRefreshButton(false);
+      updatePagination();
+    }
+  }
+}
+
+function applySupplierHutangData(result, savedAt) {
+  const rows=getRows(result);
+  if(!Array.isArray(rows)) return false;
+
+  state.rows=rows;
+  state.loaded=true;
+  state.page=1;
+  updateSummary(result);
+  applyFilterAndRender();
+
+  const age=Date.now()-Number(savedAt||Date.now());
+  setRefreshButton(false, age);
+  const statusDetail=document.querySelector("#supplier-hutang-status-detail");
+  if(statusDetail) statusDetail.textContent =
+    number.format(state.rows.length)+" supplier dimuat · cache "+formatCacheAge(age);
+  return true;
+}
+
+function readSupplierHutangCache() {
+  try {
+    const raw=sessionStorage.getItem(SUPPLIER_HUTANG_CACHE_KEY);
+    if(!raw) return null;
+
+    const parsed=JSON.parse(raw);
+    if(!parsed || !parsed.result || !Array.isArray(getRows(parsed.result))){
+      sessionStorage.removeItem(SUPPLIER_HUTANG_CACHE_KEY);
+      return null;
+    }
+
+    const savedAt=Number(parsed.savedAt);
+    if(!Number.isFinite(savedAt) || savedAt<=0){
+      sessionStorage.removeItem(SUPPLIER_HUTANG_CACHE_KEY);
+      return null;
+    }
+
+    return {
+      result:parsed.result,
+      savedAt,
+      ageMs:Math.max(0,Date.now()-savedAt)
+    };
+  } catch(error) {
+    console.warn("[SUPPLIER HUTANG CACHE] read failed:", error);
+    return null;
+  }
+}
+
+function writeSupplierHutangCache(result, savedAt=Date.now()) {
+  try {
+    sessionStorage.setItem(
+      SUPPLIER_HUTANG_CACHE_KEY,
+      JSON.stringify({ version:1, savedAt, result })
+    );
+  } catch(error) {
+    console.warn("[SUPPLIER HUTANG CACHE] write failed:", error);
+  }
+}
+
+function formatCacheAge(ageMs) {
+  const minutes=Math.floor(Math.max(0,Number(ageMs)||0)/60000);
+  if(minutes<1) return "baru saja";
+  return minutes+" mnt lalu";
+}
+
 function updateSummary(result) { const s=getSummary(result); const total=money(s.total_hutang); const suppliers=money(s.jumlah_supplier); const invoices=state.rows.reduce((n,r)=>n+money(r.jumlah_nota_bersaldo),0); document.querySelector("#supplier-hutang-total").textContent=formatMoney(total); document.querySelector("#supplier-hutang-suppliers").textContent=number.format(suppliers); document.querySelector("#supplier-hutang-invoices").textContent=number.format(invoices); document.querySelector("#supplier-hutang-status").textContent=result?"Online":"Error"; document.querySelector("#supplier-hutang-status-detail").textContent=result?number.format(state.rows.length)+" supplier dimuat":"Tidak ada data yang tersedia"; }
 function applyFilterAndRender() { const q=state.search; state.filtered=!q?[...state.rows]:state.rows.filter(r=>[codeOf(r),nameOf(r)].join(" ").toLowerCase().includes(q)); const pages=Math.max(1,Math.ceil(state.filtered.length/state.pageSize)); state.page=Math.min(state.page,pages); renderRows(); }
 function renderRows() { const body=document.querySelector("#supplier-hutang-body"), table=document.querySelector("#supplier-hutang-table-wrap"), cards=document.querySelector("#supplier-hutang-cards"), pagination=document.querySelector("#supplier-hutang-pagination"); if(!body)return; const rows=state.filtered.slice((state.page-1)*state.pageSize,state.page*state.pageSize); if(!rows.length){table.classList.add("hidden");cards.classList.add("hidden");pagination.classList.add("hidden"); if(!state.loading)setState(state.rows.length?"empty":"error",state.rows.length?(state.search?"Tidak ada supplier yang cocok dengan pencarian.":"Tidak ada hutang supplier outstanding."):"Data hutang supplier belum tersedia."); updatePagination(); return;} table.classList.remove("hidden");cards.classList.remove("hidden");pagination.classList.remove("hidden");body.innerHTML=rows.map(supplierRowHtml).join("");cards.innerHTML=rows.map(supplierCardHtml).join("");setState("","");updatePagination(); }
