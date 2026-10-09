@@ -1581,3 +1581,88 @@ function auditSupplierHutangFindMultiInvoiceSupplierV1() {
     };
   }
 }
+
+
+/**
+ * VALIDASI AGREGASI SUPPLIER MULTI-NOTA V1
+ * ------------------------------------------------------------
+ * Test menggunakan supplier JAYA yang ditemukan memiliki 11 nota
+ * bersaldo pada discovery 100 transaksi terbaru.
+ *
+ * Tujuan:
+ *   Memastikan SUM(pembelian.hutang) tetap konsisten ketika satu
+ *   supplier memiliki banyak nota bersaldo.
+ *
+ * Beban:
+ *   - 1 query
+ *   - 1 supplier
+ *   - aggregate targeted
+ *   - read-only
+ */
+function auditSupplierHutangSupplierAggregationJayaV1() {
+  const started = Date.now();
+  const supplierCode = 'JAYA';
+
+  const sql =
+    'SELECT ' +
+    'p.supplier AS supplier, ' +
+    'COUNT(*) AS jumlah_nota_bersaldo, ' +
+    'COALESCE(SUM(p.jumlah), 0) AS total_nilai_nota, ' +
+    'COALESCE(SUM(p.hutang), 0) AS total_hutang ' +
+    'FROM ' + auditSupplierHutangQuoteIdentifierV1('pembelian') + ' p ' +
+    'WHERE p.supplier = \'JAYA\' ' +
+    'AND p.hutang_ke = \'supplier\' ' +
+    'AND p.hutang > 0 ' +
+    'GROUP BY p.supplier';
+
+  Logger.log('====================================================');
+  Logger.log('SUPPLIER HUTANG AGGREGATION JAYA V1');
+  Logger.log('MODE: READ-ONLY');
+  Logger.log('SUPPLIER: ' + supplierCode);
+  Logger.log('QUERY: 1 targeted aggregate');
+  Logger.log('SOURCE: pembelian.hutang');
+  Logger.log('====================================================');
+  Logger.log('QUERY: ' + sql);
+
+  try {
+    const response = sidRetailQuery(sql);
+    const rows = response && Array.isArray(response.data)
+      ? response.data
+      : [];
+
+    Logger.log('ROWS: ' + rows.length);
+    Logger.log(JSON.stringify(rows));
+
+    const result = {
+      diagnostic: 'supplier_hutang_supplier_aggregation_jaya_v1',
+      read_only: true,
+      supplier_code: supplierCode,
+      query_count: 1,
+      source_field: 'pembelian.hutang',
+      row_count: rows.length,
+      rows: rows,
+      duration_ms: Date.now() - started
+    };
+
+    Logger.log('DURATION MS: ' + result.duration_ms);
+    Logger.log('====================================================');
+
+    return result;
+  } catch (error) {
+    const message = error && error.message ? error.message : String(error);
+
+    Logger.log('JAYA AGGREGATION ERROR: ' + message);
+    Logger.log('====================================================');
+
+    return {
+      diagnostic: 'supplier_hutang_supplier_aggregation_jaya_v1',
+      read_only: true,
+      supplier_code: supplierCode,
+      query_count: 1,
+      source_field: 'pembelian.hutang',
+      success: false,
+      error: message,
+      duration_ms: Date.now() - started
+    };
+  }
+}
