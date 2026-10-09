@@ -1973,3 +1973,118 @@ SEBELUM MASUK main
 SETELAH STABIL
     -> New Baseline
 ```
+
+
+---
+
+## UI/UX Polish V3 — Audit & Architecture Direction
+
+**Branch:** `ui/ux-polish-v3`  
+**Baseline:** `855992dd340720695a7abb164d06fa77110b2488`  
+**Audit status:** COMPLETED — IMPLEMENTATION NOT STARTED
+
+V3 is an incremental UI/UX and architecture refinement, **not a redesign from zero**.
+
+### Objectives
+
+- professional and consistent visual language,
+- cleaner and more comfortable UX,
+- compact executive-style Dashboard,
+- clearer frontend module ownership,
+- maintainable code structure,
+- changes that remain understandable for future updates and feature development.
+
+### Current architectural direction
+
+```
+index.html
+   |
+   v
+assets/js/app.js
+   |
+   +-- api/
+   |    +-- client.js
+   |    +-- endpoints.js
+   |
+   +-- pages/
+   |    +-- dashboard.js
+   |    +-- pelanggan.js
+   |    +-- piutang.js
+   |
+   +-- ui-polish.js
+   |
+   +-- components/
+        (reserved for genuinely reusable UI components)
+```
+
+Current audit found that the foundation is good, but `dashboard.js` carries too many responsibilities: state, cache, normalization, shell rendering, calendar, charts, interaction and orchestration.
+
+The agreed approach is **incremental extraction**, not a large rewrite.
+
+### Dashboard V3 priorities
+
+1. Omzet Penjualan
+2. Laba Bulanan
+3. Piutang Berjalan
+4. Transaksi
+5. Omzet Harian
+6. Laba Harian
+7. Kalender operasional
+8. Source of truth
+
+The main visual issue identified is excessive vertical space in some Dashboard chart compositions, especially around Omzet Harian. V3 will reduce this without changing the underlying data contract.
+
+### CSS ownership direction
+
+- `app.css` → application foundation, global layout and primitives.
+- `ui-polish.css` → visual refinement layer.
+- Future page-specific styling should have clear ownership.
+- Avoid uncontrolled accumulation of unrelated CSS fixes.
+
+### Business safety boundary
+
+V3 must not silently alter:
+
+- accounting logic,
+- Piutang aging,
+- Collection Priority,
+- API contracts,
+- SID Retail source-of-truth definitions,
+- production GAS behavior,
+- Piutang locked scope.
+
+### Documentation rule
+
+Meaningful V3 changes are recorded through:
+
+1. Git commit history,
+2. README for architecture, behavior, baseline and development rules,
+3. `docs/` for detailed technical audits and decisions.
+
+Detailed audit:
+
+`docs/UI_UX_POLISH_V3_AUDIT.md`
+
+### V3 workflow
+
+```
+AUDIT
+  ↓
+DESIGN
+  ↓
+IMPLEMENT
+  ↓
+VISUAL / FUNCTIONAL TEST
+  ↓
+REVIEW
+  ↓
+DOCUMENT
+  ↓
+COMMIT / PR
+  ↓
+MAIN
+  ↓
+NEW BASELINE
+```
+
+**Current decision:** no production/business logic was changed by the audit. The first implementation target is Dashboard composition, followed by responsive refinement, cross-page consistency, selective architecture cleanup, QA, and documentation.
