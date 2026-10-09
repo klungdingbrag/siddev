@@ -52,7 +52,7 @@ export function renderSupplierHutangPage() {
 function bindEvents(mountId) {
   document.querySelector("#supplier-hutang-refresh")?.addEventListener("click", () => loadSupplierHutang(mountId, true));
   document.querySelector("#supplier-hutang-search")?.addEventListener("input", e => { state.search=e.target.value.trim().toLowerCase(); state.page=1; applyFilterAndRender(); });
-  document.querySelector("#supplier-hutang-page-size")?.addEventListener("change", e => { state.page=Number(e.target.value)||25; renderRows(); });
+  document.querySelector("#supplier-hutang-page-size")?.addEventListener("change", e => { state.pageSize=Number(e.target.value)||25; state.page=1; renderRows(); });
   document.querySelector("#supplier-hutang-prev")?.addEventListener("click", () => { if(state.page>1){state.page--;renderRows();} });
   document.querySelector("#supplier-hutang-next")?.addEventListener("click", () => { const pages=Math.max(1,Math.ceil(state.filtered.length/state.pageSize)); if(state.page<pages){state.page++;renderRows();} });
   document.querySelector("#supplier-hutang-body")?.addEventListener("click", handleSupplierAction);
