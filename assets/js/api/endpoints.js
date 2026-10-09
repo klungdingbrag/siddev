@@ -22,6 +22,8 @@ export const api = Object.freeze({
     apiRequest("dashboardSalesDaily", { tanggalAwal, tanggalAkhir }),
   dashboardProfitMonthly: (tanggalAwal, tanggalAkhir) =>
     apiRequest("dashboardProfitMonthly", { tanggalAwal, tanggalAkhir }),
+  dashboardProfitDaily: (tanggalAwal, tanggalAkhir) =>
+    apiRequest("dashboardProfitDaily", { tanggalAwal, tanggalAkhir }),
   dashboardSummary: (tanggalAwal, tanggalAkhir) =>
     apiRequest("dashboardSummary", { tanggalAwal, tanggalAkhir }),
   customerPiutangDetail: (kodePelanggan) =>

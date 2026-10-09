@@ -12,6 +12,7 @@ let dashboardState = {
   loading: false,
   sales: null,
   profit: null,
+  profitDaily: null,
   piutang: null,
   error: null
 };
@@ -85,6 +86,7 @@ function writeDashboardCache() {
         month: dashboardState.month,
         sales: dashboardState.sales,
         profit: dashboardState.profit,
+        profitDaily: dashboardState.profitDaily,
         piutang: dashboardState.piutang
       }
     }));
@@ -97,6 +99,7 @@ function restoreDashboardCache(cached) {
   if (!cached?.state) return false;
   dashboardState.sales = cached.state.sales || null;
   dashboardState.profit = cached.state.profit || null;
+  dashboardState.profitDaily = cached.state.profitDaily || null;
   dashboardState.piutang = cached.state.piutang || null;
   renderDashboardData();
   return true;
@@ -262,6 +265,20 @@ function buildDashboardShell() {
           <div class="dashboard-chart-wrap dashboard-chart-wrap-profit">
             <div id="dashboard-profit-chart" class="dashboard-chart" aria-label="Grafik laba bulanan"></div>
           </div>
+        </article>
+
+        <article class="dashboard-panel dashboard-chart-panel dashboard-chart-daily-profit">
+          <div class="dashboard-panel-head">
+            <div>
+              <span class="dashboard-panel-eyebrow">Performa Keuangan</span>
+              <h3>Laba Harian</h3>
+            </div>
+            <div class="dashboard-panel-value" id="dashboard-profit-daily-total">—</div>
+          </div>
+          <div class="dashboard-chart-wrap dashboard-chart-wrap-profit-daily">
+            <div id="dashboard-profit-daily-chart" class="dashboard-chart" aria-label="Grafik laba harian"></div>
+          </div>
+          <div class="dashboard-reconciliation" id="dashboard-profit-reconciliation" aria-live="polite"></div>
         </article>
 
         <article class="dashboard-panel dashboard-definition">
@@ -518,6 +535,145 @@ function renderProfitChart(container, rows) {
   `;
 }
 
+
+function normalizeProfitDailyRows(rows) {
+  return (Array.isArray(rows) ? rows : []).map((row) => ({
+    tanggal: String(row.tanggal || ""),
+    total_laba: Number(row.total_laba || 0)
+  }));
+}
+
+function renderProfitDailyChart(container, rows, salesRows, monthlyTotal) {
+  if (!container) return;
+
+  if (!rows.length) {
+    container.innerHTML = '<div class="dashboard-chart-empty">Belum ada data laba harian pada periode ini.</div>';
+    setDashboardText("#dashboard-profit-daily-total", formatRupiah(0));
+    setDashboardText("#dashboard-profit-reconciliation", "");
+    return;
+  }
+
+  const salesByDate = new Map((Array.isArray(salesRows) ? salesRows : []).map((row) => [row.tanggal, row]));
+  const width = 700;
+  const height = 300;
+  const pad = { top: 24, right: 20, bottom: 42, left: 70 };
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+  const max = Math.max(...rows.map((row) => row.total_laba), 1);
+  const min = Math.min(0, ...rows.map((row) => row.total_laba));
+  const range = Math.max(max - min, 1);
+
+  const points = rows.map((row, index) => {
+    const x = pad.left + (rows.length === 1 ? plotW / 2 : index * plotW / (rows.length - 1));
+    const y = pad.top + plotH - ((row.total_laba - min) / range) * plotH;
+    return { ...row, x, y };
+  });
+
+  const path = points.map((point, index) => (index ? "L" : "M") + " " + point.x.toFixed(2) + " " + point.y.toFixed(2)).join(" ");
+  const yTicks = [0, .25, .5, .75, 1].map((ratio) => ({
+    y: pad.top + plotH - ratio * plotH,
+    value: max - ratio * (max - min)
+  }));
+
+  const xLabels = points.filter((_, index) => {
+    if (rows.length <= 10) return true;
+    if (rows.length <= 20) return index % 2 === 0;
+    return index % 5 === 0 || index === rows.length - 1;
+  });
+
+  container.innerHTML = `
+    <div class="dashboard-chart-stage">
+      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Grafik laba harian">
+        ${yTicks.map((tick) => `
+          <line x1="${pad.left}" y1="${tick.y}" x2="${width - pad.right}" y2="${tick.y}" class="dashboard-grid-line"></line>
+          <text x="${pad.left - 10}" y="${tick.y + 4}" text-anchor="end" class="dashboard-axis-label">${escapeHtml(formatCompactRupiah(tick.value))}</text>
+        `).join("")}
+        <path d="${path}" class="dashboard-profit-daily-line"></path>
+        ${points.map((point) => `
+          <circle cx="${point.x}" cy="${point.y}" r="3.5" class="dashboard-profit-daily-point"></circle>
+        `).join("")}
+        ${xLabels.map((point) => `
+          <text x="${point.x}" y="${height - 15}" text-anchor="middle" class="dashboard-axis-label">${escapeHtml(point.tanggal.slice(8, 10) + "/" + point.tanggal.slice(5, 7))}</text>
+        `).join("")}
+      </svg>
+    </div>
+  `;
+
+  const stage = container.querySelector(".dashboard-chart-stage");
+  const svg = container.querySelector("svg");
+  if (!stage || !svg) return;
+
+  svg.insertAdjacentHTML("beforeend", `
+    <line class="dashboard-crosshair dashboard-profit-daily-crosshair" data-profit-daily-crosshair x1="-10" y1="${pad.top}" x2="-10" y2="${pad.top + plotH}"></line>
+    <circle class="dashboard-focus-point dashboard-profit-daily-focus" data-profit-daily-focus cx="-10" cy="-10" r="5"></circle>
+    <rect class="dashboard-chart-hitarea" data-profit-daily-hitarea x="${pad.left}" y="${pad.top}" width="${plotW}" height="${plotH}"></rect>
+  `);
+
+  const tooltip = document.createElement("div");
+  tooltip.className = "dashboard-chart-tooltip dashboard-profit-daily-tooltip";
+  tooltip.setAttribute("role", "status");
+  tooltip.setAttribute("aria-live", "polite");
+  stage.appendChild(tooltip);
+
+  const hitarea = stage.querySelector("[data-profit-daily-hitarea]");
+  const crosshair = stage.querySelector("[data-profit-daily-crosshair]");
+  const focus = stage.querySelector("[data-profit-daily-focus]");
+
+  const showPoint = (clientX) => {
+    const rect = hitarea.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const index = Math.min(points.length - 1, Math.max(0, Math.round(ratio * (points.length - 1))));
+    const point = points[index];
+    const sales = salesByDate.get(point.tanggal);
+
+    crosshair.setAttribute("x1", point.x);
+    crosshair.setAttribute("x2", point.x);
+    focus.setAttribute("cx", point.x);
+    focus.setAttribute("cy", point.y);
+
+    tooltip.innerHTML =
+      "<strong>" + escapeHtml(point.tanggal) + "</strong>" +
+      "<span>" + escapeHtml(formatRupiah(point.total_laba)) + "</span>" +
+      "<small>Laba</small>" +
+      (sales
+        ? "<small>Omzet " + escapeHtml(formatCompactRupiah(sales.total_omzet)) + "</small>" +
+          "<small>" + sales.jumlah_transaksi + " transaksi</small>"
+        : "");
+
+    tooltip.classList.add("is-visible");
+    const stageRect = stage.getBoundingClientRect();
+    const left = ((point.x - pad.left) / plotW) * stageRect.width + (pad.left / width) * stageRect.width;
+    tooltip.style.left = Math.max(8, Math.min(stageRect.width - tooltip.offsetWidth - 8, left + 8)) + "px";
+  };
+
+  const hidePoint = () => {
+    crosshair.setAttribute("x1", "-10");
+    crosshair.setAttribute("x2", "-10");
+    focus.setAttribute("cx", "-10");
+    focus.setAttribute("cy", "-10");
+    tooltip.classList.remove("is-visible");
+  };
+
+  hitarea.addEventListener("pointermove", (event) => showPoint(event.clientX));
+  hitarea.addEventListener("pointerdown", (event) => showPoint(event.clientX));
+  hitarea.addEventListener("pointerleave", hidePoint);
+
+  const dailyTotal = rows.reduce((sum, row) => sum + row.total_laba, 0);
+  setDashboardText("#dashboard-profit-daily-total", formatRupiah(dailyTotal));
+
+  const monthlyValue = Number(monthlyTotal || 0);
+  const difference = dailyTotal - monthlyValue;
+  const tolerance = 0.01;
+  const reconciliation = document.querySelector("#dashboard-profit-reconciliation");
+
+  if (reconciliation) {
+    reconciliation.className = "dashboard-reconciliation " + (Math.abs(difference) <= tolerance ? "is-ok" : "is-warning");
+    reconciliation.innerHTML = Math.abs(difference) <= tolerance
+      ? "<span>✓ Rekonsiliasi</span><strong>Sesuai dengan laba bulanan</strong>"
+      : "<span>⚠ Rekonsiliasi</span><strong>Selisih " + escapeHtml(formatRupiah(difference)) + "</strong>";
+  }
+}
+
 function populatePeriodControls() {
   const monthSelect = document.querySelector("#dashboard-month");
   const yearSelect = document.querySelector("#dashboard-year");
@@ -579,6 +735,7 @@ function renderDashboardData() {
   const sales = dashboardState.sales;
   const profit = dashboardState.profit;
   const piutang = dashboardState.piutang;
+  const profitDaily = dashboardState.profitDaily;
 
   const salesSummary = sales?.summary || {};
   const profitSummary = profit?.summary || {};
@@ -625,9 +782,20 @@ function renderDashboardData() {
     normalizedSalesRows
   );
   renderDashboardCalendar(normalizedSalesRows);
+  const profitRows = normalizeProfitRows(profit?.data);
   renderProfitChart(
     document.querySelector("#dashboard-profit-chart"),
-    normalizeProfitRows(profit?.data)
+    profitRows
+  );
+
+  const selectedMonthKey = dashboardState.year + "-" + pad2(dashboardState.month);
+  const selectedMonthProfit = profitRows.find((row) => row.bulan === selectedMonthKey)?.total_laba || 0;
+
+  renderProfitDailyChart(
+    document.querySelector("#dashboard-profit-daily-chart"),
+    normalizeProfitDailyRows(profitDaily?.data),
+    normalizedSalesRows,
+    selectedMonthProfit
   );
 }
 
@@ -651,13 +819,15 @@ async function loadDashboard({ force = false } = {}) {
   const profitRange = yearRange(dashboardState.year, dashboardState.month);
 
   try {
-    const [salesResult, profitResult] = await Promise.all([
+    const [salesResult, profitResult, profitDailyResult] = await Promise.all([
       api.dashboardSalesDaily(selectedRange.start, selectedRange.end),
-      api.dashboardProfitMonthly(profitRange.start, profitRange.end)
+      api.dashboardProfitMonthly(profitRange.start, profitRange.end),
+      api.dashboardProfitDaily(selectedRange.start, selectedRange.end)
     ]);
 
     dashboardState.sales = salesResult;
     dashboardState.profit = profitResult;
+    dashboardState.profitDaily = profitDailyResult;
 
     if (!dashboardIsMounted()) return;
 
