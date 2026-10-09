@@ -426,3 +426,101 @@ function testSupplierHutangAgingV1() {
     cases: results
   };
 }
+
+
+/**
+ * TEST AGING BERDASARKAN DATA SUPPLIER AKTUAL V1
+ * ------------------------------------------------------------
+ * Tujuan:
+ *   Memastikan aging yang dihitung oleh API bekerja pada data
+ *   Supplier Hutang aktual, bukan hanya pada fixed contract test.
+ *
+ * Kasus utama:
+ *   JAYA dipilih karena audit sebelumnya memverifikasi supplier
+ *   ini memiliki banyak nota outstanding.
+ *
+ * Validasi:
+ *   - data detail berhasil dibaca;
+ *   - setiap nota memiliki umur_hari + aging_bucket;
+ *   - total sisa_hutang tetap sama dengan summary API;
+ *   - distribusi bucket dapat diamati;
+ *
+ * Mode:
+ *   READ-ONLY
+ *   Tidak menulis atau mengubah data.
+ */
+function testSupplierHutangAgingDataV1(kodeSupplier) {
+  var kode = String(kodeSupplier || 'JAYA').trim();
+  var started = Date.now();
+
+  var result = getSupplierHutangDetailV1(kode);
+  var rows = result && Array.isArray(result.data)
+    ? result.data
+    : [];
+  var summary = result && result.summary
+    ? result.summary
+    : {};
+
+  var bucketCounts = {
+    Normal: 0,
+    'Perlu Perhatian': 0,
+    Tinggi: 0,
+    Urgent: 0
+  };
+
+  var totalHutangFromRows = 0;
+
+  rows.forEach(function(row) {
+    var bucket = String(row.aging_bucket || '').trim();
+
+    if (Object.prototype.hasOwnProperty.call(bucketCounts, bucket)) {
+      bucketCounts[bucket] += 1;
+    }
+
+    totalHutangFromRows += Number(row.sisa_hutang || 0);
+  });
+
+  var summaryTotal = Number(summary.total_hutang || 0);
+  var balanceMatch =
+    Math.abs(totalHutangFromRows - summaryTotal) < 0.01;
+
+  var fieldsComplete = rows.every(function(row) {
+    return (
+      row.tanggal &&
+      Number.isFinite(Number(row.umur_hari)) &&
+      row.aging_bucket
+    );
+  });
+
+  var passed = rows.length > 0 &&
+    balanceMatch &&
+    fieldsComplete;
+
+  Logger.log('====================================================');
+  Logger.log('SUPPLIER HUTANG AGING V1 - ACTUAL DATA TEST');
+  Logger.log('MODE: READ-ONLY');
+  Logger.log('SUPPLIER: ' + kode);
+  Logger.log('ROWS: ' + rows.length);
+  Logger.log('SUMMARY TOTAL HUTANG: ' + summaryTotal);
+  Logger.log('ROWS TOTAL HUTANG: ' + totalHutangFromRows);
+  Logger.log('BALANCE MATCH: ' + (balanceMatch ? 'PASS' : 'FAIL'));
+  Logger.log('FIELDS COMPLETE: ' + (fieldsComplete ? 'PASS' : 'FAIL'));
+  Logger.log('BUCKET COUNTS: ' + JSON.stringify(bucketCounts));
+  Logger.log('SAMPLE: ' + JSON.stringify(rows.slice(0, 10)));
+  Logger.log('RESULT: ' + (passed ? 'PASS' : 'FAIL'));
+  Logger.log('DURATION MS: ' + (Date.now() - started));
+  Logger.log('====================================================');
+
+  return {
+    status: passed ? 'pass' : 'fail',
+    supplier: kode,
+    row_count: rows.length,
+    summary_total_hutang: summaryTotal,
+    rows_total_hutang: totalHutangFromRows,
+    balance_match: balanceMatch,
+    fields_complete: fieldsComplete,
+    bucket_counts: bucketCounts,
+    sample: rows.slice(0, 10),
+    duration_ms: Date.now() - started
+  };
+}
