@@ -1168,3 +1168,95 @@ function auditSupplierHutangOutstandingTraceV1() {
     };
   }
 }
+
+
+/**
+ * CARI KANDIDAT PARTIAL PAYMENT V1
+ * ------------------------------------------------------------
+ * Discovery ringan untuk menemukan itemhutang terbaru yang sudah
+ * memiliki alokasi pembayaran.
+ *
+ * Strategi:
+ *   itemhutang -> kode_hutang -> pembelian
+ *
+ * Beban:
+ *   - 1 query
+ *   - tanpa JOIN
+ *   - tanpa aggregate
+ *   - LIMIT 20
+ *   - hanya record itemhutang yang jumlah > 0
+ *   - read-only
+ *
+ * Tujuan:
+ *   Mendapatkan beberapa kode nota yang sudah memiliki alokasi
+ *   pembayaran, lalu salah satunya ditrace secara targeted.
+ */
+function auditSupplierHutangFindPartialPaymentV1() {
+  const started = Date.now();
+
+  const sql =
+    'SELECT ' +
+    'ih.kode AS kode_transaksi_hutang, ' +
+    'ih.kode_hutang AS nota, ' +
+    'ih.tgl_hutang AS tanggal_hutang, ' +
+    'ih.jumlah_hutang AS nilai_hutang_item, ' +
+    'ih.jumlah AS alokasi_bayar, ' +
+    'ih.return AS return_item ' +
+    'FROM ' + auditSupplierHutangQuoteIdentifierV1('itemhutang') + ' ih ' +
+    'WHERE ih.jumlah > 0 ' +
+    'ORDER BY ih.tgl_hutang DESC ' +
+    'LIMIT 20';
+
+  Logger.log('====================================================');
+  Logger.log('SUPPLIER HUTANG FIND PARTIAL PAYMENT V1');
+  Logger.log('MODE: READ-ONLY');
+  Logger.log('QUERY: 1 lightweight SELECT');
+  Logger.log('LIMIT: 20');
+  Logger.log('====================================================');
+  Logger.log('QUERY: ' + sql);
+
+  try {
+    const response = sidRetailQuery(sql);
+
+    const rows =
+      response && Array.isArray(response.data)
+        ? response.data
+        : [];
+
+    Logger.log('ROWS: ' + rows.length);
+    Logger.log(JSON.stringify(rows));
+
+    const result = {
+      diagnostic: 'supplier_hutang_find_partial_payment_v1',
+      read_only: true,
+      query_count: 1,
+      limit: 20,
+      row_count: rows.length,
+      rows: rows,
+      duration_ms: Date.now() - started
+    };
+
+    Logger.log('DURATION MS: ' + result.duration_ms);
+    Logger.log('====================================================');
+
+    return result;
+  } catch (error) {
+    const message =
+      error && error.message
+        ? error.message
+        : String(error);
+
+    Logger.log('PARTIAL PAYMENT SEARCH ERROR: ' + message);
+    Logger.log('====================================================');
+
+    return {
+      diagnostic: 'supplier_hutang_find_partial_payment_v1',
+      read_only: true,
+      query_count: 1,
+      limit: 20,
+      success: false,
+      error: message,
+      duration_ms: Date.now() - started
+    };
+  }
+}
