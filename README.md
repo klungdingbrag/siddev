@@ -2179,3 +2179,45 @@ Implementation commits:
 Status:
 
 **STABLE BASE CHART + ISOLATED TOOLTIP INTERACTION — PENDING USER VISUAL TEST**
+
+
+## Supplier Hutang V1 — Frontend Integration
+
+**Branch:** ui/ux-polish-v3  
+**Status:** Backend/API HTTP contract PASS → frontend implementation started
+
+Supplier Hutang V1 is integrated as a separate frontend page at #hutang-supplier.
+
+### Frontend contract
+
+- api.supplierHutang() → action=supplierHutang
+- api.supplierHutangDetail(kodeSupplier) → action=supplierHutangDetail + kode_supplier
+
+The frontend displays the tested backend contract and does not recalculate supplier balances in JavaScript.
+
+Source contract:
+- supplier code: pembelian.supplier
+- supplier name: supplier.nama via supplier.kode
+- outstanding: pembelian.hutang
+- scope: pembelian.hutang_ke = supplier AND pembelian.hutang > 0
+
+### UI behavior
+
+- Supplier list is loaded once per page render.
+- Search and pagination run in the browser.
+- Detail is loaded on demand.
+- Desktop uses a table; mobile uses supplier cards.
+- Detail uses a modal with invoice-level outstanding balances.
+- Refresh explicitly reloads the supplier list.
+- No Customer, Piutang, Dashboard, Tabungan, PDF, or other business logic was changed by this integration.
+
+### QA next step
+
+1. Open #hutang-supplier.
+2. Confirm 85 suppliers and total Rp1.181.540.221,79.
+3. Search JAYA.
+4. Open JAYA detail and confirm 30 invoices / Rp116.471.175,60.
+5. Open AHE detail and confirm Rp12.105.000 invoice / Rp10.105.000 outstanding.
+6. Test Refresh.
+7. Test desktop and mobile layout.
+8. Test API-offline behavior.
