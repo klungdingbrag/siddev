@@ -2542,3 +2542,47 @@ textarea:focus-visible {
     font-size: 11px;
   }
 }
+
+
+/* ---------- Dashboard Refresh loading feedback ---------- */
+
+.dashboard-refresh {
+  min-width: 100px;
+}
+
+.dashboard-refresh-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 100%;
+}
+
+.dashboard-refresh-spinner {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: dashboardRefreshSpin .72s linear infinite;
+}
+
+.dashboard-refresh:disabled {
+  cursor: wait;
+  opacity: .82;
+  transform: none !important;
+  box-shadow: 0 4px 12px rgba(37,99,235,.12);
+}
+
+@keyframes dashboardRefreshSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-refresh-spinner {
+    animation: none;
+  }
+}
