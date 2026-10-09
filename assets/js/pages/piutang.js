@@ -8,10 +8,14 @@ const state = {
   page: 1,
   pageSize: 25,
   search: "",
+  agingFilter: "all",
+  priorityFilter: "all",
+  sortBy: "default",
   detailCode: null,
   detailRow: null,
   detailData: null,
-  tabungan: 0
+  tabungan: 0,
+  detailRequestId: 0
 };
 
 const rupiah = new Intl.NumberFormat("id-ID", {
@@ -28,6 +32,12 @@ function money(v) {
 
 function formatMoney(v) {
   return rupiah.format(money(v));
+}
+
+function formatWhatsAppMoney(v) {
+  const value = money(v);
+  const absolute = Math.abs(value).toLocaleString("id-ID", { maximumFractionDigits: 0 });
+  return value < 0 ? "-Rp " + absolute : "Rp " + absolute;
 }
 
 function esc(v) {
@@ -52,20 +62,26 @@ function isPiutangMounted(mountId) {
 export function renderPiutangPage() {
   piutangMountId += 1;
   root().innerHTML =
-    '<section class="page-heading"><div><p class="eyebrow">Laporan</p><h2>Piutang Pelanggan</h2><p class="page-description">Aging piutang berdasarkan transaksi outstanding dari Development backend.</p></div><button id="piutang-refresh" class="btn btn-primary">↻ Refresh</button></section>' +
+    '<section class="page-heading"><div><p class="eyebrow">Laporan</p><h2>Piutang Pelanggan</h2><p class="page-description">Aging piutang berdasarkan transaksi outstanding.</p></div><button id="piutang-refresh" class="btn btn-primary">↻ Refresh</button></section>' +
     '<section class="summary-grid">' +
       '<article class="summary-card"><span>Total Pelanggan</span><strong id="sum-customers">—</strong><small>pelanggan memiliki piutang</small></article>' +
       '<article class="summary-card"><span>Total Piutang</span><strong id="sum-total">—</strong><small>saldo outstanding</small></article>' +
       '<article class="summary-card"><span>Belum Jatuh Tempo</span><strong id="sum-current">—</strong><small>belum melewati jatuh tempo</small></article>' +
       '<article class="summary-card"><span>Jatuh Tempo</span><strong id="sum-overdue">—</strong><small>seluruh aging overdue</small></article>' +
     '</section>' +
-    '<section class="card panel"><div class="toolbar"><div class="search-box"><span>⌕</span><input id="piutang-search" type="search" placeholder="Cari kode atau nama pelanggan..." autocomplete="off"></div><label class="page-size"><span>Baris</span><select id="piutang-page-size"><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label></div>' +
-    '<div id="piutang-state" class="table-state loading">Memuat data...</div>' +
-    '<div id="piutang-table-wrap" class="table-scroll hidden"><table class="data-table"><thead><tr><th>Pelanggan</th><th>Belum Jatuh Tempo</th><th>1–30</th><th>31–60</th><th>61–90</th><th>91–120</th><th>≥121</th><th>Total Piutang</th><th></th></tr></thead><tbody id="piutang-body"></tbody></table></div>' +
+    '<section class="collection-priority-strip" aria-label="Prioritas collection">' +
+      '<button class="collection-priority-card priority-urgent" data-priority-filter="urgent" type="button"><span>Segera</span><strong id="priority-urgent-count">0</strong><small>collection utama</small></button>' +
+      '<button class="collection-priority-card priority-high" data-priority-filter="high" type="button"><span>Tinggi</span><strong id="priority-high-count">0</strong><small>perlu tindakan</small></button>' +
+      '<button class="collection-priority-card priority-monitor" data-priority-filter="monitor" type="button"><span>Monitor</span><strong id="priority-monitor-count">0</strong><small>perlu diperhatikan</small></button>' +
+      '<button class="collection-priority-card priority-normal" data-priority-filter="normal" type="button"><span>Normal</span><strong id="priority-normal-count">0</strong><small>kondisi normal</small></button>' +
+    '</section>' +
+    '<section class="card panel"><div class="toolbar"><div class="search-box"><span>⌕</span><input id="piutang-search" type="search" placeholder="Cari kode atau nama pelanggan..." autocomplete="off"></div><label class="piutang-filter"><span>Aging</span><select id="piutang-aging-filter"><option value="all">Semua umur</option><option value="current">Belum jatuh tempo</option><option value="1_30">1–30 hari</option><option value="31_60">31–60 hari</option><option value="61_90">61–90 hari</option><option value="91_120">91–120 hari</option><option value="121_plus">≥121 hari</option></select></label><label class="piutang-filter"><span>Collection</span><select id="piutang-priority-filter"><option value="all">Semua prioritas</option><option value="urgent">Segera</option><option value="high">Tinggi</option><option value="monitor">Monitor</option><option value="normal">Normal</option></select></label><label class="piutang-filter"><span>Urutkan</span><select id="piutang-sort"><option value="default">Default</option><option value="priority_desc">Collection priority</option><option value="aging_desc">Aging tertua</option><option value="total_desc">Piutang terbesar</option><option value="total_asc">Piutang terkecil</option><option value="name_asc">Nama A–Z</option></select></label><label class="page-size"><span>Baris</span><select id="piutang-page-size"><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label></div>' +
+    '<div id="piutang-state" class="table-state loading">Memuat data piutang...</div>' +
+    '<div id="piutang-table-wrap" class="table-scroll hidden"><table class="data-table"><thead><tr><th>Pelanggan</th><th><button class="aging-header-filter" data-aging-filter="current" type="button">Belum Jatuh Tempo</button></th><th><button class="aging-header-filter" data-aging-filter="1_30" type="button">1–30</button></th><th><button class="aging-header-filter" data-aging-filter="31_60" type="button">31–60</button></th><th><button class="aging-header-filter" data-aging-filter="61_90" type="button">61–90</button></th><th><button class="aging-header-filter" data-aging-filter="91_120" type="button">91–120</button></th><th><button class="aging-header-filter" data-aging-filter="121_plus" type="button">≥121</button></th><th>Total Piutang</th><th>Collection</th><th>Detail</th></tr></thead><tbody id="piutang-body"></tbody></table></div>' +
     '<div id="piutang-cards" class="mobile-data-cards hidden"></div>' +
     '<div id="piutang-pagination" class="pagination hidden"><button id="piutang-prev" class="btn btn-light">← Sebelumnya</button><span id="piutang-page-info">Halaman 1 / 1</span><button id="piutang-next" class="btn btn-light">Berikutnya →</button></div></section>' +
-    '<div id="piutang-modal" class="modal hidden" aria-hidden="true"><div class="modal-backdrop" data-close-detail></div><section class="modal-panel modal-panel-detail" role="dialog" aria-modal="true"><div class="modal-header"><div><h3 id="detail-title">Detail Pelanggan</h3><span id="detail-code" class="modal-code"></span></div><button id="detail-close" class="modal-close" aria-label="Tutup">×</button></div><div id="detail-content" class="modal-body"></div><div id="detail-footer" class="detail-footer hidden"></div></section></div>' +
-    '<div id="action-modal" class="modal hidden" aria-hidden="true"><div class="modal-backdrop" data-close-action></div><section class="modal-panel action-modal-panel" role="dialog" aria-modal="true"><div class="modal-header"><div><p class="eyebrow">WhatsApp</p><h3>Pilih kontak tujuan</h3></div><button id="action-close" class="modal-close" aria-label="Tutup">×</button></div><div id="action-content" class="modal-body"></div></section></div>';
+    '<div id="piutang-modal" class="modal hidden" aria-hidden="true"><div class="modal-backdrop" data-close-detail></div><section class="modal-panel modal-panel-detail" role="dialog" aria-modal="true" aria-labelledby="detail-title"><div class="modal-header"><div><h3 id="detail-title">Detail Pelanggan</h3><span id="detail-code" class="modal-code"></span></div><button id="detail-close" class="modal-close" aria-label="Tutup">×</button></div><div id="detail-content" class="modal-body"></div><div id="detail-footer" class="detail-footer hidden"></div></section></div>' +
+    '<div id="action-modal" class="modal hidden" aria-hidden="true"><div class="modal-backdrop" data-close-action></div><section class="modal-panel action-modal-panel" role="dialog" aria-modal="true" aria-labelledby="action-modal-title"><div class="modal-header"><div><p class="eyebrow">WhatsApp</p><h3 id="action-modal-title">Pilih kontak tujuan</h3></div><button id="action-close" class="modal-close" aria-label="Tutup">×</button></div><div id="action-content" class="modal-body"></div></section></div>';
 
   bindEvents();
   loadPiutang();
@@ -75,6 +91,33 @@ function bindEvents() {
   document.querySelector("#piutang-refresh").addEventListener("click", () => loadPiutang(true));
   document.querySelector("#piutang-search").addEventListener("input", (e) => {
     state.search = e.target.value.trim().toLowerCase();
+    state.page = 1;
+    filterAndRender();
+  });
+  document.querySelectorAll(".collection-priority-card").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.priorityFilter = button.dataset.priorityFilter || "all";
+      state.sortBy = state.priorityFilter === "all" ? "default" : "priority_desc";
+      state.page = 1;
+      document.querySelector("#piutang-priority-filter").value = state.priorityFilter;
+      document.querySelector("#piutang-sort").value = state.sortBy;
+      filterAndRender();
+    });
+  });
+  document.querySelector("#piutang-priority-filter").addEventListener("change", (e) => {
+    state.priorityFilter = e.target.value;
+    if (state.priorityFilter !== "all") state.sortBy = "priority_desc";
+    state.page = 1;
+    document.querySelector("#piutang-sort").value = state.sortBy;
+    filterAndRender();
+  });
+  document.querySelector("#piutang-aging-filter").addEventListener("change", (e) => {
+    state.agingFilter = e.target.value;
+    state.page = 1;
+    filterAndRender();
+  });
+  document.querySelector("#piutang-sort").addEventListener("change", (e) => {
+    state.sortBy = e.target.value;
     state.page = 1;
     filterAndRender();
   });
@@ -90,7 +133,18 @@ function bindEvents() {
     const pages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
     if (state.page < pages) { state.page++; renderTable(); }
   });
-  document.querySelector("#piutang-body").addEventListener("click", detailClick);
+  document.querySelector("#piutang-table-wrap").addEventListener("click", (e) => {
+    const aging = e.target.closest(".aging-header-filter");
+    if (aging) {
+      state.agingFilter = aging.dataset.agingFilter || "all";
+      state.page = 1;
+      const select = document.querySelector("#piutang-aging-filter");
+      if (select) select.value = state.agingFilter;
+      filterAndRender();
+      return;
+    }
+    detailClick(e);
+  });
   document.querySelector("#piutang-cards").addEventListener("click", detailClick);
   document.querySelector("#detail-close").addEventListener("click", closeDetail);
   document.querySelector("#piutang-modal").addEventListener("click", (e) => {
@@ -103,6 +157,7 @@ function bindEvents() {
   });
   document.querySelector("#action-close").addEventListener("click", closeActionModal);
   document.querySelector("#action-modal").addEventListener("click", actionModalClick);
+  document.addEventListener("keydown", handleDetailEscape);
 }
 
 async function loadPiutang(force = false) {
@@ -293,17 +348,124 @@ function updateSummary(result) {
   document.querySelector("#sum-total").textContent = formatMoney(Number(result?.total_piutang ?? total));
   document.querySelector("#sum-current").textContent = formatMoney(current);
   document.querySelector("#sum-overdue").textContent = formatMoney(overdue);
+  updatePrioritySummary(rows);
+}
+
+function getCollectionPriority(r) {
+  // Prioritas mengikuti bucket aging backend:
+  // >=121 hari = Segera, >=61 hari = Tinggi, >=31 hari = Monitor.
+  // Bucket dipakai lebih dulu agar tetap benar jika deployed API tidak
+  // menyertakan oldest_aging_days pada payload pelanggan.
+  if (money(r.aging_121_plus) > 0) return "urgent";
+  if (money(r.aging_61_90) > 0 || money(r.aging_91_120) > 0) return "high";
+  if (money(r.aging_31_60) > 0) return "monitor";
+
+  const age = Number(r.oldest_aging_days);
+  if (Number.isFinite(age)) {
+    if (age >= 121) return "urgent";
+    if (age >= 61) return "high";
+    if (age >= 31) return "monitor";
+  }
+
+  return "normal";
+}
+
+function priorityRank(priority) {
+  return { urgent: 4, high: 3, monitor: 2, normal: 1 }[priority] || 0;
+}
+
+function collectionPriorityMeta(r) {
+  const priority = getCollectionPriority(r);
+  const age = Number(r.oldest_aging_days);
+  let ageLabel = "";
+
+  if (Number.isFinite(age) && age >= 0) {
+    ageLabel = number.format(age) + " hari";
+  } else if (money(r.aging_121_plus) > 0) {
+    ageLabel = "≥121 hari";
+  } else if (money(r.aging_91_120) > 0) {
+    ageLabel = "91–120 hari";
+  } else if (money(r.aging_61_90) > 0) {
+    ageLabel = "61–90 hari";
+  } else if (money(r.aging_31_60) > 0) {
+    ageLabel = "31–60 hari";
+  } else if (money(r.aging_1_30) > 0) {
+    ageLabel = "1–30 hari";
+  } else {
+    ageLabel = "Belum jatuh tempo";
+  }
+
+  return {
+    priority,
+    label: { urgent: "Segera", high: "Tinggi", monitor: "Monitor", normal: "Normal" }[priority],
+    ageLabel,
+    totalLabel: formatMoney(r.total_piutang),
+    notesLabel: number.format(Number(r.outstanding_notes || 0)) + " nota"
+  };
+}
+
+function updatePrioritySummary(rows) {
+  const counts = { urgent: 0, high: 0, monitor: 0, normal: 0 };
+  rows.forEach(r => { counts[getCollectionPriority(r)]++; });
+  Object.keys(counts).forEach(key => {
+    const el = document.querySelector("#priority-" + key + "-count");
+    if (el) el.textContent = number.format(counts[key]);
+  });
+  document.querySelectorAll(".collection-priority-card").forEach(button => {
+    button.classList.toggle("is-active", button.dataset.priorityFilter === state.priorityFilter);
+  });
 }
 
 function filterAndRender() {
   const q = state.search;
-  state.filtered = q
-    ? state.rows.filter(r =>
-        String(r.kd_pelanggan || "").toLowerCase().includes(q) ||
-        String(r.nm_pelanggan || "").toLowerCase().includes(q))
-    : [...state.rows];
+  const filter = state.agingFilter;
+  const agingKey = {
+    current: "belum_jatuh_tempo",
+    "1_30": "aging_1_30",
+    "31_60": "aging_31_60",
+    "61_90": "aging_61_90",
+    "91_120": "aging_91_120",
+    "121_plus": "aging_121_plus"
+  }[filter];
+
+  state.filtered = state.rows.filter(r => {
+    const matchesSearch = !q ||
+      String(r.kd_pelanggan || "").toLowerCase().includes(q) ||
+      String(r.nm_pelanggan || "").toLowerCase().includes(q);
+    const matchesAging = !agingKey || money(r[agingKey]) > 0;
+    const matchesPriority = state.priorityFilter === "all" || getCollectionPriority(r) === state.priorityFilter;
+    return matchesSearch && matchesAging && matchesPriority;
+  });
+
+  state.filtered.sort((a, b) => {
+    switch (state.sortBy) {
+      case "priority_desc":
+        return priorityRank(getCollectionPriority(b)) - priorityRank(getCollectionPriority(a)) || money(b.total_piutang) - money(a.total_piutang);
+      case "aging_desc":
+        return highestAgingBucket(b) - highestAgingBucket(a) || money(b.total_piutang) - money(a.total_piutang);
+      case "total_desc":
+        return money(b.total_piutang) - money(a.total_piutang);
+      case "total_asc":
+        return money(a.total_piutang) - money(b.total_piutang);
+      case "name_asc":
+        return String(a.nm_pelanggan || a.kd_pelanggan || "").localeCompare(String(b.nm_pelanggan || b.kd_pelanggan || ""), "id");
+      default:
+        return 0;
+    }
+  });
+
   state.page = Math.min(state.page, Math.max(1, Math.ceil(state.filtered.length / state.pageSize)));
   renderTable();
+}
+
+function highestAgingBucket(r) {
+  if (money(r.aging_121_plus) > 0) return 6;
+  if (money(r.aging_91_120) > 0) return 5;
+  if (money(r.aging_61_90) > 0) return 4;
+  if (money(r.aging_31_60) > 0) return 3;
+  if (money(r.aging_1_30) > 0) return 2;
+  if (money(r.belum_jatuh_tempo) > 0) return 1;
+  return 0;
 }
 
 function renderTable() {
@@ -338,12 +500,14 @@ function renderTable() {
 }
 
 function rowHtml(r) {
+  const meta = collectionPriorityMeta(r);
   return '<tr><td><div class="customer-cell"><strong>' + esc(r.nm_pelanggan || r.kd_pelanggan) + '</strong><span>' + esc(r.kd_pelanggan) + '</span></div></td>' +
-    '<td>' + formatMoney(r.belum_jatuh_tempo) + '</td><td>' + formatMoney(r.aging_1_30) + '</td><td>' + formatMoney(r.aging_31_60) + '</td><td>' + formatMoney(r.aging_61_90) + '</td><td>' + formatMoney(r.aging_91_120) + '</td><td>' + formatMoney(r.aging_121_plus) + '</td><td><strong>' + formatMoney(r.total_piutang) + '</strong></td><td><button class="icon-btn detail-trigger" data-code="' + esc(r.kd_pelanggan) + '">Detail</button></td></tr>';
+    '<td>' + formatMoney(r.belum_jatuh_tempo) + '</td><td>' + formatMoney(r.aging_1_30) + '</td><td>' + formatMoney(r.aging_31_60) + '</td><td>' + formatMoney(r.aging_61_90) + '</td><td>' + formatMoney(r.aging_91_120) + '</td><td>' + formatMoney(r.aging_121_plus) + '</td><td><strong>' + formatMoney(r.total_piutang) + '</strong></td><td><div class="collection-priority-info"><span class="collection-priority-badge priority-badge-' + meta.priority + '">' + meta.label + '</span><span class="collection-priority-age">' + esc(meta.ageLabel) + '</span><span class="collection-priority-context">' + esc(meta.totalLabel + " · " + meta.notesLabel) + '</span></div></td><td><button class="icon-btn detail-trigger" data-code="' + esc(r.kd_pelanggan) + '">Detail</button></td></tr>';
 }
 
 function cardHtml(r) {
-  return '<article class="mobile-customer-card"><div class="mobile-customer-head"><div><strong>' + esc(r.nm_pelanggan || r.kd_pelanggan) + '</strong><span>' + esc(r.kd_pelanggan) + '</span></div><button class="icon-btn detail-trigger" data-code="' + esc(r.kd_pelanggan) + '">Detail</button></div><div class="mobile-customer-total"><span>Total Piutang</span><strong>' + formatMoney(r.total_piutang) + '</strong></div><div class="mobile-aging-grid">' +
+  const meta = collectionPriorityMeta(r);
+  return '<article class="mobile-customer-card"><div class="mobile-customer-head"><div><strong>' + esc(r.nm_pelanggan || r.kd_pelanggan) + '</strong><span>' + esc(r.kd_pelanggan) + '</span></div><button class="icon-btn detail-trigger" data-code="' + esc(r.kd_pelanggan) + '">Detail</button></div><div class="mobile-collection-info"><span class="collection-priority-badge priority-badge-' + meta.priority + '">' + meta.label + '</span><strong>' + esc(meta.ageLabel) + '</strong><small>' + esc(meta.totalLabel + " · " + meta.notesLabel) + '</small></div><div class="mobile-customer-total"><span>Total Piutang</span><strong>' + formatMoney(r.total_piutang) + '</strong></div><div class="mobile-aging-grid">' +
     '<span>Belum tempo <b>' + formatMoney(r.belum_jatuh_tempo) + '</b></span><span>1–30 <b>' + formatMoney(r.aging_1_30) + '</b></span><span>31–60 <b>' + formatMoney(r.aging_31_60) + '</b></span><span>61–90 <b>' + formatMoney(r.aging_61_90) + '</b></span><span>91–120 <b>' + formatMoney(r.aging_91_120) + '</b></span><span>≥121 <b>' + formatMoney(r.aging_121_plus) + '</b></span></div></article>';
 }
 
@@ -355,6 +519,8 @@ function detailClick(e) {
 async function openDetail(code) {
   const row = state.rows.find(r => String(r.kd_pelanggan) === String(code));
   if (!row) return;
+
+  const requestId = ++state.detailRequestId;
 
   state.detailCode = code;
   state.detailRow = row;
@@ -375,10 +541,14 @@ async function openDetail(code) {
       api.customerPiutangDetail(code),
       api.tabungan(code).catch(() => null)
     ]);
+    if (requestId !== state.detailRequestId) return;
+
     state.detailData = detailResult;
     state.tabungan = extractTabungan(tabunganResult, detailResult);
     renderDetail(detailResult, row);
   } catch (error) {
+    if (requestId !== state.detailRequestId) return;
+
     document.querySelector("#detail-content").innerHTML =
       '<div class="detail-error"><strong>Detail tidak berhasil dimuat.</strong><span>' +
       esc(error.message || "Unknown error") + '</span></div>';
@@ -455,6 +625,7 @@ function renderDetail(result, row) {
     '<div class="detail-financial-grid">' +
       '<div class="financial-card savings"><span>Saldo Tabungan</span><strong>' + formatMoney(state.tabungan) + '</strong></div>' +
       '<div class="financial-card debt"><span>Total Piutang</span><strong>' + formatMoney(total) + '</strong></div>' +
+      '<div class="financial-card reconciliation"><span>Selisih</span><strong>' + formatMoney(money(state.tabungan) - total) + '</strong></div>' +
     '</div>' +
 
     '<div class="detail-heading">Transaksi Outstanding</div>' +
@@ -469,13 +640,14 @@ function renderDetail(result, row) {
   document.querySelector("#detail-content").innerHTML = html;
 
   document.querySelector("#detail-footer").innerHTML =
-    '<div class="detail-footer-left">' +
-      '<button class="btn btn-light" data-pdf-action="summary" data-code="' + esc(state.detailCode) + '"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h5"></path><path d="M9 13h6M9 17h6"></path></svg></span>Ringkasan PDF</button>' +
-      '<button class="btn btn-light" data-pdf-action="detail" data-code="' + esc(state.detailCode) + '"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M6 3h12v18H6z"></path><path d="M9 8h6M9 12h6M9 16h4"></path></svg></span>Laporan Detail PDF</button>' +
+    '<div class="detail-footer-left detail-report-actions">' +
+      '<span class="detail-action-group-label">Laporan</span>' +
+      '<button class="btn btn-light detail-action-secondary" data-pdf-action="summary" data-code="' + esc(state.detailCode) + '"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h5"></path><path d="M9 13h6M9 17h6"></path></svg></span>Ringkasan PDF</button>' +
+      '<button class="btn btn-light detail-action-secondary" data-pdf-action="detail" data-code="' + esc(state.detailCode) + '"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M6 3h12v18H6z"></path><path d="M9 8h6M9 12h6M9 16h4"></path></svg></span>Laporan Detail PDF</button>' +
     '</div>' +
-    '<div class="detail-footer-right">' +
-      '<button class="btn btn-light" id="detail-footer-close">Tutup</button>' +
-      '<button class="btn btn-whatsapp" data-wa-action="customer" data-code="' + esc(state.detailCode) + '" data-name="' + esc(name) + '"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z"></path><path d="M9 8.5c.2 1.6 1.4 3.4 3.2 4.4 1.4.8 2.5.9 3.2.5"></path></svg></span>Share WhatsApp</button>' +
+    '<div class="detail-footer-right detail-primary-actions">' +
+      '<button class="btn btn-light detail-action-close" id="detail-footer-close">Tutup</button>' +
+      '<button class="btn btn-whatsapp detail-action-primary" data-wa-action="customer" data-code="' + esc(state.detailCode) + '" data-name="' + esc(name) + '"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z"></path><path d="M9 8.5c.2 1.6 1.4 3.4 3.2 4.4 1.4.8 2.5.9 3.2.5"></path></svg></span>Share WhatsApp</button>' +
     '</div>';
   document.querySelector("#detail-footer").classList.remove("hidden");
   document.querySelector("#detail-footer-close").addEventListener("click", closeDetail);
@@ -489,15 +661,25 @@ function invoiceRowHtml(t, name) {
   const code = t.kode_transaksi || t.kode || "";
   const date = t.tanggal || "—";
   const due = t.jatuh_tempo || t.jatuhTempo || "—";
-  const age = t.umur_hari == null ? "—" : number.format(t.umur_hari) + " hari";
+  const ageDays = t.umur_hari == null ? null : Number(t.umur_hari);
+  const age = ageDays == null || !Number.isFinite(ageDays) ? "—" : number.format(ageDays) + " hari";
+  const ageTone = ageDays == null || !Number.isFinite(ageDays)
+    ? "neutral"
+    : ageDays >= 121
+      ? "danger"
+      : ageDays >= 61
+        ? "warning"
+        : ageDays >= 31
+          ? "attention"
+          : "current";
   const balance = t.piutang ?? t.saldo_hutang ?? t.saldo ?? 0;
 
   return '<tr>' +
-    '<td>' + esc(code) + '</td>' +
+    '<td><strong class="invoice-code">' + esc(code) + '</strong></td>' +
     '<td>' + esc(date) + '</td>' +
     '<td>' + esc(due) + '</td>' +
-    '<td>' + esc(age) + '</td>' +
-    '<td><strong>' + formatMoney(balance) + '</strong></td>' +
+    '<td><span class="invoice-age invoice-age-' + ageTone + '">' + esc(age) + '</span></td>' +
+    '<td><strong class="invoice-balance">' + formatMoney(balance) + '</strong></td>' +
     '<td><div class="invoice-actions">' +
       '<button class="mini-action" data-pdf-action="invoice" data-code="' + esc(code) + '" title="Buka PDF Invoice"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h5"></path><path d="M9 13h6M9 17h6"></path></svg></span>PDF</button>' +
       '<button class="mini-action whatsapp-mini" data-wa-action="invoice" data-code="' + esc(code) + '" data-name="' + esc(name) + '" title="Bagikan Invoice ke WhatsApp"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z"></path><path d="M9 8.5c.2 1.6 1.4 3.4 3.2 4.4 1.4.8 2.5.9 3.2.5"></path></svg></span>WhatsApp</button>' +
@@ -750,6 +932,7 @@ function openWhatsAppPicker(type, code, name) {
 
 function buildWhatsAppMessage(type, code, name) {
   const customerName = name || "Bapak/Ibu";
+  const reportDate = formatWhatsAppReportDate();
 
   if (type === "customer") {
     const row = state.detailRow || {};
@@ -761,25 +944,27 @@ function buildWhatsAppMessage(type, code, name) {
         row.total_piutang
       )
     );
+    const selisih = money(state.tabungan) - total;
 
     return [
       "Halo Bapak/Ibu *" + customerName + "*",
       "",
-      "Kami dari *TB NUSANTARA* ingin menginformasikan posisi piutang berdasarkan data kami.",
+      "Kami dari *TB NUSANTARA* ingin menginformasikan kondisi semua nota berdasarkan data kami.",
       "",
+      "*PER TANGGAL: " + reportDate + "*",
       "*KODE PELANGGAN: " + code + "*",
       "",
-      "*SALDO TABUNGAN: " + formatMoney(state.tabungan) + "*",
+      "- *SALDO TABUNGAN: " + formatWhatsAppMoney(state.tabungan) + "*",
+      "- *TOTAL PIUTANG: " + formatWhatsAppMoney(total) + "*",
+      "- *SELISIH: " + formatWhatsAppMoney(selisih) + "*",
       "",
-      "*TOTAL NOTA PIUTANG: " + formatMoney(total) + "*",
-      "",
-      "*Pembayaran dapat dilakukan melalui transfer:*",
+      "Untuk pembayaran nota dan tabungan pelanggan, dapat dilakukan melalui transfer:",
       "",
       "*BRI*",
-      "a.n. Wasimun",
-      "No. Rekening: 003201105050505",
+      "a.n. *Wasimun*",
+      "No. Rekening: *003201105050505*",
       "",
-      "Mohon dapat melakukan pengecekan. Apabila pembayaran sudah dilakukan, silakan informasikan kepada kami.",
+      "Mohon dapat melakukan pengecekan. Apabila pembayaran sudah dilakukan, silakan informasikan kepada kami dengan menyertakan bukti pembayaran agar dapat segera kami proses.",
       "",
       "Terima kasih atas perhatian dan kerja samanya.",
       "",
@@ -819,14 +1004,21 @@ function buildWhatsAppMessage(type, code, name) {
       "Berikut informasi nota yang dimaksud dari *TB NUSANTARA*.",
       "",
       "*NO. NOTA: " + code + "*",
-      "Tanggal: " + tanggal,
+      "*PER TANGGAL: " + reportDate + "*",
+      "Tanggal Nota: " + tanggal,
       "Jatuh Tempo: " + jatuhTempo,
       "",
       "*TOTAL INVOICE: " + formatMoney(totalInvoice) + "*",
       "*SUDAH DIBAYAR: " + formatMoney(sudahDibayar) + "*",
       "*SALDO HUTANG: " + formatMoney(saldoHutang) + "*",
       "",
-      "Apabila pembayaran atas nota tersebut sudah dilakukan, silakan informasikan kepada kami.",
+      "Pembayaran dapat dilakukan melalui transfer:",
+      "",
+      "*BRI*",
+      "a.n. *Wasimun*",
+      "No. Rekening: *003201105050505*",
+      "",
+      "Mohon dapat melakukan pengecekan. Apabila pembayaran atas nota tersebut sudah dilakukan, silakan informasikan kepada kami dengan menyertakan bukti pembayaran agar dapat segera kami proses.",
       "",
       "Terima kasih atas perhatian dan kerja samanya.",
       "",
@@ -845,6 +1037,13 @@ function buildWhatsAppMessage(type, code, name) {
     "",
     "*TB NUSANTARA*"
   ].join("\n");
+}
+
+function formatWhatsAppReportDate(date = new Date()) {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return day + "/" + month + "/" + year;
 }
 
 function openWhatsApp(phone, message) {
@@ -866,7 +1065,13 @@ function closeActionModal() {
   modal.setAttribute("aria-hidden", "true");
 }
 
+
+function handleDetailEscape(event) {
+  if (event.key === "Escape") closeDetail();
+}
 function closeDetail() {
+  state.detailRequestId += 1;
+
   const modal = document.querySelector("#piutang-modal");
   modal.classList.add("hidden");
   modal.setAttribute("aria-hidden", "true");

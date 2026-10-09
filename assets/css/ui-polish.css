@@ -514,3 +514,2031 @@ button.ui-busy::after {
     animation: none;
   }
 }
+
+/* =========================================================
+   UI/UX POLISH V2 — DESIGN SYSTEM + APP SHELL
+   Visual-only layer. Preserves API, accounting, PDF, and state logic.
+   ========================================================= */
+
+:root {
+  --ui-surface-raised: #ffffff;
+  --ui-surface-subtle: #f6f8fb;
+  --ui-border-soft: #e7ebf0;
+  --ui-border-strong: #d8dee8;
+  --ui-text-strong: #111827;
+  --ui-text-body: #344054;
+  --ui-text-muted: #667085;
+  --ui-primary-soft: #eff5ff;
+  --ui-success-soft: #ecfdf3;
+  --ui-danger-soft: #fef3f2;
+  --ui-warning-soft: #fffaeb;
+  --ui-radius-sm: 9px;
+  --ui-radius-md: 12px;
+  --ui-radius-lg: 16px;
+  --ui-shadow-card: 0 1px 2px rgba(16,24,40,.03), 0 8px 24px rgba(16,24,40,.045);
+  --ui-shadow-card-hover: 0 2px 4px rgba(16,24,40,.04), 0 12px 30px rgba(16,24,40,.07);
+}
+
+body {
+  color: var(--ui-text-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: #dbeafe;
+  color: var(--ui-text-strong);
+}
+
+button,
+a,
+select,
+input,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+/* ---------- App shell ---------- */
+
+.sidebar {
+  width: 248px;
+  padding: 20px 12px;
+  border-right: 1px solid rgba(255,255,255,.055);
+  box-shadow: 8px 0 28px rgba(16,24,40,.08);
+}
+
+.brand {
+  padding: 7px 9px 24px;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  box-shadow: 0 6px 16px rgba(37,99,235,.22);
+}
+
+.brand strong {
+  font-size: 14px;
+  letter-spacing: -.01em;
+}
+
+.brand span {
+  font-size: 11px;
+}
+
+.nav {
+  gap: 4px;
+}
+
+.nav-item {
+  position: relative;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: #cbd5e1;
+  transition: background-color .16s ease, color .16s ease, border-color .16s ease, transform .16s ease;
+}
+
+.nav-item:hover {
+  background: rgba(255,255,255,.055);
+  color: #f8fafc;
+  transform: translateX(1px);
+}
+
+.nav-item.active {
+  background: rgba(37,99,235,.16);
+  border-color: rgba(147,180,248,.13);
+  color: #fff;
+  box-shadow: inset 3px 0 0 #60a5fa;
+}
+
+.nav-item.active:hover {
+  background: rgba(37,99,235,.19);
+}
+
+.sidebar-footer {
+  margin: auto 3px 0;
+  padding: 11px 9px;
+  border-top: 1px solid rgba(255,255,255,.07);
+  font-size: 11px;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  box-shadow: 0 0 0 3px rgba(21,128,61,.12);
+}
+
+.app-shell {
+  width: calc(100% - 248px);
+  margin-left: 248px;
+}
+
+.topbar {
+  min-height: 76px;
+  padding: 16px 30px;
+  box-shadow: 0 1px 0 rgba(16,24,40,.015);
+}
+
+.topbar h1 {
+  color: var(--ui-text-strong);
+  font-size: 21px;
+  letter-spacing: -.025em;
+}
+
+.eyebrow {
+  color: var(--ui-text-muted);
+  font-size: 9px;
+  letter-spacing: .1em;
+}
+
+.environment-badge {
+  padding: 7px 10px;
+  border-color: var(--ui-border-soft);
+  background: var(--ui-surface-subtle);
+  color: var(--ui-text-muted);
+  font-weight: 600;
+}
+
+.page-content {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 28px 30px 42px;
+}
+
+.page-heading {
+  margin-bottom: 18px;
+}
+
+.page-heading h2 {
+  color: var(--ui-text-strong);
+  letter-spacing: -.035em;
+}
+
+.page-description {
+  color: var(--ui-text-muted);
+  line-height: 1.55;
+}
+
+/* ---------- Shared cards / panels ---------- */
+
+.welcome-card,
+.stat-card,
+.summary-card,
+.card.panel,
+.dashboard-panel,
+.dashboard-kpi {
+  border-color: var(--ui-border-soft);
+  box-shadow: var(--ui-shadow-card);
+}
+
+.welcome-card:hover,
+.stat-card:hover,
+.summary-card:hover,
+.dashboard-kpi:hover {
+  box-shadow: var(--ui-shadow-card-hover);
+}
+
+.welcome-card,
+.stat-card,
+.summary-card {
+  border-radius: var(--ui-radius-lg);
+}
+
+.welcome-card h2 {
+  color: var(--ui-text-strong);
+  letter-spacing: -.035em;
+}
+
+.stat-card strong,
+.summary-card strong {
+  color: var(--ui-text-strong);
+  letter-spacing: -.025em;
+}
+
+/* ---------- Controls ---------- */
+
+.btn,
+.icon-btn,
+.mini-action {
+  font-weight: 650;
+}
+
+.btn {
+  border-radius: var(--ui-radius-md);
+  min-height: 42px;
+}
+
+.btn-primary {
+  box-shadow: 0 5px 15px rgba(37,99,235,.17);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.btn-light:hover:not(:disabled),
+.icon-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: var(--ui-border-strong);
+}
+
+.search-box {
+  border-color: var(--ui-border-soft);
+  background: #f8fafc;
+  border-radius: var(--ui-radius-md);
+  transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+
+.search-box:focus-within {
+  border-color: #9dbcf6;
+  background: #fff;
+  box-shadow: 0 0 0 3px var(--ui-focus);
+}
+
+.search-box input::placeholder,
+.contact-input::placeholder,
+.contact-message::placeholder {
+  color: #98a2b3;
+}
+
+.page-size select,
+.dashboard-period select,
+.contact-input,
+.contact-message {
+  border-color: var(--ui-border-soft);
+  border-radius: var(--ui-radius-md);
+}
+
+.page-size select:focus,
+.dashboard-period select:focus,
+.contact-input:focus,
+.contact-message:focus {
+  border-color: #9dbcf6;
+  box-shadow: 0 0 0 3px var(--ui-focus);
+}
+
+/* ---------- Tables ---------- */
+
+.card.panel {
+  border-radius: var(--ui-radius-lg);
+}
+
+.toolbar {
+  padding: 15px 17px;
+  background: rgba(255,255,255,.92);
+}
+
+.data-table th {
+  background: #f8fafc;
+  color: #667085;
+  font-weight: 750;
+}
+
+.data-table td {
+  color: var(--ui-text-body);
+}
+
+.data-table tr:hover td {
+  background: #f8fbff;
+}
+
+.data-table tr:last-child td,
+.detail-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.pagination {
+  border-top: 1px solid var(--ui-border-soft);
+  background: #fcfdff;
+}
+
+/* ---------- Mobile cards ---------- */
+
+.mobile-customer-card {
+  border-color: var(--ui-border-soft);
+  border-radius: var(--ui-radius-md);
+  box-shadow: 0 1px 2px rgba(16,24,40,.025);
+}
+
+.mobile-customer-card:active {
+  transform: scale(.998);
+}
+
+/* ---------- Detail modal ---------- */
+
+.modal-backdrop {
+  background: rgba(15,23,42,.56);
+}
+
+.modal-panel {
+  border-color: var(--ui-border-soft);
+  border-radius: 18px;
+  box-shadow: 0 28px 80px rgba(15,23,42,.22);
+}
+
+.modal-header {
+  padding: 18px 21px;
+}
+
+.modal-header h3 {
+  color: var(--ui-text-strong);
+  letter-spacing: -.02em;
+}
+
+.modal-body {
+  padding: 19px 21px;
+}
+
+.detail-customer div,
+.aging-card,
+.financial-card {
+  border-color: var(--ui-border-soft);
+}
+
+.detail-customer div {
+  background: #f8fafc;
+}
+
+.aging-card {
+  box-shadow: 0 1px 2px rgba(16,24,40,.025);
+}
+
+.aging-danger {
+  background: var(--ui-danger-soft);
+}
+
+.financial-card.debt {
+  background: #172f49;
+  border-color: #172f49;
+  box-shadow: 0 8px 22px rgba(23,47,73,.14);
+}
+
+.financial-card.reconciliation {
+  background: #f8fafc;
+  border-color: var(--ui-border-soft);
+}
+
+.financial-card.reconciliation strong {
+  color: var(--ui-text-strong);
+}
+
+.detail-table th {
+  background: #f8fafc;
+  color: #667085;
+}
+
+.detail-table td:first-child .invoice-code {
+  color: var(--ui-text-strong);
+  font-weight: 800;
+}
+
+.detail-table .invoice-balance {
+  color: var(--ui-text-strong);
+  font-weight: 800;
+}
+
+.invoice-age {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-weight: 750;
+}
+
+.invoice-age-current {
+  background: #e8eef7;
+  color: #344054;
+  border: 1px solid #cbd5e1;
+}
+
+.invoice-age-attention {
+  background: #fff3cd;
+  color: #a15c00;
+  border: 1px solid #f5c451;
+}
+
+.invoice-age-warning {
+  background: #ffe4b5;
+  color: #9a3412;
+  border: 1px solid #fb923c;
+}
+
+.invoice-age-danger {
+  background: #fee2e2;
+  color: #b42318;
+  border: 1px solid #f87171;
+  box-shadow: 0 0 0 1px rgba(220,38,38,.06);
+}
+
+.invoice-age-neutral {
+  background: #f1f5f9;
+  color: #667085;
+  border: 1px solid #dbe2ea;
+}
+
+.detail-footer {
+  background: rgba(255,255,255,.985);
+  border-top-color: var(--ui-border-soft);
+}
+
+/* ---------- Toast ---------- */
+
+.app-toast {
+  border-radius: 13px;
+  font-weight: 600;
+}
+
+/* ---------- Desktop spacing ---------- */
+
+@media (min-width: 1200px) {
+  .page-content {
+    padding-left: 34px;
+    padding-right: 34px;
+  }
+}
+
+/* ---------- Mobile app shell refinement ---------- */
+
+@media (max-width: 800px) {
+  .sidebar {
+    width: min(292px, 86vw);
+    padding: 17px 12px;
+  }
+
+  .topbar {
+    min-height: 64px;
+    padding: 10px 15px;
+    box-shadow: 0 1px 8px rgba(16,24,40,.045);
+  }
+
+  .page-content {
+    padding: 19px 15px 30px;
+  }
+
+  .page-heading h2 {
+    font-size: 25px;
+  }
+
+  .toolbar {
+    gap: 10px;
+  }
+
+  .summary-card {
+    padding: 16px;
+  }
+
+  .modal-panel {
+    box-shadow: 0 -12px 45px rgba(15,23,42,.16);
+  }
+}
+
+@media (max-width: 520px) {
+  .page-content {
+    padding: 16px 12px 26px;
+  }
+
+  .page-heading h2 {
+    font-size: 23px;
+  }
+
+  .welcome-card {
+    padding: 19px;
+  }
+
+  .summary-card {
+    padding: 15px;
+  }
+
+  .btn,
+  .btn[data-pdf-action],
+  .btn[data-wa-action] {
+    border-radius: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-item,
+  .welcome-card,
+  .stat-card,
+  .summary-card,
+  .dashboard-kpi,
+  .search-box {
+    transition: none;
+  }
+}
+
+/* =========================================================
+   UI/UX POLISH V2 — DASHBOARD + DATA UX
+   ========================================================= */
+
+/* ---------- Dashboard hierarchy ---------- */
+
+.dashboard-kpi {
+  position: relative;
+  overflow: hidden;
+  padding: 17px 18px;
+}
+
+.dashboard-kpi-primary {
+  border-top-width: 3px;
+}
+
+.dashboard-kpi-profit {
+  border-top-width: 3px;
+}
+
+.dashboard-kpi-icon {
+  box-shadow: inset 0 0 0 1px rgba(37,99,235,.06);
+}
+
+.dashboard-panel-head {
+  min-height: 74px;
+  padding: 16px 19px;
+}
+
+.dashboard-panel-head h3 {
+  color: var(--ui-text-strong);
+  letter-spacing: -.018em;
+}
+
+.dashboard-panel-value {
+  color: var(--ui-text-strong);
+}
+
+.dashboard-chart-wrap {
+  background: linear-gradient(to bottom, #fff, #fcfdff);
+}
+
+.dashboard-chart-tooltip {
+  border-color: var(--ui-border-soft);
+  box-shadow: 0 12px 32px rgba(16,24,40,.12);
+}
+
+.dashboard-definition-list {
+  background: #fff;
+}
+
+.dashboard-definition-list div {
+  padding: 11px 0;
+}
+
+.dashboard-definition-list strong {
+  color: var(--ui-text-strong);
+}
+
+/* ---------- Summary cards: hierarchy without changing values ---------- */
+
+.summary-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.summary-card strong {
+  font-size: clamp(19px, 2vw, 23px);
+}
+
+.summary-card small {
+  line-height: 1.4;
+}
+
+/* ---------- Data panel states ---------- */
+
+.table-state,
+.dashboard-state.is-loading,
+.dashboard-state.is-error {
+  border-color: var(--ui-border-soft);
+}
+
+.table-state.loading {
+  background: linear-gradient(to bottom, #fff, #fcfdff);
+}
+
+.table-state.empty {
+  background: #fcfffd;
+}
+
+.table-state.error {
+  background: #fffafa;
+}
+
+.detail-loading {
+  background: #fcfdff;
+}
+
+.detail-error {
+  border-color: #f2c8c5;
+  background: #fffafa;
+}
+
+/* ---------- Action emphasis ---------- */
+
+.btn-whatsapp {
+  background: #16a34a;
+}
+
+.btn-whatsapp:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.mini-action {
+  min-height: 36px;
+}
+
+.mini-action.whatsapp-mini {
+  color: #15803d;
+  background: #f0fdf4;
+}
+
+.mini-action.whatsapp-mini:hover:not(:disabled) {
+  color: #166534;
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
+/* ---------- Customer / Piutang card readability ---------- */
+
+.customer-cell strong,
+.mobile-customer-head strong {
+  color: var(--ui-text-strong);
+}
+
+.customer-cell span,
+.mobile-customer-head span,
+.mobile-customer-total span {
+  color: var(--ui-text-muted);
+}
+
+.mobile-aging-grid span {
+  border: 1px solid var(--ui-border-soft);
+  background: #f8fafc;
+}
+
+/* ---------- Better narrow screens ---------- */
+
+@media (max-width: 800px) {
+  .dashboard-kpi {
+    padding: 15px;
+  }
+
+  .dashboard-kpi-icon {
+    width: 40px;
+    height: 40px;
+    flex-basis: 40px;
+  }
+
+  .dashboard-chart-grid {
+    gap: 13px;
+  }
+
+  .dashboard-panel-head {
+    min-height: 68px;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+@media (max-width: 520px) {
+  .dashboard-kpi {
+    gap: 11px;
+  }
+
+  .dashboard-kpi strong {
+    font-size: 20px;
+  }
+
+  .dashboard-kpi small {
+    font-size: 9px;
+  }
+
+  .dashboard-chart-tooltip {
+    min-width: 138px;
+    max-width: 165px;
+    padding: 8px 9px;
+  }
+
+  .mobile-customer-card {
+    margin-left: 6px;
+    margin-right: 6px;
+  }
+}
+
+
+/* =========================================================
+   UI/UX POLISH V2 — MOBILE SHELL FIX
+   Fixes viewport clipping / half-screen rendering and keeps
+   dashboard content inside the mobile viewport.
+   Visual/layout only. No API or application logic changes.
+   ========================================================= */
+
+@media (max-width: 800px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  #app {
+    width: 100%;
+    max-width: 100vw;
+    min-width: 0;
+    display: block;
+    overflow-x: clip;
+  }
+
+  .app-shell {
+    width: 100% !important;
+    max-width: 100vw;
+    min-width: 0;
+    margin-left: 0 !important;
+    overflow-x: clip;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    z-index: 300;
+    width: min(292px, 84vw) !important;
+    max-width: 84vw;
+    min-width: 0;
+    height: 100dvh;
+    max-height: 100dvh;
+    transform: translate3d(-105%, 0, 0);
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  body.mobile-nav-open .sidebar {
+    transform: translate3d(0, 0, 0);
+  }
+
+  .mobile-nav-backdrop {
+    display: none;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 290;
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-width: 100vw;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .16s ease;
+  }
+
+  .mobile-nav-backdrop.is-visible {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .topbar {
+    width: 100%;
+    max-width: 100vw;
+    min-width: 0;
+  }
+
+  .topbar-left {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .topbar-left > div:last-child {
+    min-width: 0;
+  }
+
+  .topbar h1 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .page-content {
+    width: 100%;
+    max-width: 100vw;
+    min-width: 0;
+    overflow-x: clip;
+  }
+
+  .dashboard-heading,
+  .dashboard-toolbar,
+  .dashboard-kpis,
+  .dashboard-chart-grid,
+  .dashboard-panel,
+  .dashboard-chart-panel,
+  .dashboard-chart-wrap,
+  .dashboard-chart,
+  .dashboard-definition-list {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dashboard-chart-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .dashboard-chart-wide {
+    grid-row: auto;
+  }
+
+  .dashboard-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-panel-head {
+    min-width: 0;
+  }
+
+  .dashboard-panel-head > div {
+    min-width: 0;
+  }
+
+  .dashboard-panel-value {
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dashboard-chart-stage,
+  .dashboard-chart svg {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .dashboard-kpis {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-toolbar {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .dashboard-panel-head {
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .dashboard-panel-head h3 {
+    font-size: 16px;
+  }
+
+  .dashboard-panel-value {
+    max-width: 50%;
+    font-size: 12px;
+  }
+
+  .dashboard-chart-wrap,
+  .dashboard-chart-wrap-profit {
+    min-height: 270px;
+    padding-left: 2px;
+    padding-right: 2px;
+    overflow: hidden;
+  }
+
+  .dashboard-chart {
+    height: 250px;
+  }
+}
+
+
+/* =========================================================
+   DASHBOARD CALENDAR V1
+   Frontend-only widget using existing dashboard sales data.
+   ========================================================= */
+
+.dashboard-calendar-panel {
+  min-width: 0;
+}
+
+.dashboard-calendar {
+  padding: 18px 19px 17px;
+}
+
+.dashboard-calendar-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dashboard-calendar-head h3 {
+  margin: 5px 0 0;
+  color: var(--ui-text-strong);
+  font-size: 17px;
+  letter-spacing: -.018em;
+  text-transform: capitalize;
+}
+
+.dashboard-calendar-legend {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ui-text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.dashboard-calendar-legend i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: 1px;
+}
+
+.dashboard-calendar-weekdays,
+.dashboard-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.dashboard-calendar-weekdays {
+  margin-bottom: 5px;
+}
+
+.dashboard-calendar-weekdays span {
+  padding: 4px 0;
+  color: var(--ui-text-muted);
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.dashboard-calendar-day {
+  position: relative;
+  min-width: 0;
+  min-height: 43px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ui-text-body);
+  cursor: pointer;
+  transition: background-color .14s ease, border-color .14s ease, transform .14s ease;
+}
+
+.dashboard-calendar-day:hover {
+  background: #f5f8fc;
+  border-color: var(--ui-border-soft);
+}
+
+.dashboard-calendar-day:active {
+  transform: scale(.97);
+}
+
+.dashboard-calendar-day.is-empty {
+  cursor: default;
+  pointer-events: none;
+}
+
+.dashboard-calendar-number {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.dashboard-calendar-day.has-data .dashboard-calendar-number {
+  color: var(--ui-text-strong);
+}
+
+.dashboard-calendar-dot {
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translateX(-50%);
+}
+
+.dashboard-calendar-day.is-today {
+  border-color: #9dbcf6;
+  background: var(--ui-primary-soft);
+}
+
+.dashboard-calendar-day.is-selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 5px 12px rgba(31,111,235,.18);
+}
+
+.dashboard-calendar-day.is-selected .dashboard-calendar-number {
+  color: #fff;
+}
+
+.dashboard-calendar-day.is-selected .dashboard-calendar-dot {
+  background: #fff;
+}
+
+.dashboard-calendar-detail {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 11px 13px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 11px;
+  background: #f8fafc;
+}
+
+.dashboard-calendar-detail span {
+  grid-column: 1 / -1;
+  color: var(--ui-text-muted);
+  font-size: 10px;
+}
+
+.dashboard-calendar-detail strong {
+  color: var(--ui-text-strong);
+  font-size: 13px;
+}
+
+.dashboard-calendar-detail small {
+  color: var(--ui-text-muted);
+  font-size: 10px;
+  text-align: right;
+}
+
+@media (max-width: 800px) {
+  .dashboard-calendar {
+    padding: 16px;
+  }
+
+  .dashboard-calendar-day {
+    min-height: 45px;
+  }
+}
+
+@media (max-width: 520px) {
+  .dashboard-calendar {
+    padding: 14px;
+  }
+
+  .dashboard-calendar-head {
+    margin-bottom: 13px;
+  }
+
+  .dashboard-calendar-head h3 {
+    font-size: 16px;
+  }
+
+  .dashboard-calendar-legend {
+    font-size: 9px;
+  }
+
+  .dashboard-calendar-weekdays,
+  .dashboard-calendar-grid {
+    gap: 3px;
+  }
+
+  .dashboard-calendar-day {
+    min-height: 41px;
+    border-radius: 8px;
+  }
+
+  .dashboard-calendar-number {
+    font-size: 11px;
+  }
+
+  .dashboard-calendar-detail {
+    margin-top: 11px;
+  }
+}
+
+
+@media (min-width: 1101px) {
+  .dashboard-calendar-panel {
+    grid-column: 1;
+    grid-row: 3;
+  }
+}
+
+@media (max-width: 1100px) {
+  .dashboard-calendar-panel {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+
+/* =========================================================
+   APP IDENTITY FOOTER
+   Global application identity; environment remains technical-only.
+   ========================================================= */
+
+.app-footer {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: auto;
+  padding: 14px 20px 16px;
+  color: var(--ui-text-muted, #667085);
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: .01em;
+  text-align: center;
+}
+
+.app-footer strong {
+  color: var(--ui-text-body, #344054);
+  font-weight: 700;
+}
+
+.app-version {
+  color: var(--ui-text-muted, #667085);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .app-footer {
+    padding: 12px 16px 14px;
+    font-size: 10px;
+    gap: 5px;
+  }
+
+  .app-version {
+    font-size: 10px;
+  }
+}
+
+
+/* ---------- Unified main-page width ---------- */
+.page-content > * {
+  width: 100%;
+  max-width: none;
+}
+
+.page-content .page-heading,
+.page-content .summary-grid,
+.page-content .card.panel,
+.page-content .dashboard-chart-grid,
+.page-content .dashboard-kpis {
+  width: 100%;
+}
+
+@media (max-width: 800px) {
+  .page-content {
+    width: 100%;
+    padding: 20px;
+  }
+}
+
+
+/* =========================================================
+   MOBILE APP HEADER — NUSANTARA BUSINESS MANAGEMENT
+   Keeps navigation control outside page content and preserves
+   a clear visual hierarchy for mobile pages.
+   ========================================================= */
+
+.mobile-app-header {
+  display: none;
+}
+
+@media (max-width: 800px) {
+  .mobile-app-header {
+    position: sticky;
+    top: 0;
+    z-index: 250;
+    width: 100%;
+    min-height: 66px;
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    background: rgba(255,255,255,.96);
+    border-bottom: 1px solid var(--ui-border-soft);
+    box-shadow: 0 2px 12px rgba(16,24,40,.06);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .mobile-app-brand {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .mobile-app-brand-copy {
+    min-width: 0;
+  }
+
+  .mobile-app-brand-copy h1 {
+    margin: 0;
+    color: var(--ui-text-strong);
+    font-size: 16px;
+    line-height: 1.05;
+    font-weight: 800;
+    letter-spacing: .045em;
+  }
+
+  .mobile-app-brand-copy span {
+    display: block;
+    margin-top: 4px;
+    color: var(--ui-text-muted);
+    font-size: 9px;
+    line-height: 1;
+    font-weight: 650;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+  }
+
+  .mobile-menu-toggle {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 0;
+    border: 1px solid var(--ui-border-soft);
+    border-radius: 11px;
+    background: #fff;
+    color: var(--ui-text-strong);
+    box-shadow: 0 2px 7px rgba(16,24,40,.07);
+    cursor: pointer;
+  }
+
+  .mobile-menu-toggle span {
+    width: 17px;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  .mobile-menu-toggle:active {
+    transform: scale(.97);
+  }
+
+  .page-content {
+    padding-top: 18px;
+  }
+
+  .page-heading h2 {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+@media (max-width: 520px) {
+  .mobile-app-header {
+    min-height: 62px;
+    padding: 9px 12px;
+  }
+
+  .mobile-app-brand {
+    gap: 10px;
+  }
+
+  .mobile-app-brand-copy h1 {
+    font-size: 15px;
+  }
+
+  .mobile-app-brand-copy span {
+    font-size: 8px;
+    letter-spacing: .095em;
+  }
+
+  .mobile-menu-toggle {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+  }
+
+  .page-content {
+    padding-top: 16px;
+  }
+}
+
+
+/* =========================================================
+   PHASE 2 — CUSTOMER DETAIL ACTION HIERARCHY
+   Visual-only hierarchy; existing action handlers remain unchanged.
+   ========================================================= */
+
+.detail-report-actions {
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-action-group-label {
+  margin-right: 2px;
+  color: var(--ui-text-muted);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.detail-action-secondary {
+  min-height: 38px;
+}
+
+.detail-primary-actions {
+  align-items: center;
+  gap: 9px;
+}
+
+.detail-action-close {
+  min-height: 40px;
+}
+
+.detail-action-primary {
+  min-height: 42px;
+  padding-inline: 18px;
+  font-weight: 750;
+  box-shadow: 0 5px 14px rgba(16,24,40,.12);
+}
+
+.detail-action-primary:focus-visible,
+.detail-action-secondary:focus-visible,
+.detail-action-close:focus-visible {
+  outline: 3px solid rgba(37,99,235,.22);
+  outline-offset: 2px;
+}
+
+@media (max-width: 700px) {
+  .detail-report-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto 1fr 1fr;
+  }
+
+  .detail-action-group-label {
+    align-self: center;
+  }
+
+  .detail-primary-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+  }
+
+  .detail-action-primary,
+  .detail-action-close {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .detail-report-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .detail-action-group-label {
+    grid-column: 1 / -1;
+    margin-bottom: 1px;
+  }
+
+  .detail-primary-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-action-primary {
+    order: -1;
+  }
+}
+
+
+/* =========================================================
+   PHASE 3 — PIUTANG COLLECTION FILTERS
+   Frontend-only filtering and sorting controls.
+   ========================================================= */
+
+.piutang-filter {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ui-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.piutang-filter select {
+  min-height: 38px;
+  padding: 7px 30px 7px 10px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ui-text-body);
+  font: inherit;
+  cursor: pointer;
+}
+
+.piutang-filter select:focus {
+  border-color: #9dbcf6;
+  box-shadow: 0 0 0 3px var(--ui-focus);
+  outline: none;
+}
+
+.aging-header-filter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 4px 7px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+  transition: background-color .14s ease, border-color .14s ease, color .14s ease;
+}
+
+.aging-header-filter:hover {
+  background: var(--ui-primary-soft);
+  border-color: #cfe0ff;
+  color: var(--ui-primary);
+}
+
+.aging-header-filter:focus-visible {
+  outline: 3px solid var(--ui-focus);
+  outline-offset: 1px;
+}
+
+@media (max-width: 900px) {
+  .toolbar {
+    flex-wrap: wrap;
+  }
+
+  .piutang-filter {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .piutang-filter {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .piutang-filter select {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+
+/* =========================================================
+   PHASE 3 — COLLECTION PRIORITY
+   ========================================================= */
+
+.collection-priority-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.collection-priority-card {
+  appearance: none;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 12px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+
+.collection-priority-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(16, 24, 40, .07);
+}
+
+.collection-priority-card.is-active {
+  box-shadow: 0 0 0 2px var(--ui-focus);
+}
+
+.collection-priority-card span,
+.collection-priority-card small {
+  display: block;
+}
+
+.collection-priority-card span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.collection-priority-card strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.collection-priority-card small {
+  margin-top: 3px;
+  color: var(--ui-text-muted);
+  font-size: 10px;
+}
+
+.priority-urgent { background: #fff5f5; border-color: #fecaca; }
+.priority-urgent span { color: #b42318; }
+
+.priority-high { background: #fff8ed; border-color: #fed7aa; }
+.priority-high span { color: #c2410c; }
+
+.priority-monitor { background: #fffdf0; border-color: #fde68a; }
+.priority-monitor span { color: #a15c00; }
+
+.priority-normal { background: #f8fafc; border-color: #dbe2ea; }
+.priority-normal span { color: #475467; }
+
+.collection-priority-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.priority-badge-urgent {
+  background: #fee2e2;
+  color: #b42318;
+  border: 1px solid #f87171;
+}
+
+.priority-badge-high {
+  background: #ffe4b5;
+  color: #9a3412;
+  border: 1px solid #fb923c;
+}
+
+.priority-badge-monitor {
+  background: #fff3cd;
+  color: #a15c00;
+  border: 1px solid #f5c451;
+}
+
+.priority-badge-normal {
+  background: #e8eef7;
+  color: #344054;
+  border: 1px solid #cbd5e1;
+}
+
+.collection-priority-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 112px;
+}
+
+.collection-priority-info .collection-priority-badge {
+  min-height: 23px;
+}
+
+.collection-priority-age {
+  color: var(--ui-text-strong);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.collection-priority-context {
+  color: var(--ui-text-muted);
+  font-size: 10px;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.mobile-collection-info {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 10px 0 12px;
+  padding: 9px 10px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.mobile-collection-info strong {
+  color: var(--ui-text-strong);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.mobile-collection-info small {
+  margin-left: auto;
+  color: var(--ui-text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .collection-priority-context {
+    white-space: normal;
+  }
+
+  .mobile-collection-info {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .mobile-collection-info small {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .collection-priority-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .collection-priority-card {
+    padding: 10px 12px;
+  }
+}
+
+
+/* =========================================================
+   PIUTANG — DESKTOP FIT / NO HORIZONTAL SCROLL
+   Menjaga seluruh tabel tetap berada di dalam panel.
+   Pada layar menengah, gunakan card sebelum tabel menjadi sesak.
+   ========================================================= */
+
+@media (min-width: 1101px) {
+  .table-scroll {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  .table-scroll .data-table {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  .table-scroll .data-table th,
+  .table-scroll .data-table td {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  .table-scroll .data-table th {
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  .table-scroll .data-table th:nth-child(1),
+  .table-scroll .data-table td:nth-child(1) {
+    width: 18%;
+  }
+
+  .table-scroll .data-table th:nth-child(2),
+  .table-scroll .data-table td:nth-child(2),
+  .table-scroll .data-table th:nth-child(3),
+  .table-scroll .data-table td:nth-child(3),
+  .table-scroll .data-table th:nth-child(4),
+  .table-scroll .data-table td:nth-child(4),
+  .table-scroll .data-table th:nth-child(5),
+  .table-scroll .data-table td:nth-child(5),
+  .table-scroll .data-table th:nth-child(6),
+  .table-scroll .data-table td:nth-child(6),
+  .table-scroll .data-table th:nth-child(7),
+  .table-scroll .data-table td:nth-child(7) {
+    width: 8%;
+  }
+
+  .table-scroll .data-table th:nth-child(8),
+  .table-scroll .data-table td:nth-child(8) {
+    width: 11%;
+  }
+
+  .table-scroll .data-table th:nth-child(9),
+  .table-scroll .data-table td:nth-child(9) {
+    width: 16%;
+  }
+
+  .table-scroll .data-table th:nth-child(10),
+  .table-scroll .data-table td:nth-child(10) {
+    width: 7%;
+  }
+
+  .customer-cell {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .customer-cell strong,
+  .customer-cell span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .collection-priority-info {
+    min-width: 0;
+  }
+
+  .collection-priority-context {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .icon-btn {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+}
+
+@media (min-width: 801px) and (max-width: 1100px) {
+  /* Jangan memaksa tabel 10 kolom masuk ke ruang yang terlalu sempit. */
+  .table-scroll {
+    display: none;
+  }
+
+  .mobile-data-cards {
+    display: block;
+  }
+
+  .mobile-customer-card {
+    margin: 12px 0;
+  }
+}
+
+
+/* =========================================================
+   PIUTANG — TABLE GRID ALIGNMENT
+   Finishing header/body agar seluruh kolom presisi dan nyaman dibaca.
+   ========================================================= */
+
+@media (min-width: 1101px) {
+  .table-scroll .data-table th,
+  .table-scroll .data-table td {
+    box-sizing: border-box;
+    vertical-align: middle;
+  }
+
+  .table-scroll .data-table th {
+    height: 48px;
+    padding: 8px 6px;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .table-scroll .data-table td {
+    height: 56px;
+    padding: 9px 6px;
+  }
+
+  .table-scroll .data-table th:first-child,
+  .table-scroll .data-table td:first-child {
+    text-align: left;
+    padding-left: 10px;
+  }
+
+  .table-scroll .data-table th:nth-child(8),
+  .table-scroll .data-table td:nth-child(8) {
+    text-align: right;
+    padding-right: 8px;
+  }
+
+  .table-scroll .data-table th:nth-child(9),
+  .table-scroll .data-table td:nth-child(9) {
+    text-align: center;
+    padding-inline: 4px;
+    vertical-align: middle;
+  }
+
+  .table-scroll .data-table th:nth-child(10),
+  .table-scroll .data-table td:nth-child(10) {
+    text-align: center;
+    padding-inline: 4px;
+  }
+
+  .table-scroll .data-table th:nth-child(10) {
+    font-size: 11px;
+    font-weight: 750;
+  }
+
+  .table-scroll .data-table td:nth-child(10) .detail-trigger {
+    min-width: 52px;
+  }
+
+  .table-scroll .aging-header-filter {
+    width: 100%;
+    min-height: 30px;
+    padding: 4px 2px;
+    white-space: normal;
+    line-height: 1.15;
+  }
+
+  .table-scroll .collection-priority-info {
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 1px;
+  }
+
+  .table-scroll .collection-priority-info > * {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .table-scroll .collection-priority-badge {
+    min-height: 22px;
+    padding: 2px 7px;
+  }
+
+  .table-scroll .collection-priority-age {
+    font-size: 10px;
+  }
+
+  .table-scroll .collection-priority-context {
+    width: 100%;
+    font-size: 9px;
+    line-height: 1.15;
+  }
+
+  .table-scroll .customer-cell {
+    width: 100%;
+  }
+
+  .table-scroll .customer-cell strong {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .table-scroll .customer-cell span {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+}
+
+
+/* =========================================================
+   CUSTOMER V1 — DESKTOP TABLE ALIGNMENT
+   Keep customer table header/body on one stable column grid.
+   Visual/layout only; no API or business-logic changes.
+   ========================================================= */
+
+@media (min-width: 1101px) {
+  #customer-table-wrap {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  #customer-table-wrap .data-table {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  #customer-table-wrap .data-table th,
+  #customer-table-wrap .data-table td {
+    box-sizing: border-box;
+    vertical-align: middle;
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  /* 100% total:
+     Pelanggan 28% | Telepon 16% | Tabungan 18% |
+     Piutang 18% | Nota 12% | Detail 8% */
+  #customer-table-wrap .data-table th:nth-child(1),
+  #customer-table-wrap .data-table td:nth-child(1) {
+    width: 28%;
+    text-align: left;
+    padding-left: 10px;
+  }
+
+  #customer-table-wrap .data-table th:nth-child(2),
+  #customer-table-wrap .data-table td:nth-child(2) {
+    width: 16%;
+    text-align: left;
+  }
+
+  #customer-table-wrap .data-table th:nth-child(3),
+  #customer-table-wrap .data-table td:nth-child(3) {
+    width: 18%;
+    text-align: right;
+  }
+
+  #customer-table-wrap .data-table th:nth-child(4),
+  #customer-table-wrap .data-table td:nth-child(4) {
+    width: 18%;
+    text-align: right;
+  }
+
+  #customer-table-wrap .data-table th:nth-child(5),
+  #customer-table-wrap .data-table td:nth-child(5) {
+    width: 12%;
+    text-align: right;
+  }
+
+  #customer-table-wrap .data-table th:nth-child(6),
+  #customer-table-wrap .data-table td:nth-child(6) {
+    width: 8%;
+    text-align: center;
+    padding-inline: 4px;
+  }
+
+  #customer-table-wrap .data-table th {
+    height: 48px;
+    white-space: normal;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  #customer-table-wrap .data-table th:first-child {
+    text-align: left;
+    padding-left: 10px;
+  }
+
+  #customer-table-wrap .data-table td {
+    height: 56px;
+    white-space: nowrap;
+  }
+
+  #customer-table-wrap .customer-cell {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  #customer-table-wrap .customer-cell strong,
+  #customer-table-wrap .customer-cell span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #customer-table-wrap .customer-cell strong {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  #customer-table-wrap .customer-cell span {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  #customer-table-wrap .data-table td:nth-child(2) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #customer-table-wrap .data-table th:nth-child(6) {
+    font-size: 11px;
+    font-weight: 750;
+  }
+
+  #customer-table-wrap .data-table td:nth-child(6) .icon-btn {
+    min-width: 52px;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+}

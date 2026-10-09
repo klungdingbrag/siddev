@@ -1,12 +1,36 @@
 import { APP_CONFIG } from "./config.js";
-import { apiHealth } from "./api/client.js";
-import { renderPiutangPage } from "./pages/piutang.js?v=20260930-pdf-transport-5";
-import { renderDashboardPage } from "./pages/dashboard.js?v=20261002-dashboard-v4";
-import { renderPelangganPage } from "./pages/pelanggan.js?v=20261004-customer-v1-renderfix";
+import { apiServerHealth } from "./api/client.js";
+import { renderPiutangPage } from "./pages/piutang.js?v=20261006-piutang-current-1";
+import { renderDashboardPage } from "./pages/dashboard.js?v=20261006-dashboard-current-1";
+import { renderPelangganPage } from "./pages/pelanggan.js?v=20261006-customer-current-1";
 
 const sidebar = document.querySelector("#sidebar");
-const topbar = document.querySelector("#topbar");
 const content = document.querySelector("#page-content");
+
+const appFooter = document.createElement("footer");
+appFooter.className = "app-footer";
+appFooter.innerHTML = `<span>${APP_CONFIG.appName}</span><span>·</span><span>${APP_CONFIG.companyName}</span><span>·</span><strong>${APP_CONFIG.version}</strong>`;
+document.querySelector(".app-shell")?.appendChild(appFooter);
+
+const mobileHeader = document.createElement("header");
+mobileHeader.className = "mobile-app-header";
+mobileHeader.innerHTML = `
+  <div class="mobile-app-brand">
+    <button
+      type="button"
+      id="mobile-menu-toggle"
+      class="mobile-menu-toggle"
+      aria-label="Buka menu"
+      aria-controls="sidebar"
+      aria-expanded="false"
+    ><span></span><span></span><span></span></button>
+    <div class="mobile-app-brand-copy">
+      <h1>NUSANTARA</h1>
+      <span>Business Management</span>
+    </div>
+  </div>
+`;
+document.querySelector(".app-shell")?.insertBefore(mobileHeader, content);
 
 function setMobileNav(open) {
   document.body.classList.toggle("mobile-nav-open", open);
@@ -14,6 +38,12 @@ function setMobileNav(open) {
   const sidebar = document.querySelector("#sidebar");
   if (menuButton) menuButton.setAttribute("aria-expanded", open ? "true" : "false");
   if (sidebar) sidebar.setAttribute("aria-hidden", open ? "false" : "true");
+  const backdrop = document.querySelector("#mobile-nav-backdrop");
+  if (backdrop) {
+    backdrop.classList.toggle("is-visible", open);
+    backdrop.setAttribute("aria-hidden", open ? "false" : "true");
+    backdrop.tabIndex = open ? 0 : -1;
+  }
 }
 
 function closeMobileNav() {
@@ -40,22 +70,10 @@ sidebar.innerHTML = `
   </nav>
 
   <div class="sidebar-footer">
-    <span class="status-dot"></span>
+    <span class="status-dot" id="api-status-dot"></span>
     <span id="api-status">Checking API...</span>
+    <button type="button" id="api-reconnect" class="api-reconnect hidden" aria-label="Reconnect API">↻ Reconnect</button>
   </div>
-`;
-
-topbar.innerHTML = `
-  <div class="topbar-left">
-    <button class="mobile-menu-toggle" id="mobile-menu-toggle" type="button" aria-label="Buka menu" aria-controls="sidebar" aria-expanded="false">
-      <span></span><span></span><span></span>
-    </button>
-    <div>
-      <p class="eyebrow">TB Nusantara</p>
-      <h1>Dashboard</h1>
-    </div>
-  </div>
-  <div class="environment-badge">${APP_CONFIG.environment}</div>
 `;
 
 function setActiveNav(hash) {
@@ -78,8 +96,6 @@ function renderComingSoonPage(title, description) {
 
 function route() {
   const hash = window.location.hash || "#dashboard";
-  const titleElement = document.querySelector(".topbar h1");
-
   const routes = {
     "#dashboard": {
       title: "Dashboard",
@@ -111,10 +127,6 @@ function route() {
 
   const routeConfig = routes[hash] || routes["#dashboard"];
 
-  if (titleElement) {
-    titleElement.textContent = routeConfig.title;
-  }
-
   routeConfig.render();
   setActiveNav(routes[hash] ? hash : "#dashboard");
 }
@@ -136,6 +148,8 @@ function initMobileNavigation() {
     backdrop.id = "mobile-nav-backdrop";
     backdrop.className = "mobile-nav-backdrop";
     backdrop.setAttribute("aria-label", "Tutup menu");
+    backdrop.setAttribute("aria-hidden", "true");
+    backdrop.tabIndex = -1;
     document.body.appendChild(backdrop);
   }
 
@@ -156,25 +170,61 @@ window.addEventListener("hashchange", () => {
 initMobileNavigation();
 route();
 
-async function checkApi() {
-  try {
-    const data = await apiHealth();
-    const online = data?.status === "ok";
+function setApiStatus(label, state = "checking") {
+  const status = document.querySelector("#api-status");
+  const dot = document.querySelector("#api-status-dot");
+  const reconnect = document.querySelector("#api-reconnect");
 
-    const status = document.querySelector("#api-status");
-    if (status) {
-      status.textContent = online ? "API Online" : "API Response";
-    }
-
-    console.info("[API] health:", data);
-  } catch (error) {
-    const status = document.querySelector("#api-status");
-    if (status) {
-      status.textContent = "API Offline";
-    }
-
-    console.warn("[API] health check failed:", error);
+  if (status) status.textContent = label;
+  if (dot) {
+    dot.className = "status-dot status-" + state;
+  }
+  if (reconnect) {
+    reconnect.classList.toggle("hidden", state !== "error");
+    reconnect.disabled = state === "checking";
+    reconnect.textContent = state === "checking" ? "↻ Checking..." : "↻ Reconnect";
   }
 }
 
-checkApi();
+window.addEventListener("sid-api-success", (event) => {
+  const action = event.detail?.action;
+  if (action === "serverHealth") {
+    setApiStatus("API Online", "online");
+  }
+  console.info("[API] success:", event.detail);
+});
+
+window.addEventListener("sid-api-failure", (event) => {
+  setApiStatus("Server Offline", "error");
+  console.warn("[API] request failed:", event.detail);
+});
+
+async function checkServerApi() {
+  setApiStatus("Checking Server...", "checking");
+  try {
+    const data = await apiServerHealth();
+
+    if (data?.status === "ok" && data?.server === "online") {
+      setApiStatus("API Online", "online");
+    } else {
+      setApiStatus("Server Offline", "error");
+    }
+
+    console.info("[API] server health:", data);
+    return data;
+  } catch (error) {
+    setApiStatus("Server Offline", "error");
+    console.warn("[API] server health check failed:", error);
+    return null;
+  }
+}
+
+const reconnectButton = document.querySelector("#api-reconnect");
+if (reconnectButton) {
+  reconnectButton.addEventListener("click", () => {
+    checkServerApi();
+  });
+}
+
+checkServerApi();
+setInterval(checkServerApi, 30000);

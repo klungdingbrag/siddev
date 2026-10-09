@@ -21,13 +21,22 @@ function buildUrl(action, params = {}) {
   return url.toString();
 }
 
-async function fetchJson(url) {
-  const response = await fetch(url, {
-    method: "GET",
-    mode: "cors",
-    redirect: "follow",
-    cache: "no-store"
-  });
+async function fetchJson(url, timeoutMs) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      mode: "cors",
+      redirect: "follow",
+      cache: "no-store",
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const text = await response.text();
 
@@ -41,6 +50,28 @@ async function fetchJson(url) {
   return { response, text, result };
 }
 
+const API_TIMEOUTS = Object.freeze({
+  health: 12000,
+  serverHealth: 12000,
+  piutang: 45000,
+  customerPiutangDetail: 30000,
+  tabungan: 30000,
+  dashboardSalesDaily: 30000,
+  dashboardProfitMonthly: 30000,
+  dashboardSummary: 30000,
+  pdfRingkasanPiutang: 60000,
+  pdfSemuaDetailPiutang6D1: 60000,
+  pdfSemuaDetailPiutang6D2: 180000,
+  pdfCustomerStatementV1: 60000,
+  pdfInvoice: 60000
+});
+
+const DEFAULT_API_TIMEOUT = 30000;
+
+function getApiTimeout(action) {
+  return API_TIMEOUTS[action] || DEFAULT_API_TIMEOUT;
+}
+
 export async function apiRequest(action, params = {}) {
   const url = buildUrl(action, params);
   let lastError = null;
@@ -49,7 +80,7 @@ export async function apiRequest(action, params = {}) {
   // Retry once for transient redirect/service failures without changing the backend.
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const { response, text, result } = await fetchJson(url);
+      const { response, text, result } = await fetchJson(url, getApiTimeout(action));
 
       if (!response.ok) {
         const finalUrl = response.url || url;
@@ -87,18 +118,40 @@ export async function apiRequest(action, params = {}) {
         );
       }
 
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("sid-api-success", {
+          detail: { action }
+        }));
+      }
+
       return result.data;
     } catch (error) {
       lastError = error;
 
-      // Network/CORS failures are not safely retryable unless fetch itself failed.
-      if (attempt === 0 && /Failed to fetch|NetworkError|Load failed/i.test(error?.message || "")) {
+      const message = error?.name === "AbortError"
+        ? `timeout setelah ${getApiTimeout(action) / 1000} detik`
+        : (error?.message || "Unknown error");
+
+      // Retry transient network failures, but do not retry a timeout.
+      // A timed-out Piutang request can be expensive on the backend, so retrying
+      // it immediately would duplicate the same heavy operation.
+      if (
+        attempt === 0 &&
+        error?.name !== "AbortError" &&
+        /Failed to fetch|NetworkError|Load failed|fetch failed/i.test(message)
+      ) {
         await new Promise(resolve => setTimeout(resolve, 250));
         continue;
       }
 
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("sid-api-failure", {
+          detail: { action, message }
+        }));
+      }
+
       throw new Error(
-        `API "${action}" gagal: ${error?.message || "Unknown error"}`
+        `API "${action}" gagal: ${message}`
       );
     }
   }
@@ -108,4 +161,8 @@ export async function apiRequest(action, params = {}) {
 
 export async function apiHealth() {
   return apiRequest("health");
+}
+
+export async function apiServerHealth() {
+  return apiRequest("serverHealth");
 }

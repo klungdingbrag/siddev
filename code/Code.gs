@@ -24,6 +24,19 @@ const SID_CONFIG = {
 };
 
 /*
+ * Batch khusus laporan Piutang.
+ *
+ * Hasil diagnostic read-only:
+ * - LIMIT 500  -> 16.145 s
+ * - LIMIT 1000 -> 10.082 s
+ * - LIMIT 2000 ->  8.630 s end-to-end
+ *
+ * Nilai ini sengaja dipisahkan dari SID_CONFIG.TRANSACTION_BATCH_SIZE
+ * agar perubahan hanya memengaruhi jalur laporan Piutang.
+ */
+const PIUTANG_TRANSACTION_BATCH_SIZE = 2000;
+
+/*
  * Generator kode transaksi yang aman untuk request berurutan maupun paralel.
  *
  * Apps Script dapat menjalankan beberapa execution secara bersamaan.
@@ -181,6 +194,8 @@ function getPiutangPelangganLaporan() {
         aging_91_120: 0,
         aging_121_plus: 0,
         total_piutang: 0,
+        outstanding_notes: 0,
+        oldest_aging_days: null,
         unclassified: 0
       };
     } else if (!customerMap[kode].nm_pelanggan && row.nama_pelanggan) {
@@ -191,10 +206,11 @@ function getPiutangPelangganLaporan() {
     const tanggalTransaksi = parseSidDate(row.tanggal);
     const jtHari = parseJtDays(row.jt);
     let bucket = 'unclassified';
+    let umurHari = null;
 
     if (tanggalTransaksi && jtHari !== null) {
       const jatuhTempo = addDays(tanggalTransaksi, jtHari);
-      const umurHari = Math.floor(
+      umurHari = Math.floor(
         (today.getTime() - jatuhTempo.getTime()) / 86400000
       );
 
@@ -208,6 +224,12 @@ function getPiutangPelangganLaporan() {
 
     customer[bucket] += piutang;
     customer.total_piutang += piutang;
+    customer.outstanding_notes++;
+    if (umurHari !== null && Number.isFinite(umurHari)) {
+      customer.oldest_aging_days = customer.oldest_aging_days === null
+        ? umurHari
+        : Math.max(customer.oldest_aging_days, umurHari);
+    }
     if (bucket === 'unclassified') {
       customer.unclassified += piutang;
       totalUnclassified += piutang;
@@ -231,6 +253,8 @@ function getPiutangPelangganLaporan() {
       aging_91_120: item.aging_91_120,
       aging_121_plus: item.aging_121_plus,
       total_piutang: item.total_piutang,
+      outstanding_notes: item.outstanding_notes,
+      oldest_aging_days: item.oldest_aging_days,
       unclassified: item.unclassified
     };
   });
@@ -266,7 +290,7 @@ function getPiutangPelangganLaporan() {
  */
 function fetchOutstandingSalesInBatches() {
   const all = [];
-  const batchSize = SID_CONFIG.TRANSACTION_BATCH_SIZE;
+  const batchSize = PIUTANG_TRANSACTION_BATCH_SIZE;
   let lastKode = '';
 
   for (let batchNo = 1; batchNo <= SID_CONFIG.MAX_TRANSACTION_BATCHES; batchNo++) {
@@ -371,6 +395,7 @@ function fetchOutstandingSalesInBatches() {
   return all;
 }
 
+
 /**
  * Validasi apakah kode transaksi unik pada data outstanding.
  * Digunakan sebelum keyset pagination dijadikan metode produksi penuh.
@@ -391,7 +416,7 @@ function getDetailPiutangPelanggan(kodePelanggan) {
    * - Laporan utama getPiutangPelangganLaporan() tidak disentuh.
    */
   const query =
-    "SELECT kode,tanggal,pelanggan,nama_pelanggan,jt,piutang " +
+    "SELECT kode,tanggal,pelanggan,nama_pelanggan,jt,jumlah,piutang " +
     "FROM penjualan WHERE pelanggan = '" + kode.replace(/'/g, "''") + "' " +
     'AND piutang > 0 LIMIT ' + SID_CONFIG.DETAIL_LIMIT;
 
@@ -424,6 +449,7 @@ function getDetailPiutangPelanggan(kodePelanggan) {
       jt_hari: jtHari,
       jatuh_tempo: formatSidDate(jatuhTempo),
       umur_hari: umurHari,
+      jumlah: parseMoney(row.jumlah),
       piutang: parseMoney(row.piutang)
     };
   });
@@ -5326,8 +5352,38 @@ function getPdfCustomerStatementV1(kodePelanggan) {
   };
 }
 
+/**
+ * Real downstream server health check.
+ *
+ * Berbeda dengan action "health" yang hanya memeriksa gateway GAS,
+ * fungsi ini melakukan SELECT ringan ke SID Retail sehingga status
+ * benar-benar merepresentasikan jalur GAS -> SID Retail Server.
+ *
+ * Read-only dan tidak mengubah data.
+ */
+function serverHealth() {
+  var startedAt = Date.now();
+
+  var result = sidRetailQuery(
+    'SELECT kode FROM penjualan LIMIT 1'
+  );
+
+  return {
+    status: 'ok',
+    server: 'online',
+    checked_at: new Date().toISOString(),
+    response_ms: Date.now() - startedAt,
+    rows_checked: Array.isArray(result && result.data)
+      ? result.data.length
+      : 0
+  };
+}
+
 function apiV1Dispatch_(action, request) {
   switch (action) {
+    case 'serverHealth':
+      return serverHealth();
+
     case 'health':
       return {
         status: 'ok',
@@ -5617,3 +5673,133 @@ function doGet(e) {
 function doPost(e) {
   return apiV1Handle_(e, 'POST');
 }
+
+
+/**
+ * ============================================================
+ * CUSTOMER DETAIL PERFORMANCE DIAGNOSTIC V3
+ * ============================================================
+ *
+ * Read-only. Menguji konsistensi latency customerPiutangDetail + tabungan
+ * melalui HTTP, dengan pola sequential dan parallel seperti frontend.
+ *
+ * Tidak mengubah fungsi produksi, API contract, database, atau SID_CONFIG.
+ * V2 diganti oleh V3 agar Code.gs tidak dipenuhi diagnostic lama.
+ * Default pelanggan: 2606030.
+ */
+function diagnosticCustomerDetailV3(kodePelanggan) {
+  var kode = String(kodePelanggan || '2606030').trim();
+  var rounds = 5;
+
+  if (!kode) throw new Error('Kode pelanggan kosong.');
+  if (!/^[-a-zA-Z0-9._ ]+$/.test(kode)) {
+    throw new Error('Kode pelanggan tidak valid.');
+  }
+
+  var endpoint = ScriptApp.getService().getUrl();
+  if (!endpoint) {
+    throw new Error('URL Web App tidak tersedia. Jalankan diagnostic ini dari deployment Web App Development.');
+  }
+
+  var detailUrl = endpoint + '?action=customerPiutangDetail&kode_pelanggan=' + encodeURIComponent(kode);
+  var tabunganUrl = endpoint + '?action=tabungan&kode_pelanggan=' + encodeURIComponent(kode);
+  var requestOptions = { method: 'get', muteHttpExceptions: true, followRedirects: true };
+
+  var detailTimes = [], tabunganTimes = [], parallelTimes = [];
+  var detailHttp = [], tabunganHttp = [], parallelDetailHttp = [], parallelTabunganHttp = [];
+
+  Logger.log('==============================================');
+  Logger.log('CUSTOMER DETAIL PERFORMANCE DIAGNOSTIC V3');
+  Logger.log('KODE PELANGGAN: ' + kode);
+  Logger.log('MODE: READ-ONLY');
+  Logger.log('ROUNDS: ' + rounds);
+  Logger.log('TEST: CONSISTENCY / SEQUENTIAL vs PARALLEL HTTP');
+  Logger.log('==============================================');
+
+  for (var i = 0; i < rounds; i++) {
+    var round = i + 1;
+    Logger.log('----------------------------------------------');
+    Logger.log('ROUND ' + round);
+
+    var detailStart = Date.now();
+    var detailResponse = UrlFetchApp.fetch(detailUrl, requestOptions);
+    var detailMs = Date.now() - detailStart;
+    detailTimes.push(detailMs);
+    detailHttp.push(detailResponse.getResponseCode());
+
+    var tabunganStart = Date.now();
+    var tabunganResponse = UrlFetchApp.fetch(tabunganUrl, requestOptions);
+    var tabunganMs = Date.now() - tabunganStart;
+    tabunganTimes.push(tabunganMs);
+    tabunganHttp.push(tabunganResponse.getResponseCode());
+
+    var parallelStart = Date.now();
+    var parallelResponses = UrlFetchApp.fetchAll([
+      { url: detailUrl, method: 'get', muteHttpExceptions: true, followRedirects: true },
+      { url: tabunganUrl, method: 'get', muteHttpExceptions: true, followRedirects: true }
+    ]);
+    var parallelMs = Date.now() - parallelStart;
+    parallelTimes.push(parallelMs);
+    parallelDetailHttp.push(parallelResponses[0].getResponseCode());
+    parallelTabunganHttp.push(parallelResponses[1].getResponseCode());
+
+    Logger.log('DETAIL MS: ' + detailMs + ' | HTTP: ' + detailHttp[i]);
+    Logger.log('TABUNGAN MS: ' + tabunganMs + ' | HTTP: ' + tabunganHttp[i]);
+    Logger.log('PARALLEL MS: ' + parallelMs + ' | DETAIL HTTP: ' + parallelDetailHttp[i] + ' | TABUNGAN HTTP: ' + parallelTabunganHttp[i]);
+  }
+
+  function sum(values) {
+    return values.reduce(function(total, value) { return total + Number(value || 0); }, 0);
+  }
+  function average(values) { return values.length ? sum(values) / values.length : 0; }
+  function sorted(values) { return values.slice().sort(function(a, b) { return a - b; }); }
+  function median(values) {
+    if (!values.length) return 0;
+    var s = sorted(values), middle = Math.floor(s.length / 2);
+    return s.length % 2 ? s[middle] : (s[middle - 1] + s[middle]) / 2;
+  }
+  function countOver(values, threshold) {
+    return values.filter(function(value) { return Number(value) > threshold; }).length;
+  }
+  function stats(values) {
+    var s = sorted(values);
+    return {
+      min_ms: s.length ? s[0] : 0,
+      max_ms: s.length ? s[s.length - 1] : 0,
+      average_ms: average(values),
+      median_ms: median(values),
+      over_5000_ms: countOver(values, 5000),
+      over_10000_ms: countOver(values, 10000),
+      over_20000_ms: countOver(values, 20000),
+      over_30000_ms: countOver(values, 30000)
+    };
+  }
+
+  var detailStats = stats(detailTimes);
+  var tabunganStats = stats(tabunganTimes);
+  var parallelStats = stats(parallelTimes);
+
+  Logger.log('==============================================');
+  Logger.log('SUMMARY DETAIL | MIN=' + detailStats.min_ms + ' MAX=' + detailStats.max_ms + ' AVG=' + detailStats.average_ms.toFixed(1) + ' MEDIAN=' + detailStats.median_ms);
+  Logger.log('DETAIL >5S=' + detailStats.over_5000_ms + ' >10S=' + detailStats.over_10000_ms + ' >20S=' + detailStats.over_20000_ms + ' >30S=' + detailStats.over_30000_ms);
+  Logger.log('SUMMARY TABUNGAN | MIN=' + tabunganStats.min_ms + ' MAX=' + tabunganStats.max_ms + ' AVG=' + tabunganStats.average_ms.toFixed(1) + ' MEDIAN=' + tabunganStats.median_ms);
+  Logger.log('TABUNGAN >5S=' + tabunganStats.over_5000_ms + ' >10S=' + tabunganStats.over_10000_ms + ' >20S=' + tabunganStats.over_20000_ms + ' >30S=' + tabunganStats.over_30000_ms);
+  Logger.log('SUMMARY PARALLEL | MIN=' + parallelStats.min_ms + ' MAX=' + parallelStats.max_ms + ' AVG=' + parallelStats.average_ms.toFixed(1) + ' MEDIAN=' + parallelStats.median_ms);
+  Logger.log('PARALLEL >5S=' + parallelStats.over_5000_ms + ' >10S=' + parallelStats.over_10000_ms + ' >20S=' + parallelStats.over_20000_ms + ' >30S=' + parallelStats.over_30000_ms);
+  Logger.log('HTTP DETAIL: ' + JSON.stringify(detailHttp));
+  Logger.log('HTTP TABUNGAN: ' + JSON.stringify(tabunganHttp));
+  Logger.log('HTTP PARALLEL DETAIL: ' + JSON.stringify(parallelDetailHttp));
+  Logger.log('HTTP PARALLEL TABUNGAN: ' + JSON.stringify(parallelTabunganHttp));
+  Logger.log('==============================================');
+
+  return {
+    diagnostic: 'customer_detail_performance_v3',
+    read_only: true,
+    kode_pelanggan: kode,
+    rounds: rounds,
+    detail: { times_ms: detailTimes, http: detailHttp, stats: detailStats },
+    tabungan: { times_ms: tabunganTimes, http: tabunganHttp, stats: tabunganStats },
+    parallel: { times_ms: parallelTimes, detail_http: parallelDetailHttp, tabungan_http: parallelTabunganHttp, stats: parallelStats }
+  };
+}
+
