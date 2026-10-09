@@ -766,3 +766,108 @@ function auditSupplierHutangPickFieldV1(row, candidates) {
 
   return '';
 }
+
+
+/**
+ * VALIDASI SISA NOTA V1
+ * ------------------------------------------------------------
+ * Audit sangat terfokus terhadap dua nota supplier FULLMOON yang
+ * sudah terbukti memiliki relasi pembelian -> itemhutang.
+ *
+ * Tujuan:
+ *   Membandingkan:
+ *     - total nota pembelian
+ *     - total alokasi pembayaran dari itemhutang.jumlah
+ *     - itemhutang.return sebagai kandidat pengurang
+ *     - sisa diagnostik
+ *
+ * CATATAN PENTING:
+ *   sisa_diagnostic BUKAN source of truth dan belum boleh dipakai
+ *   untuk halaman Hutang produksi. Ini hanya alat untuk menguji
+ *   apakah struktur data mendukung rumus sisa yang sedang diaudit.
+ *
+ * Beban:
+ *   - tepat 1 query
+ *   - hanya 2 nota yang sudah diketahui
+ *   - tidak scan seluruh tabel
+ *   - read-only
+ */
+function auditSupplierHutangBalanceProbeV1() {
+  const started = Date.now();
+
+  const invoiceCodes = [
+    'R21-260621001',
+    'R21-260621002'
+  ];
+
+  const sql =
+    'SELECT ' +
+    'p.kode AS nota, ' +
+    'p.tanggal AS tanggal, ' +
+    'p.supplier AS supplier, ' +
+    'p.jumlah AS total_nota, ' +
+    'COALESCE(SUM(ih.jumlah), 0) AS total_alokasi_bayar, ' +
+    'COALESCE(SUM(ih.return), 0) AS total_return_itemhutang, ' +
+    'p.jumlah - COALESCE(SUM(ih.jumlah), 0) - COALESCE(SUM(ih.return), 0) AS sisa_diagnostic ' +
+    'FROM ' + auditSupplierHutangQuoteIdentifierV1('pembelian') + ' p ' +
+    'LEFT JOIN ' + auditSupplierHutangQuoteIdentifierV1('itemhutang') + ' ih ' +
+    'ON ih.kode_hutang = p.kode ' +
+    'WHERE p.kode IN (' +
+    "'R21-260621001','R21-260621002'" +
+    ') ' +
+    'GROUP BY p.kode, p.tanggal, p.supplier, p.jumlah ' +
+    'ORDER BY p.kode';
+
+  Logger.log('====================================================');
+  Logger.log('SUPPLIER HUTANG BALANCE PROBE V1');
+  Logger.log('MODE: READ-ONLY');
+  Logger.log('QUERY: 1 targeted aggregate');
+  Logger.log('NOTA: ' + JSON.stringify(invoiceCodes));
+  Logger.log('====================================================');
+  Logger.log('QUERY: ' + sql);
+
+  try {
+    const response = sidRetailQuery(sql);
+
+    const rows =
+      response && Array.isArray(response.data)
+        ? response.data
+        : [];
+
+    Logger.log('ROWS: ' + rows.length);
+    Logger.log(JSON.stringify(rows));
+
+    const result = {
+      diagnostic: 'supplier_hutang_balance_probe_v1',
+      read_only: true,
+      query_count: 1,
+      invoice_codes: invoiceCodes,
+      row_count: rows.length,
+      rows: rows,
+      duration_ms: Date.now() - started
+    };
+
+    Logger.log('DURATION MS: ' + result.duration_ms);
+    Logger.log('====================================================');
+
+    return result;
+  } catch (error) {
+    const message =
+      error && error.message
+        ? error.message
+        : String(error);
+
+    Logger.log('BALANCE PROBE ERROR: ' + message);
+    Logger.log('====================================================');
+
+    return {
+      diagnostic: 'supplier_hutang_balance_probe_v1',
+      read_only: true,
+      query_count: 1,
+      invoice_codes: invoiceCodes,
+      success: false,
+      error: message,
+      duration_ms: Date.now() - started
+    };
+  }
+}
