@@ -1798,3 +1798,78 @@ button, input, select {
 @media (max-width:1000px) { .supplier-hutang-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } .supplier-detail-summary { grid-template-columns:1fr 1fr; } }
 @media (max-width:800px) { .supplier-hutang-summary { grid-template-columns:1fr 1fr; } .supplier-detail-summary { grid-template-columns:1fr; } .supplier-detail-table-scroll { max-height:48vh; } }
 @media (max-width:520px) { .supplier-hutang-summary { grid-template-columns:1fr; } .supplier-hutang-heading h2 { font-size:24px; } .supplier-detail-summary strong { font-size:15px; } }
+
+/* Supplier Hutang — invoice aging detail */
+.supplier-aging-note {
+  margin: -2px 0 10px;
+  color: var(--muted, #64748b);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.supplier-detail-table th:nth-child(1),
+.supplier-detail-table td:nth-child(1) { min-width: 138px; }
+.supplier-detail-table th:nth-child(2),
+.supplier-detail-table td:nth-child(2) { min-width: 100px; white-space: nowrap; }
+.supplier-detail-table th:nth-child(3),
+.supplier-detail-table td:nth-child(3) { min-width: 100px; text-align: center; white-space: nowrap; }
+.supplier-detail-table th:nth-child(4),
+.supplier-detail-table td:nth-child(4) { min-width: 132px; text-align: right; white-space: nowrap; }
+.supplier-detail-table th:nth-child(5),
+.supplier-detail-table td:nth-child(5) { min-width: 132px; text-align: right; white-space: nowrap; }
+.supplier-detail-table th:nth-child(6),
+.supplier-detail-table td:nth-child(6) { min-width: 128px; text-align: center; white-space: nowrap; }
+
+.supplier-aging-days {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.supplier-aging-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 3px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.supplier-aging-badge.aging-normal {
+  background: var(--surface-muted, #f1f5f9);
+  border-color: var(--border, #e2e8f0);
+  color: var(--text, #334155);
+}
+.supplier-aging-badge.aging-attention {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #9a3412;
+}
+.supplier-aging-badge.aging-high {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+.supplier-aging-badge.aging-urgent {
+  background: #450a0a;
+  border-color: #450a0a;
+  color: #fff;
+}
+.supplier-aging-badge.aging-unknown {
+  background: var(--surface-muted, #f1f5f9);
+  border-color: var(--border, #e2e8f0);
+  color: var(--muted, #64748b);
+}
+
+@media (max-width: 800px) {
+  .supplier-aging-note { font-size: 11px; }
+  .supplier-detail-table th:nth-child(1),
+  .supplier-detail-table td:nth-child(1) { min-width: 128px; }
+  .supplier-detail-table th:nth-child(4),
+  .supplier-detail-table td:nth-child(4),
+  .supplier-detail-table th:nth-child(5),
+  .supplier-detail-table td:nth-child(5) { min-width: 124px; }
+}
