@@ -516,25 +516,95 @@ function renderProfitChart(container, rows) {
     value: max * ratio
   }));
 
+  const bars = rows.map((row, index) => {
+    const slotW = plotW / rows.length;
+    const x = pad.left + index * slotW + (slotW - barW) / 2;
+    const barH = (row.total_laba / max) * plotH;
+    const y = pad.top + plotH - barH;
+    return { ...row, x, y, barH };
+  });
+
   container.innerHTML = `
-    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Grafik laba bulanan">
-      ${yTicks.map((tick) => `
-        <line x1="${pad.left}" y1="${tick.y}" x2="${width - pad.right}" y2="${tick.y}" class="dashboard-grid-line"></line>
-        <text x="${pad.left - 10}" y="${tick.y + 4}" text-anchor="end" class="dashboard-axis-label">${escapeHtml(formatCompactRupiah(tick.value))}</text>
-      `).join("")}
-      ${rows.map((row, index) => {
-        const x = pad.left + index * (plotW / rows.length) + ((plotW / rows.length) - barW) / 2;
-        const barH = (row.total_laba / max) * plotH;
-        const y = pad.top + plotH - barH;
-        return `
-          <rect x="${x}" y="${y}" width="${barW}" height="${Math.max(0, barH)}" rx="6" class="dashboard-profit-bar">
-            <title>${escapeHtml(row.bulan)} · ${escapeHtml(formatRupiah(row.total_laba))}</title>
+    <div class="dashboard-chart-stage dashboard-profit-chart-stage">
+      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Grafik laba bulanan">
+        ${yTicks.map((tick) => `
+          <line x1="${pad.left}" y1="${tick.y}" x2="${width - pad.right}" y2="${tick.y}" class="dashboard-grid-line"></line>
+          <text x="${pad.left - 10}" y="${tick.y + 4}" text-anchor="end" class="dashboard-axis-label">${escapeHtml(formatCompactRupiah(tick.value))}</text>
+        `).join("")}
+        ${bars.map((bar) => `
+          <rect x="${bar.x}" y="${bar.y}" width="${barW}" height="${Math.max(0, bar.barH)}" rx="6" class="dashboard-profit-bar">
+            <title>${escapeHtml(bar.bulan)} · ${escapeHtml(formatRupiah(bar.total_laba))}</title>
           </rect>
-          <text x="${x + barW / 2}" y="${height - 15}" text-anchor="middle" class="dashboard-axis-label">${escapeHtml(row.label)}</text>
-        `;
-      }).join("")}
-    </svg>
+          <text x="${bar.x + barW / 2}" y="${height - 15}" text-anchor="middle" class="dashboard-axis-label">${escapeHtml(bar.label)}</text>
+        `).join("")}
+      </svg>
+    </div>
   `;
+
+  const stage = container.querySelector(".dashboard-profit-chart-stage");
+  const svg = stage?.querySelector("svg");
+  if (!stage || !svg) return;
+
+  svg.insertAdjacentHTML("beforeend", `
+    <line class="dashboard-crosshair dashboard-profit-crosshair" data-profit-crosshair x1="-10" y1="${pad.top}" x2="-10" y2="${pad.top + plotH}"></line>
+    <circle class="dashboard-focus-point dashboard-profit-focus" data-profit-focus cx="-10" cy="-10" r="5"></circle>
+    <rect class="dashboard-chart-hitarea dashboard-profit-hitarea" data-profit-hitarea x="${pad.left}" y="${pad.top}" width="${plotW}" height="${plotH}"></rect>
+  `);
+
+  const hitarea = stage.querySelector("[data-profit-hitarea]");
+  const crosshair = stage.querySelector("[data-profit-crosshair]");
+  const focus = stage.querySelector("[data-profit-focus]");
+
+  const tooltip = document.createElement("div");
+  tooltip.className = "dashboard-chart-tooltip dashboard-profit-tooltip";
+  tooltip.setAttribute("role", "status");
+  tooltip.setAttribute("aria-live", "polite");
+  stage.appendChild(tooltip);
+
+  const resetHover = () => {
+    crosshair?.setAttribute("x1", "-10");
+    crosshair?.setAttribute("x2", "-10");
+    focus?.setAttribute("cx", "-10");
+    focus?.setAttribute("cy", "-10");
+    tooltip.classList.remove("is-visible");
+  };
+
+  const showBar = (clientX) => {
+    if (!hitarea || !stage || !bars.length) return;
+
+    const rect = hitarea.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const index = Math.min(
+      bars.length - 1,
+      Math.max(0, Math.floor(ratio * bars.length))
+    );
+    const bar = bars[index];
+
+    crosshair?.setAttribute("x1", bar.x + barW / 2);
+    crosshair?.setAttribute("x2", bar.x + barW / 2);
+    focus?.setAttribute("cx", bar.x + barW / 2);
+    focus?.setAttribute("cy", bar.y);
+
+    tooltip.innerHTML = `
+      <div class="dashboard-tooltip-label">${escapeHtml(monthLabel(Number(bar.bulan.slice(5, 7)))}</div>
+      <strong>${escapeHtml(formatRupiah(bar.total_laba))}</strong>
+      <small>Laba bulan tersebut</small>
+    `;
+    tooltip.classList.add("is-visible");
+
+    const stageRect = stage.getBoundingClientRect();
+    const left = ((bar.x + barW / 2) / width) * stageRect.width;
+    const tooltipWidth = tooltip.offsetWidth || 170;
+    const clampedLeft = Math.max(
+      8,
+      Math.min(stageRect.width - tooltipWidth - 8, left - tooltipWidth / 2)
+    );
+    tooltip.style.left = clampedLeft + "px";
+  };
+
+  hitarea?.addEventListener("pointermove", (event) => showBar(event.clientX));
+  hitarea?.addEventListener("pointerdown", (event) => showBar(event.clientX));
+  hitarea?.addEventListener("pointerleave", resetHover);
 }
 
 
