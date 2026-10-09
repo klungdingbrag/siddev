@@ -35,7 +35,7 @@
  */
 function supplierHutangParseDateV1(value) {
   var text = String(value == null ? '' : value).trim();
-  var match = text.match(/^(\\d{2})\\/(\\d{2})\\/(\\d{4})$/);
+  var match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
 
   if (!match) {
     throw new Error(
