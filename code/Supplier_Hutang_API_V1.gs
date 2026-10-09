@@ -524,3 +524,149 @@ function testSupplierHutangAgingDataV1(kodeSupplier) {
     duration_ms: Date.now() - started
   };
 }
+
+/**
+ * TEST HTTP AGING V1
+ * ------------------------------------------------------------
+ * Memvalidasi aging melalui jalur Web App Development:
+ *   GAS test -> Web App doGet -> apiV1Handle_ -> dispatcher
+ *   -> getSupplierHutangDetailV1()
+ *
+ * Mode:
+ *   READ-ONLY
+ *
+ * Validasi:
+ *   - HTTP 2xx
+ *   - envelope API success
+ *   - payload supplier detail tersedia
+ *   - field umur_hari + aging_bucket tersedia
+ *   - summary total tetap konsisten dengan rows
+ *   - source_contract memuat kontrak aging
+ *
+ * Default supplier: JAYA
+ *
+ * Catatan:
+ *   Jalankan dari deployment Web App Development agar
+ *   ScriptApp.getService().getUrl() menunjuk endpoint yang
+ *   dapat diuji melalui HTTP.
+ */
+function testSupplierHutangAgingHttpV1(kodeSupplier) {
+  var kode = String(kodeSupplier || 'JAYA').trim();
+
+  if (!kode) {
+    throw new Error('Kode supplier kosong.');
+  }
+
+  if (!/^[-a-zA-Z0-9._ ]+$/.test(kode)) {
+    throw new Error('Kode supplier tidak valid.');
+  }
+
+  var endpoint = ScriptApp.getService().getUrl();
+
+  if (!endpoint) {
+    throw new Error(
+      'URL Web App tidak tersedia. Jalankan test ini dari deployment Web App Development.'
+    );
+  }
+
+  var url = endpoint +
+    '?action=supplierHutangDetail&kode_supplier=' +
+    encodeURIComponent(kode);
+
+  var started = Date.now();
+  var response = UrlFetchApp.fetch(url, {
+    method: 'get',
+    muteHttpExceptions: true,
+    followRedirects: true
+  });
+
+  var durationMs = Date.now() - started;
+  var httpCode = response.getResponseCode();
+  var responseText = response.getContentText();
+
+  var json = null;
+  var jsonValid = true;
+
+  try {
+    json = JSON.parse(responseText);
+  } catch (e) {
+    jsonValid = false;
+  }
+
+  var apiSuccess = !!json && json.status === 'success';
+  var payload = apiSuccess && json.data && typeof json.data === 'object'
+    ? json.data
+    : {};
+
+  var rows = Array.isArray(payload.data)
+    ? payload.data
+    : [];
+
+  var summary = payload.summary || {};
+  var sourceContract = payload.source_contract || {};
+
+  var fieldsComplete = rows.length > 0 && rows.every(function(row) {
+    return (
+      row.tanggal &&
+      Number.isFinite(Number(row.umur_hari)) &&
+      row.aging_bucket
+    );
+  });
+
+  var rowsTotalHutang = rows.reduce(function(total, row) {
+    return total + Number(row.sisa_hutang || 0);
+  }, 0);
+
+  var summaryTotalHutang = Number(summary.total_hutang || 0);
+  var balanceMatch =
+    Math.abs(rowsTotalHutang - summaryTotalHutang) < 0.01;
+
+  var agingContractPresent =
+    String(sourceContract.aging || '').indexOf('umur_hari') >= 0 &&
+    String(sourceContract.aging_bucket || '').indexOf('Urgent') >= 0;
+
+  var httpPass = httpCode >= 200 && httpCode < 300;
+  var passed =
+    httpPass &&
+    jsonValid &&
+    apiSuccess &&
+    rows.length > 0 &&
+    fieldsComplete &&
+    balanceMatch &&
+    agingContractPresent;
+
+  Logger.log('====================================================');
+  Logger.log('SUPPLIER HUTANG AGING V1 - HTTP TEST');
+  Logger.log('MODE: READ-ONLY');
+  Logger.log('SUPPLIER: ' + kode);
+  Logger.log('URL: ' + url);
+  Logger.log('HTTP CODE: ' + httpCode);
+  Logger.log('JSON VALID: ' + (jsonValid ? 'PASS' : 'FAIL'));
+  Logger.log('API STATUS: ' + (apiSuccess ? 'PASS' : 'FAIL'));
+  Logger.log('ROWS: ' + rows.length);
+  Logger.log('FIELDS COMPLETE: ' + (fieldsComplete ? 'PASS' : 'FAIL'));
+  Logger.log('SUMMARY TOTAL HUTANG: ' + summaryTotalHutang);
+  Logger.log('ROWS TOTAL HUTANG: ' + rowsTotalHutang);
+  Logger.log('BALANCE MATCH: ' + (balanceMatch ? 'PASS' : 'FAIL'));
+  Logger.log('AGING CONTRACT: ' + (agingContractPresent ? 'PASS' : 'FAIL'));
+  Logger.log('SAMPLE: ' + JSON.stringify(rows.slice(0, 5)));
+  Logger.log('RESULT: ' + (passed ? 'PASS' : 'FAIL'));
+  Logger.log('DURATION MS: ' + durationMs);
+  Logger.log('====================================================');
+
+  return {
+    status: passed ? 'pass' : 'fail',
+    supplier: kode,
+    http_code: httpCode,
+    json_valid: jsonValid,
+    api_success: apiSuccess,
+    row_count: rows.length,
+    fields_complete: fieldsComplete,
+    summary_total_hutang: summaryTotalHutang,
+    rows_total_hutang: rowsTotalHutang,
+    balance_match: balanceMatch,
+    aging_contract_present: agingContractPresent,
+    sample: rows.slice(0, 5),
+    duration_ms: durationMs
+  };
+}
