@@ -6,7 +6,7 @@ const number = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 });
 const root = () => document.querySelector("#page-content");
 const money = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
 const formatMoney = (value) => rupiah.format(money(value));
-function esc(value) { return String(value ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll(""","&quot;").replaceAll("'","&#039;"); }
+function esc(value) { return String(value ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;"); }
 function getPayload(result) { return result?.data || result || {}; }
 function getRows(result) { const p = getPayload(result); return Array.isArray(p.data) ? p.data : []; }
 function getSummary(result) { return getPayload(result).summary || {}; }
