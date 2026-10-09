@@ -1260,3 +1260,110 @@ function auditSupplierHutangFindPartialPaymentV1() {
     };
   }
 }
+
+
+/**
+ * TRACE PARTIAL PAYMENT V2
+ * ------------------------------------------------------------
+ * Test case:
+ *   R21-060926001
+ *
+ * Fokus sengaja DIPERSEMPIT:
+ *   - pembelian.jumlah
+ *   - pembelian.hutang
+ *   - pembelian.lunas
+ *   - pembelian.kekurangan_sdh_dibayar
+ *   - itemhutang.jumlah_hutang
+ *   - itemhutang.jumlah
+ *
+ * Return TIDAK ikut dihitung pada tahap ini karena kandidat audit
+ * menunjukkan return_item = 0.00. Return akan diaudit terpisah
+ * hanya jika nanti ditemukan data yang membuatnya relevan.
+ *
+ * Beban:
+ *   - 1 query
+ *   - 1 nota
+ *   - read-only
+ *   - targeted JOIN + aggregate
+ */
+function auditSupplierHutangPartialPaymentTraceV2() {
+  const started = Date.now();
+
+  const invoiceCode = 'R21-060926001';
+
+  const sql =
+    'SELECT ' +
+    'p.kode AS nota, ' +
+    'p.tanggal AS tanggal, ' +
+    'p.supplier AS supplier, ' +
+    'p.jumlah AS total_nota, ' +
+    'p.hutang AS hutang_field, ' +
+    'p.lunas AS lunas, ' +
+    'p.kekurangan_sdh_dibayar AS kekurangan_sdh_dibayar, ' +
+    'COALESCE(SUM(ih.jumlah_hutang), 0) AS total_nilai_item_hutang, ' +
+    'COALESCE(SUM(ih.jumlah), 0) AS total_alokasi_bayar, ' +
+    'COUNT(ih.kode) AS jumlah_record_itemhutang ' +
+    'FROM ' + auditSupplierHutangQuoteIdentifierV1('pembelian') + ' p ' +
+    'LEFT JOIN ' + auditSupplierHutangQuoteIdentifierV1('itemhutang') + ' ih ' +
+    'ON ih.kode_hutang = p.kode ' +
+    'WHERE p.kode = \'R21-060926001\' ' +
+    'GROUP BY ' +
+    'p.kode, p.tanggal, p.supplier, p.jumlah, p.hutang, ' +
+    'p.lunas, p.kekurangan_sdh_dibayar';
+
+  Logger.log('====================================================');
+  Logger.log('SUPPLIER HUTANG PARTIAL PAYMENT TRACE V2');
+  Logger.log('MODE: READ-ONLY');
+  Logger.log('NOTA: ' + invoiceCode);
+  Logger.log('QUERY: 1 targeted aggregate');
+  Logger.log('RETURN: TIDAK DIHITUNG PADA TAHAP INI');
+  Logger.log('====================================================');
+  Logger.log('QUERY: ' + sql);
+
+  try {
+    const response = sidRetailQuery(sql);
+
+    const rows =
+      response && Array.isArray(response.data)
+        ? response.data
+        : [];
+
+    Logger.log('ROWS: ' + rows.length);
+    Logger.log(JSON.stringify(rows));
+
+    const result = {
+      diagnostic: 'supplier_hutang_partial_payment_trace_v2',
+      read_only: true,
+      query_count: 1,
+      invoice_code: invoiceCode,
+      return_in_scope: false,
+      row_count: rows.length,
+      rows: rows,
+      duration_ms: Date.now() - started
+    };
+
+    Logger.log('DURATION MS: ' + result.duration_ms);
+    Logger.log('====================================================');
+
+    return result;
+  } catch (error) {
+    const message =
+      error && error.message
+        ? error.message
+        : String(error);
+
+    Logger.log('PARTIAL PAYMENT TRACE ERROR: ' + message);
+    Logger.log('====================================================');
+
+    return {
+      diagnostic: 'supplier_hutang_partial_payment_trace_v2',
+      read_only: true,
+      query_count: 1,
+      invoice_code: invoiceCode,
+      return_in_scope: false,
+      success: false,
+      error: message,
+      duration_ms: Date.now() - started
+    };
+  }
+}
