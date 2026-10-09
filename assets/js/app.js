@@ -3,6 +3,7 @@ import { apiServerHealth } from "./api/client.js";
 import { renderPiutangPage } from "./pages/piutang.js?v=20261006-piutang-current-1";
 import { renderDashboardPage } from "./pages/dashboard.js?v=20261006-dashboard-current-1";
 import { renderPelangganPage } from "./pages/pelanggan.js?v=20261006-customer-current-1";
+import { renderSupplierHutangPage } from "./pages/supplier-hutang.js?v=20261009-supplier-hutang-v1";
 
 const sidebar = document.querySelector("#sidebar");
 const content = document.querySelector("#page-content");
@@ -65,6 +66,7 @@ sidebar.innerHTML = `
     <a class="nav-item" href="#dashboard">Dashboard</a>
     <a class="nav-item" href="#pelanggan">Pelanggan</a>
     <a class="nav-item" href="#piutang">Piutang</a>
+    <a class="nav-item" href="#hutang-supplier">Hutang Supplier</a>
     <a class="nav-item" href="#barang">Data Barang</a>
     <a class="nav-item" href="#kalkulator">Kalkulator</a>
   </nav>
@@ -108,6 +110,10 @@ function route() {
     "#pelanggan": {
       title: "Pelanggan",
       render: () => renderPelangganPage()
+    },
+    "#hutang-supplier": {
+      title: "Hutang Supplier",
+      render: () => renderSupplierHutangPage()
     },
     "#barang": {
       title: "Data Barang",
