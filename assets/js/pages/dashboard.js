@@ -195,7 +195,9 @@ function buildDashboardShell() {
             <span>Tahun</span>
             <select id="dashboard-year" aria-label="Pilih tahun"></select>
           </label>
-          <button class="btn btn-primary" id="dashboard-refresh" type="button">Refresh</button>
+          <button class="btn btn-primary dashboard-refresh" id="dashboard-refresh" type="button">
+            <span class="dashboard-refresh-content">Refresh</span>
+          </button>
         </div>
       </div>
 
@@ -710,7 +712,10 @@ function setDashboardLoading(isLoading) {
   const refresh = document.querySelector("#dashboard-refresh");
   if (refresh) {
     refresh.disabled = isLoading;
-    refresh.textContent = isLoading ? "Memuat..." : "Refresh";
+    refresh.setAttribute("aria-busy", isLoading ? "true" : "false");
+    refresh.innerHTML = isLoading
+      ? '<span class="dashboard-refresh-content"><span class="dashboard-refresh-spinner" aria-hidden="true"></span><span>Memuat…</span></span>'
+      : '<span class="dashboard-refresh-content">Refresh</span>';
   }
 
   const state = document.querySelector("#dashboard-state");
