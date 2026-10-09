@@ -963,3 +963,100 @@ function auditSupplierHutangFindOutstandingV1() {
     };
   }
 }
+
+
+/**
+ * PROBE PEMBELIAN TERBARU V1
+ * ------------------------------------------------------------
+ * Tahap discovery ringan setelah aggregate seluruh pembelian
+ * mengalami timeout 504.
+ *
+ * Tujuan:
+ *   Mengambil sejumlah kecil nota pembelian terbaru untuk memilih
+ *   kandidat yang kemudian dapat ditrace secara targeted.
+ *
+ * Beban:
+ *   - 1 query
+ *   - SELECT field yang diperlukan saja
+ *   - LIMIT 20
+ *   - tanpa JOIN
+ *   - tanpa aggregate
+ *   - tanpa scan itemhutang
+ *   - read-only
+ *
+ * CATATAN:
+ *   Hasil probe hanya kandidat. Jangan menganggap p.hutang,
+ *   p.lunas, atau field lain sebagai source of truth saldo sebelum
+ *   ditrace terhadap struktur pembayaran.
+ */
+function auditSupplierHutangRecentPurchasesV1() {
+  const started = Date.now();
+
+  const sql =
+    'SELECT ' +
+    'p.kode AS nota, ' +
+    'p.tanggal AS tanggal, ' +
+    'p.supplier AS supplier, ' +
+    'p.jumlah AS total_nota, ' +
+    'p.hutang AS hutang_field, ' +
+    'p.lunas AS lunas, ' +
+    'p.kekurangan_sdh_dibayar AS kekurangan_sdh_dibayar, ' +
+    'p.hutang_ke AS hutang_ke ' +
+    'FROM ' + auditSupplierHutangQuoteIdentifierV1('pembelian') + ' p ' +
+    'WHERE p.hutang_ke = \'supplier\' ' +
+    'ORDER BY p.tanggal DESC ' +
+    'LIMIT 20';
+
+  Logger.log('====================================================');
+  Logger.log('SUPPLIER HUTANG RECENT PURCHASE PROBE V1');
+  Logger.log('MODE: READ-ONLY');
+  Logger.log('QUERY: 1 lightweight SELECT');
+  Logger.log('LIMIT: 20');
+  Logger.log('====================================================');
+  Logger.log('QUERY: ' + sql);
+
+  try {
+    const response = sidRetailQuery(sql);
+
+    const rows =
+      response && Array.isArray(response.data)
+        ? response.data
+        : [];
+
+    Logger.log('ROWS: ' + rows.length);
+    Logger.log(JSON.stringify(rows));
+
+    const result = {
+      diagnostic: 'supplier_hutang_recent_purchases_v1',
+      read_only: true,
+      query_count: 1,
+      limit: 20,
+      row_count: rows.length,
+      rows: rows,
+      duration_ms: Date.now() - started
+    };
+
+    Logger.log('DURATION MS: ' + result.duration_ms);
+    Logger.log('====================================================');
+
+    return result;
+  } catch (error) {
+    const message =
+      error && error.message
+        ? error.message
+        : String(error);
+
+    Logger.log('RECENT PURCHASE PROBE ERROR: ' + message);
+    Logger.log('====================================================');
+
+    return {
+      diagnostic: 'supplier_hutang_recent_purchases_v1',
+      read_only: true,
+      query_count: 1,
+      limit: 20,
+      success: false,
+      error: message,
+      duration_ms: Date.now() - started
+    };
+  }
+}
