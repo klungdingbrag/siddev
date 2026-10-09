@@ -1,4 +1,4 @@
-/**
+/** 
  * TB NUSANTARA - SUPPLIER HUTANG AUDIT V1
  * ============================================================
  * READ-ONLY AUDIT MODULE
@@ -157,7 +157,7 @@ function auditSupplierHutangV1() {
     relationship_hints: relationshipHints,
 
     next_step:
-      'Validasi relasi supplier -> nota/hutang -> pembayaran -> sisa. Jangan membuat API/frontend sebelum source of truth terbukti.'
+      'Gunakan auditSupplierHutangRelationsV1() untuk membaca record nyata secara terfokus. Jangan membuat API/frontend sebelum source of truth terbukti.'
   };
 
   Logger.log('====================================================');
@@ -167,6 +167,118 @@ function auditSupplierHutangV1() {
     'RELATIONSHIP HINTS: ' +
     JSON.stringify(relationshipHints)
   );
+  Logger.log('====================================================');
+
+  return result;
+}
+
+
+/**
+ * AUDIT LANJUTAN TERFOKUS
+ * ------------------------------------------------------------
+ * Tujuan:
+ *   Melihat isi record nyata dan mencari bukti relasi antar tabel.
+ *
+ * Beban:
+ *   Hanya 6 query SELECT * LIMIT 3.
+ *
+ * Sengaja TIDAK melakukan:
+ *   - JOIN
+ *   - aggregate
+ *   - scan seluruh tabel
+ *   - perubahan data
+ *   - perubahan Code.gs
+ *   - API/frontend
+ *
+ * Enam tabel dipilih karena paling kuat dari hasil Audit V1:
+ *   supplier
+ *   pembelian
+ *   hutang
+ *   itemhutang
+ *   return_pembelian
+ *   potong_hutang_return
+ *
+ * Catatan:
+ *   Record hanya dipakai untuk membaca pola key/nominal/tanggal.
+ *   Belum menetapkan source of truth.
+ */
+function auditSupplierHutangRelationsV1() {
+  const started = Date.now();
+
+  const targets = [
+    'supplier',
+    'pembelian',
+    'hutang',
+    'itemhutang',
+    'return_pembelian',
+    'potong_hutang_return'
+  ];
+
+  Logger.log('====================================================');
+  Logger.log('SUPPLIER HUTANG RELATION PROBE V1');
+  Logger.log('MODE: READ-ONLY');
+  Logger.log('QUERY: 6 x SELECT * LIMIT 3');
+  Logger.log('====================================================');
+
+  const result = {
+    diagnostic: 'supplier_hutang_relation_probe_v1',
+    read_only: true,
+    query_count_target: targets.length,
+    sample_limit: 3,
+    tables: []
+  };
+
+  targets.forEach(function(tableName) {
+    const safeTable = auditSupplierHutangValidateIdentifierV1(tableName);
+
+    try {
+      const response = sidRetailQuery(
+        'SELECT * FROM ' +
+        auditSupplierHutangQuoteIdentifierV1(safeTable) +
+        ' LIMIT 3'
+      );
+
+      const rows =
+        response && Array.isArray(response.data)
+          ? response.data
+          : [];
+
+      const tableResult = {
+        table: safeTable,
+        success: response && response.status === 'success',
+        row_count: rows.length,
+        rows: rows
+      };
+
+      result.tables.push(tableResult);
+
+      Logger.log('--- ' + safeTable + ' ---');
+      Logger.log('ROWS: ' + rows.length);
+      Logger.log(JSON.stringify(rows));
+    } catch (error) {
+      const message =
+        error && error.message
+          ? error.message
+          : String(error);
+
+      result.tables.push({
+        table: safeTable,
+        success: false,
+        row_count: 0,
+        error: message
+      });
+
+      Logger.log('--- ' + safeTable + ' ---');
+      Logger.log('ERROR: ' + message);
+    }
+  });
+
+  result.duration_ms = Date.now() - started;
+
+  Logger.log('====================================================');
+  Logger.log('SUPPLIER HUTANG RELATION PROBE V1 SELESAI');
+  Logger.log('DURATION MS: ' + result.duration_ms);
+  Logger.log('QUERY TERPAKAI MAKSIMAL: ' + targets.length);
   Logger.log('====================================================');
 
   return result;
