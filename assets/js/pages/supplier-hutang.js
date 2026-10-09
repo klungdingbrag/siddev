@@ -7,9 +7,18 @@ const root = () => document.querySelector("#page-content");
 const money = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
 const formatMoney = (value) => rupiah.format(money(value));
 function esc(value) { return String(value ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;"); }
-function getPayload(result) { return result?.data || result || {}; }
-function getRows(result) { const p = getPayload(result); return Array.isArray(p.data) ? p.data : []; }
-function getSummary(result) { return getPayload(result).summary || {}; }
+function getPayload(result) {
+  // apiRequest() sudah mengembalikan result.data dari envelope HTTP.
+  // Supplier Hutang backend sendiri mengembalikan object { data, summary, ... }.
+  return result && typeof result === "object" ? result : {};
+}
+function getRows(result) {
+  const p = getPayload(result);
+  return Array.isArray(p.data) ? p.data : [];
+}
+function getSummary(result) {
+  return getPayload(result).summary || {};
+}
 function codeOf(row) { return row?.kode_supplier || row?.supplier || ""; }
 function nameOf(row) { return row?.nama_supplier || row?.nama || codeOf(row) || "Tanpa nama"; }
 function formatDate(value) { const s = String(value || ""); const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); return m ? m[3]+"-"+m[2]+"-"+m[1] : (s || "—"); }
