@@ -107,8 +107,40 @@ button, input, select {
 .status-dot {
   width: 8px;
   height: 8px;
+  flex: 0 0 8px;
   border-radius: 50%;
   background: var(--success);
+}
+
+.status-dot.status-checking {
+  background: #f59e0b;
+}
+
+.status-dot.status-error {
+  background: #dc2626;
+}
+
+.api-reconnect {
+  margin-left: auto;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 7px;
+  padding: 5px 8px;
+  background: rgba(255,255,255,.06);
+  color: #d0d5dd;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.api-reconnect:hover {
+  background: rgba(255,255,255,.12);
+  color: #fff;
+}
+
+.api-reconnect:disabled {
+  opacity: .55;
+  cursor: wait;
 }
 
 .app-shell {
