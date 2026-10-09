@@ -52,6 +52,7 @@ async function fetchJson(url, timeoutMs) {
 
 const API_TIMEOUTS = Object.freeze({
   health: 12000,
+  serverHealth: 12000,
   piutang: 45000,
   customerPiutangDetail: 30000,
   tabungan: 30000,
@@ -160,4 +161,8 @@ export async function apiRequest(action, params = {}) {
 
 export async function apiHealth() {
   return apiRequest("health");
+}
+
+export async function apiServerHealth() {
+  return apiRequest("serverHealth");
 }
