@@ -1060,3 +1060,111 @@ function auditSupplierHutangRecentPurchasesV1() {
     };
   }
 }
+
+
+/**
+ * TRACE NOTA OUTSTANDING V1
+ * ------------------------------------------------------------
+ * Test case:
+ *   R21-091026003
+ *
+ * Tujuan:
+ *   Membandingkan source fields pada pembelian dengan seluruh
+ *   alokasi itemhutang untuk SATU nota yang masih aktif.
+ *
+ * Yang diuji:
+ *   - pembelian.jumlah
+ *   - pembelian.hutang
+ *   - pembelian.lunas
+ *   - pembelian.kekurangan_sdh_dibayar
+ *   - SUM(itemhutang.jumlah)
+ *   - SUM(itemhutang.return)
+ *
+ * Beban:
+ *   - 1 query
+ *   - 1 nota
+ *   - read-only
+ *   - tidak scan seluruh pembelian
+ *
+ * CATATAN:
+ *   Tidak menarik kesimpulan source of truth. Hasil hanya
+ *   membandingkan field aktual dengan ledger itemhutang.
+ */
+function auditSupplierHutangOutstandingTraceV1() {
+  const started = Date.now();
+
+  const invoiceCode = 'R21-091026003';
+
+  const sql =
+    'SELECT ' +
+    'p.kode AS nota, ' +
+    'p.tanggal AS tanggal, ' +
+    'p.supplier AS supplier, ' +
+    'p.jumlah AS total_nota, ' +
+    'p.hutang AS hutang_field, ' +
+    'p.lunas AS lunas, ' +
+    'p.kekurangan_sdh_dibayar AS kekurangan_sdh_dibayar, ' +
+    'COALESCE(SUM(ih.jumlah), 0) AS total_alokasi_bayar, ' +
+    'COALESCE(SUM(ih.return), 0) AS total_return_itemhutang, ' +
+    'COUNT(ih.kode) AS jumlah_record_itemhutang ' +
+    'FROM ' + auditSupplierHutangQuoteIdentifierV1('pembelian') + ' p ' +
+    'LEFT JOIN ' + auditSupplierHutangQuoteIdentifierV1('itemhutang') + ' ih ' +
+    'ON ih.kode_hutang = p.kode ' +
+    'WHERE p.kode = \'R21-091026003\' ' +
+    'GROUP BY ' +
+    'p.kode, p.tanggal, p.supplier, p.jumlah, p.hutang, ' +
+    'p.lunas, p.kekurangan_sdh_dibayar';
+
+  Logger.log('====================================================');
+  Logger.log('SUPPLIER HUTANG OUTSTANDING TRACE V1');
+  Logger.log('MODE: READ-ONLY');
+  Logger.log('NOTA: ' + invoiceCode);
+  Logger.log('QUERY: 1 targeted aggregate');
+  Logger.log('====================================================');
+  Logger.log('QUERY: ' + sql);
+
+  try {
+    const response = sidRetailQuery(sql);
+
+    const rows =
+      response && Array.isArray(response.data)
+        ? response.data
+        : [];
+
+    Logger.log('ROWS: ' + rows.length);
+    Logger.log(JSON.stringify(rows));
+
+    const result = {
+      diagnostic: 'supplier_hutang_outstanding_trace_v1',
+      read_only: true,
+      query_count: 1,
+      invoice_code: invoiceCode,
+      row_count: rows.length,
+      rows: rows,
+      duration_ms: Date.now() - started
+    };
+
+    Logger.log('DURATION MS: ' + result.duration_ms);
+    Logger.log('====================================================');
+
+    return result;
+  } catch (error) {
+    const message =
+      error && error.message
+        ? error.message
+        : String(error);
+
+    Logger.log('OUTSTANDING TRACE ERROR: ' + message);
+    Logger.log('====================================================');
+
+    return {
+      diagnostic: 'supplier_hutang_outstanding_trace_v1',
+      read_only: true,
+      query_count: 1,
+      invoice_code: invoiceCode,
+      success: false,
+      error: message,
+      duration_ms: Date.now() - started
+    };
+  }
+}
