@@ -871,3 +871,95 @@ function auditSupplierHutangBalanceProbeV1() {
     };
   }
 }
+
+
+/**
+ * CARI NOTA DENGAN SISA HUTANG V1
+ * ------------------------------------------------------------
+ * Audit terfokus untuk menemukan contoh nota yang:
+ *   0 < total alokasi pembayaran < total nota
+ *
+ * Tujuan:
+ *   Mendapatkan SATU contoh nyata nota yang masih bersaldo.
+ *
+ * Beban:
+ *   - 1 query
+ *   - hanya pembelian yang berstatus hutang_ke supplier
+ *   - dibatasi hasil maksimal 10 nota
+ *   - tidak mengubah data
+ *
+ * CATATAN:
+ *   Nilai sisa di sini masih "diagnostic".
+ *   Belum menjadi source of truth produksi.
+ */
+function auditSupplierHutangFindOutstandingV1() {
+  const started = Date.now();
+
+  const sql =
+    'SELECT ' +
+    'p.kode AS nota, ' +
+    'p.tanggal AS tanggal, ' +
+    'p.supplier AS supplier, ' +
+    'p.jumlah AS total_nota, ' +
+    'COALESCE(SUM(ih.jumlah), 0) AS total_alokasi_bayar, ' +
+    'p.jumlah - COALESCE(SUM(ih.jumlah), 0) AS sisa_diagnostic ' +
+    'FROM ' + auditSupplierHutangQuoteIdentifierV1('pembelian') + ' p ' +
+    'LEFT JOIN ' + auditSupplierHutangQuoteIdentifierV1('itemhutang') + ' ih ' +
+    'ON ih.kode_hutang = p.kode ' +
+    'WHERE p.hutang_ke = \'supplier\' ' +
+    'GROUP BY p.kode, p.tanggal, p.supplier, p.jumlah ' +
+    'HAVING p.jumlah > COALESCE(SUM(ih.jumlah), 0) ' +
+    'AND COALESCE(SUM(ih.jumlah), 0) > 0 ' +
+    'ORDER BY p.tanggal DESC ' +
+    'LIMIT 10';
+
+  Logger.log('====================================================');
+  Logger.log('SUPPLIER HUTANG FIND OUTSTANDING V1');
+  Logger.log('MODE: READ-ONLY');
+  Logger.log('QUERY: 1 targeted aggregate');
+  Logger.log('====================================================');
+  Logger.log('QUERY: ' + sql);
+
+  try {
+    const response = sidRetailQuery(sql);
+
+    const rows =
+      response && Array.isArray(response.data)
+        ? response.data
+        : [];
+
+    Logger.log('ROWS: ' + rows.length);
+    Logger.log(JSON.stringify(rows));
+
+    const result = {
+      diagnostic: 'supplier_hutang_find_outstanding_v1',
+      read_only: true,
+      query_count: 1,
+      row_count: rows.length,
+      rows: rows,
+      duration_ms: Date.now() - started
+    };
+
+    Logger.log('DURATION MS: ' + result.duration_ms);
+    Logger.log('====================================================');
+
+    return result;
+  } catch (error) {
+    const message =
+      error && error.message
+        ? error.message
+          : String(error);
+
+    Logger.log('OUTSTANDING SEARCH ERROR: ' + message);
+    Logger.log('====================================================');
+
+    return {
+      diagnostic: 'supplier_hutang_find_outstanding_v1',
+      read_only: true,
+      query_count: 1,
+      success: false,
+      error: message,
+      duration_ms: Date.now() - started
+    };
+  }
+}
