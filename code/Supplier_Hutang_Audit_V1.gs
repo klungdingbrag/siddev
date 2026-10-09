@@ -43,7 +43,12 @@ const SUPPLIER_HUTANG_AUDIT_V1_CONFIG = Object.freeze({
     'pembayaran_pembelian',
     'bayarpembelian',
     'returpembelian',
-    'itemreturpembelian'
+    'itemreturpembelian',
+    'return_pembelian',
+    'header_return_pembelian',
+    'item_return_beli_serial',
+    'potong_hutang_return',
+    'temp_item_hutang'
   ],
 
   supplierKeywords: ['supplier', 'pemasok', 'vendor'],
@@ -126,7 +131,7 @@ function auditSupplierHutangDiscoverTablesV1() {
     const result = sidRetailQuery('SHOW TABLES');
 
     if (result && Array.isArray(result.data)) {
-      discovered = result.data
+      const availableTables = result.data
         .map(function(row) {
           const keys = Object.keys(row || {});
           if (!keys.length) return '';
@@ -137,9 +142,22 @@ function auditSupplierHutangDiscoverTablesV1() {
             : String(value).trim();
         })
         .filter(Boolean);
+
+      // SHOW TABLES dapat mengembalikan ratusan tabel.
+      // Hanya teruskan kandidat yang relevan agar audit tidak melakukan
+      // ratusan query metadata/sample yang tidak diperlukan.
+      discovered = SUPPLIER_HUTANG_AUDIT_V1_CONFIG.candidateTables.filter(
+        function(tableName) {
+          return availableTables.indexOf(tableName) !== -1;
+        }
+      );
     }
 
-    Logger.log('SHOW TABLES BERHASIL: ' + discovered.length + ' tabel.');
+    Logger.log(
+      'SHOW TABLES BERHASIL: ' +
+      discovered.length +
+      ' kandidat relevan ditemukan.'
+    );
   } catch (error) {
     Logger.log(
       'SHOW TABLES TIDAK TERSEDIA/GAGAL: ' +
@@ -385,9 +403,12 @@ function auditSupplierHutangClassifyFieldsV1(structures) {
  * Input hanya identifier sederhana, bukan SQL bebas.
  */
 function auditSupplierHutangQuoteIdentifierV1(value) {
-  return "'" + String.fromCharCode(96) +
+  // MySQL identifier quoting: `table_name`.
+  // Jangan bungkus identifier dengan single quote karena itu
+  // mengubahnya menjadi string literal dan menyebabkan SQL syntax error.
+  return String.fromCharCode(96) +
     auditSupplierHutangValidateIdentifierV1(value) +
-    String.fromCharCode(96) + "'";
+    String.fromCharCode(96);
 }
 
 
