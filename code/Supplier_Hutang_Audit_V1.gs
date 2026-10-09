@@ -1367,3 +1367,96 @@ function auditSupplierHutangPartialPaymentTraceV2() {
     };
   }
 }
+
+
+/**
+ * AUDIT AGREGASI SUPPLIER V1
+ * ------------------------------------------------------------
+ * Test terfokus pada SATU supplier yang sudah terbukti memiliki
+ * partial payment: AHE.
+ *
+ * Tujuan:
+ *   Menguji apakah SUM(pembelian.hutang) dapat dipakai sebagai
+ *   total hutang berjalan supplier pada level supplier.
+ *
+ * Sengaja tidak melakukan aggregate global karena audit sebelumnya
+ * menunjukkan query global terlalu berat dan timeout.
+ *
+ * Beban:
+ *   - 1 query
+ *   - 1 supplier
+ *   - hanya pembelian hutang_ke = supplier dan hutang > 0
+ *   - read-only
+ *   - tanpa JOIN
+ */
+function auditSupplierHutangSupplierAggregationV1() {
+  const started = Date.now();
+  const supplierCode = 'AHE';
+
+  const sql =
+    'SELECT ' +
+    'p.supplier AS supplier, ' +
+    'COUNT(*) AS jumlah_nota_bersaldo, ' +
+    'COALESCE(SUM(p.jumlah), 0) AS total_nilai_nota, ' +
+    'COALESCE(SUM(p.hutang), 0) AS total_hutang ' +
+    'FROM ' + auditSupplierHutangQuoteIdentifierV1('pembelian') + ' p ' +
+    'WHERE p.supplier = \'AHE\' ' +
+    'AND p.hutang_ke = \'supplier\' ' +
+    'AND p.hutang > 0 ' +
+    'GROUP BY p.supplier';
+
+  Logger.log('====================================================');
+  Logger.log('SUPPLIER HUTANG SUPPLIER AGGREGATION V1');
+  Logger.log('MODE: READ-ONLY');
+  Logger.log('SUPPLIER: ' + supplierCode);
+  Logger.log('QUERY: 1 targeted aggregate');
+  Logger.log('SOURCE: pembelian.hutang');
+  Logger.log('====================================================');
+  Logger.log('QUERY: ' + sql);
+
+  try {
+    const response = sidRetailQuery(sql);
+    const rows =
+      response && Array.isArray(response.data)
+        ? response.data
+        : [];
+
+    Logger.log('ROWS: ' + rows.length);
+    Logger.log(JSON.stringify(rows));
+
+    const result = {
+      diagnostic: 'supplier_hutang_supplier_aggregation_v1',
+      read_only: true,
+      supplier_code: supplierCode,
+      query_count: 1,
+      source_field: 'pembelian.hutang',
+      row_count: rows.length,
+      rows: rows,
+      duration_ms: Date.now() - started
+    };
+
+    Logger.log('DURATION MS: ' + result.duration_ms);
+    Logger.log('====================================================');
+
+    return result;
+  } catch (error) {
+    const message =
+      error && error.message
+        ? error.message
+        : String(error);
+
+    Logger.log('SUPPLIER AGGREGATION ERROR: ' + message);
+    Logger.log('====================================================');
+
+    return {
+      diagnostic: 'supplier_hutang_supplier_aggregation_v1',
+      read_only: true,
+      supplier_code: supplierCode,
+      query_count: 1,
+      source_field: 'pembelian.hutang',
+      success: false,
+      error: message,
+      duration_ms: Date.now() - started
+    };
+  }
+}
