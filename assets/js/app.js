@@ -1,5 +1,5 @@
 import { APP_CONFIG } from "./config.js";
-import { apiHealth } from "./api/client.js";
+import { apiServerHealth } from "./api/client.js";
 import { renderPiutangPage } from "./pages/piutang.js?v=20261006-piutang-current-1";
 import { renderDashboardPage } from "./pages/dashboard.js?v=20261006-dashboard-current-1";
 import { renderPelangganPage } from "./pages/pelanggan.js?v=20261006-customer-current-1";
@@ -187,37 +187,43 @@ function setApiStatus(label, state = "checking") {
 }
 
 window.addEventListener("sid-api-success", (event) => {
-  setApiStatus("API Online", "online");
+  const action = event.detail?.action;
+  if (action === "serverHealth") {
+    setApiStatus("API Online", "online");
+  }
   console.info("[API] success:", event.detail);
 });
 
 window.addEventListener("sid-api-failure", (event) => {
-  setApiStatus("Request Error", "error");
+  setApiStatus("Server Offline", "error");
   console.warn("[API] request failed:", event.detail);
 });
 
-async function checkApi() {
-  setApiStatus("API Checking...", "checking");
+async function checkServerApi() {
+  setApiStatus("Checking Server...", "checking");
   try {
-    const data = await apiHealth();
+    const data = await apiServerHealth();
 
-    if (data?.status === "ok") {
+    if (data?.status === "ok" && data?.server === "online") {
       setApiStatus("API Online", "online");
     } else {
-      setApiStatus("API Response", "error");
+      setApiStatus("Server Offline", "error");
     }
 
-    console.info("[API] health:", data);
+    console.info("[API] server health:", data);
     return data;
   } catch (error) {
-    setApiStatus("API Error", "error");
-    console.warn("[API] health check failed:", error);
+    setApiStatus("Server Offline", "error");
+    console.warn("[API] server health check failed:", error);
     return null;
   }
 }
 
-document.querySelector("#api-reconnect").addEventListener("click", () => {
-  checkApi();
-});
+const reconnectButton = document.querySelector("#api-reconnect");
+if (reconnectButton) {
+  reconnectButton.addEventListener("click", () => {
+    checkServerApi();
+  });
+}
 
-checkApi();
+checkServerApi();
