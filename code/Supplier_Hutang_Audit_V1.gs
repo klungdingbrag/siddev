@@ -3,84 +3,114 @@
  * ============================================================
  * READ-ONLY AUDIT MODULE
  *
- * Tujuan:
- *   Mengaudit struktur dan source of truth Hutang Supplier pada
- *   SID Retail sebelum membuat API/frontend Hutang.
+ * Fokus:
+ *   Kode Supplier, Nama Supplier, Total Hutang, Total Bayar,
+ *   Total Sisa, lalu detail nota supplier.
  *
  * Prinsip:
- *   - TIDAK mengubah Code.gs.
- *   - TIDAK INSERT / UPDATE / DELETE.
- *   - TIDAK mengubah data SID Retail.
- *   - Modul ini hanya memakai sidRetailQuery() yang sudah ada.
- *   - Tidak membuat asumsi bahwa hutang = pembelian - pembayaran.
- *   - Hasil audit dipakai untuk menentukan source of truth yang valid.
+ *   - READ ONLY.
+ *   - Tidak mengubah Code.gs.
+ *   - Tidak INSERT / UPDATE / DELETE.
+ *   - Tidak membuat API/frontend.
+ *   - Tidak mengasumsikan rumus hutang tanpa bukti source of truth.
  *
- * Tahap V1:
- *   1. Temukan tabel yang berkaitan dengan pembelian/supplier/pembayaran.
- *   2. Audit struktur tabel.
- *   3. Ambil sample kecil untuk melihat bentuk data nyata.
- *   4. Cari kandidat field finansial dan tanggal.
- *   5. Catat kandidat relasi untuk validasi tahap berikutnya.
+ * Target detail:
+ *   Nota, tanggal, total nota, total bayar, sisa nota.
  *
- * PENTING:
- *   File ini sengaja terpisah dari Code.gs agar audit tidak bercampur
- *   dengan fungsi production Piutang yang sudah stabil.
+ * Arah:
+ *   SUPPLIER -> PEMBELIAN/HUTANG -> PEMBAYARAN -> SISA
+ *
+ * Semua hubungan di atas masih harus dibuktikan melalui audit.
  * ============================================================
  */
 
 const SUPPLIER_HUTANG_AUDIT_V1_CONFIG = Object.freeze({
   sampleLimit: 5,
 
-  // Kandidat awal. Audit tidak menganggap semua tabel ini pasti ada.
   candidateTables: [
-    'pembelian',
-    'itempembelian',
     'supplier',
     'pemasok',
     'hutang',
-    'hutang_supplier',
+    'itemhutang',
+    'pembelian',
+    'itempembelian',
     'pembayaranpembelian',
     'pembayaran_pembelian',
     'bayarpembelian',
-    'returpembelian',
-    'itemreturpembelian',
     'return_pembelian',
     'header_return_pembelian',
-    'item_return_beli_serial',
+    'returpembelian',
+    'itemreturpembelian',
     'potong_hutang_return',
     'temp_item_hutang'
   ],
 
-  supplierKeywords: ['supplier', 'pemasok', 'vendor'],
-
-  financialKeywords: [
-    'jumlah', 'total', 'harga', 'subtotal', 'bayar',
-    'pembayaran', 'angsuran', 'hutang', 'saldo',
-    'piutang', 'sisa', 'tagihan'
+  supplierKeywords: [
+    'supplier',
+    'pemasok',
+    'vendor',
+    'kode_supplier',
+    'kodesupplier',
+    'id_supplier',
+    'idsupplier'
   ],
 
-  dateKeywords: ['tanggal', 'tgl', 'date', 'jt', 'jatuh', 'tempo']
+  financialKeywords: [
+    'jumlah',
+    'total',
+    'harga',
+    'subtotal',
+    'bayar',
+    'pembayaran',
+    'angsuran',
+    'hutang',
+    'saldo',
+    'sisa',
+    'tagihan',
+    'nominal',
+    'nilai'
+  ],
+
+  dateKeywords: [
+    'tanggal',
+    'tgl',
+    'date',
+    'jt',
+    'jatuh',
+    'tempo'
+  ],
+
+  identityKeywords: [
+    'kode',
+    'id',
+    'no_',
+    'nomor',
+    'nota',
+    'faktur',
+    'invoice',
+    'transaksi'
+  ]
 });
 
 
-/**
- * ENTRY POINT UTAMA
- *
- * Jalankan fungsi ini terlebih dahulu dari Apps Script.
- * Semua query bersifat read-only.
- */
 function auditSupplierHutangV1() {
   const started = Date.now();
 
   Logger.log('====================================================');
   Logger.log('SUPPLIER HUTANG AUDIT V1');
   Logger.log('MODE: READ-ONLY');
+  Logger.log('FOKUS: SUPPLIER | HUTANG | BAYAR | SISA');
   Logger.log('====================================================');
 
   const tableDiscovery = auditSupplierHutangDiscoverTablesV1();
   const tableNames = tableDiscovery.tables;
 
-  Logger.log('TABLE DISCOVERY: ' + JSON.stringify(tableNames));
+  Logger.log(
+    'TABLE RELEVAN: ' +
+    tableNames.length +
+    ' | ' +
+    JSON.stringify(tableNames)
+  );
 
   const structures = [];
   const samples = [];
@@ -95,23 +125,48 @@ function auditSupplierHutangV1() {
   });
 
   const candidateFields = auditSupplierHutangClassifyFieldsV1(structures);
+  const relationshipHints =
+    auditSupplierHutangRelationshipHintsV1(structures);
 
   const result = {
     diagnostic: 'supplier_hutang_audit_v1',
     read_only: true,
+
+    business_target: {
+      list_fields: [
+        'kode_supplier',
+        'nama_supplier',
+        'total_hutang',
+        'total_bayar',
+        'total_sisa'
+      ],
+      detail_target: [
+        'nota',
+        'tanggal',
+        'total_nota',
+        'total_bayar',
+        'sisa_nota'
+      ]
+    },
+
     duration_ms: Date.now() - started,
     discovery: tableDiscovery,
     structures: structures,
     samples: samples,
     candidate_fields: candidateFields,
+    relationship_hints: relationshipHints,
+
     next_step:
-      'Validasi source of truth Hutang Supplier sebelum membuat API/frontend.'
+      'Validasi relasi supplier -> nota/hutang -> pembayaran -> sisa. Jangan membuat API/frontend sebelum source of truth terbukti.'
   };
 
   Logger.log('====================================================');
   Logger.log('SUPPLIER HUTANG AUDIT V1 SELESAI');
   Logger.log('DURATION MS: ' + result.duration_ms);
-  Logger.log('CANDIDATE FIELDS: ' + JSON.stringify(candidateFields));
+  Logger.log(
+    'RELATIONSHIP HINTS: ' +
+    JSON.stringify(relationshipHints)
+  );
   Logger.log('====================================================');
 
   return result;
@@ -119,14 +174,16 @@ function auditSupplierHutangV1() {
 
 
 /**
- * Audit tabel saja.
+ * Discovery hanya terhadap kandidat tabel Hutang Supplier.
+ *
+ * SHOW TABLES tetap digunakan sebagai metadata utama, tetapi hasilnya
+ * langsung difilter. Tidak ada audit terhadap seluruh database.
  */
 function auditSupplierHutangDiscoverTablesV1() {
   Logger.log('--- DISCOVERY TABLE SUPPLIER HUTANG ---');
 
   let discovered = [];
 
-  // Jalur utama: metadata SQL.
   try {
     const result = sidRetailQuery('SHOW TABLES');
 
@@ -143,55 +200,49 @@ function auditSupplierHutangDiscoverTablesV1() {
         })
         .filter(Boolean);
 
-      // SHOW TABLES dapat mengembalikan ratusan tabel.
-      // Hanya teruskan kandidat yang relevan agar audit tidak melakukan
-      // ratusan query metadata/sample yang tidak diperlukan.
-      discovered = SUPPLIER_HUTANG_AUDIT_V1_CONFIG.candidateTables.filter(
-        function(tableName) {
-          return availableTables.indexOf(tableName) !== -1;
-        }
+      discovered =
+        SUPPLIER_HUTANG_AUDIT_V1_CONFIG.candidateTables.filter(
+          function(tableName) {
+            return availableTables.indexOf(tableName) !== -1;
+          }
+        );
+
+      Logger.log(
+        'SHOW TABLES BERHASIL: ' +
+        availableTables.length +
+        ' total tabel | ' +
+        discovered.length +
+        ' tabel relevan.'
       );
     }
-
-    Logger.log(
-      'SHOW TABLES BERHASIL: ' +
-      discovered.length +
-      ' kandidat relevan ditemukan.'
-    );
   } catch (error) {
     Logger.log(
-      'SHOW TABLES TIDAK TERSEDIA/GAGAL: ' +
+      'SHOW TABLES GAGAL: ' +
       (error && error.message ? error.message : error)
     );
   }
 
-  // Fallback aman: cek kandidat satu per satu dengan LIMIT kecil.
-  const candidates = SUPPLIER_HUTANG_AUDIT_V1_CONFIG.candidateTables;
+  SUPPLIER_HUTANG_AUDIT_V1_CONFIG.candidateTables.forEach(
+    function(tableName) {
+      if (discovered.indexOf(tableName) !== -1) return;
 
-  candidates.forEach(function(tableName) {
-    if (discovered.indexOf(tableName) !== -1) return;
+      try {
+        const result = sidRetailQuery(
+          'SELECT * FROM ' +
+          auditSupplierHutangQuoteIdentifierV1(tableName) +
+          ' LIMIT ' +
+          SUPPLIER_HUTANG_AUDIT_V1_CONFIG.sampleLimit
+        );
 
-    try {
-      const result = sidRetailQuery(
-        'SELECT * FROM ' +
-        auditSupplierHutangQuoteIdentifierV1(tableName) +
-        ' LIMIT ' +
-        SUPPLIER_HUTANG_AUDIT_V1_CONFIG.sampleLimit
-      );
-
-      if (result && result.status === 'success') {
-        discovered.push(tableName);
-        Logger.log('TABLE TERDETEKSI: ' + tableName);
+        if (result && result.status === 'success') {
+          discovered.push(tableName);
+          Logger.log('TABLE TERDETEKSI: ' + tableName);
+        }
+      } catch (error) {
+        // Kandidat boleh memang tidak ada pada instalasi SID Retail.
       }
-    } catch (error) {
-      Logger.log(
-        'TABLE TIDAK TERDETEKSI: ' +
-        tableName +
-        ' | ' +
-        (error && error.message ? error.message : error)
-      );
     }
-  });
+  );
 
   discovered = discovered
     .filter(function(value, index, array) {
@@ -208,45 +259,47 @@ function auditSupplierHutangDiscoverTablesV1() {
 
 /**
  * Audit struktur satu tabel.
- *
- * Jalur pertama: SHOW COLUMNS.
- * Fallback: SELECT * LIMIT kecil.
+ * SHOW COLUMNS adalah jalur utama.
+ * SELECT * LIMIT adalah fallback.
  */
 function auditSupplierHutangStructureV1(tableName) {
   const safeTable = auditSupplierHutangValidateIdentifierV1(tableName);
 
   try {
     const result = sidRetailQuery(
-      'SHOW COLUMNS FROM ' + auditSupplierHutangQuoteIdentifierV1(safeTable)
+      'SHOW COLUMNS FROM ' +
+      auditSupplierHutangQuoteIdentifierV1(safeTable)
     );
 
     const rows = Array.isArray(result.data) ? result.data : [];
 
-    return {
-      table: safeTable,
-      exists: true,
-      method: 'SHOW COLUMNS',
-      columns: rows.map(function(row) {
-        return {
-          field: auditSupplierHutangPickFieldV1(
-            row,
-            ['Field', 'field', 'COLUMN_NAME', 'column_name']
-          ),
-          type: auditSupplierHutangPickFieldV1(
-            row,
-            ['Type', 'type', 'DATA_TYPE', 'data_type']
-          ),
-          nullability: auditSupplierHutangPickFieldV1(
-            row,
-            ['Null', 'null', 'IS_NULLABLE', 'is_nullable']
-          ),
-          key: auditSupplierHutangPickFieldV1(
-            row,
-            ['Key', 'key', 'COLUMN_KEY', 'column_key']
-          )
-        };
-      })
-    };
+    if (rows.length) {
+      return {
+        table: safeTable,
+        exists: true,
+        method: 'SHOW COLUMNS',
+        columns: rows.map(function(row) {
+          return {
+            field: auditSupplierHutangPickFieldV1(
+              row,
+              ['Field', 'field', 'COLUMN_NAME', 'column_name']
+            ),
+            type: auditSupplierHutangPickFieldV1(
+              row,
+              ['Type', 'type', 'DATA_TYPE', 'data_type']
+            ),
+            nullability: auditSupplierHutangPickFieldV1(
+              row,
+              ['Null', 'null', 'IS_NULLABLE', 'is_nullable']
+            ),
+            key: auditSupplierHutangPickFieldV1(
+              row,
+              ['Key', 'key', 'COLUMN_KEY', 'column_key']
+            )
+          };
+        })
+      };
+    }
   } catch (error) {
     Logger.log(
       'SHOW COLUMNS GAGAL: ' +
@@ -270,7 +323,9 @@ function auditSupplierHutangStructureV1(tableName) {
     return {
       table: safeTable,
       exists: true,
-      method: 'SELECT * LIMIT ' + SUPPLIER_HUTANG_AUDIT_V1_CONFIG.sampleLimit,
+      method:
+        'SELECT * LIMIT ' +
+        SUPPLIER_HUTANG_AUDIT_V1_CONFIG.sampleLimit,
       columns: columns.map(function(field) {
         return {
           field: field,
@@ -282,18 +337,17 @@ function auditSupplierHutangStructureV1(tableName) {
     return {
       table: safeTable,
       exists: false,
-      error: error && error.message
-        ? error.message
-        : String(error)
+      error:
+        error && error.message
+          ? error.message
+          : String(error)
     };
   }
 }
 
 
 /**
- * Ambil sample kecil dari satu tabel.
- *
- * Tidak melakukan agregasi dan tidak mengambil seluruh tabel.
+ * Sample kecil untuk melihat bentuk data nyata.
  */
 function auditSupplierHutangSampleV1(tableName) {
   const safeTable = auditSupplierHutangValidateIdentifierV1(tableName);
@@ -319,19 +373,18 @@ function auditSupplierHutangSampleV1(tableName) {
     return {
       table: safeTable,
       success: false,
-      error: error && error.message
-        ? error.message
-        : String(error)
+      error:
+        error && error.message
+          ? error.message
+          : String(error)
     };
   }
 }
 
 
 /**
- * Klasifikasi kandidat field.
- *
- * Ini hanya membantu manusia membaca audit.
- * Fungsi ini TIDAK menetapkan source of truth.
+ * Klasifikasi field untuk mempermudah audit manusia.
+ * Ini hanya kandidat, bukan keputusan source of truth.
  */
 function auditSupplierHutangClassifyFieldsV1(structures) {
   const result = {
@@ -360,34 +413,41 @@ function auditSupplierHutangClassifyFieldsV1(structures) {
       result.all_fields.push(item);
 
       if (
-        SUPPLIER_HUTANG_AUDIT_V1_CONFIG.supplierKeywords.some(function(keyword) {
-          return normalized.indexOf(keyword) !== -1;
-        })
+        SUPPLIER_HUTANG_AUDIT_V1_CONFIG.supplierKeywords.some(
+          function(keyword) {
+            return normalized.indexOf(keyword) !== -1;
+          }
+        )
       ) {
         result.supplier_fields.push(item);
       }
 
       if (
-        SUPPLIER_HUTANG_AUDIT_V1_CONFIG.financialKeywords.some(function(keyword) {
-          return normalized.indexOf(keyword) !== -1;
-        })
+        SUPPLIER_HUTANG_AUDIT_V1_CONFIG.financialKeywords.some(
+          function(keyword) {
+            return normalized.indexOf(keyword) !== -1;
+          }
+        )
       ) {
         result.financial_fields.push(item);
       }
 
       if (
-        SUPPLIER_HUTANG_AUDIT_V1_CONFIG.dateKeywords.some(function(keyword) {
-          return normalized.indexOf(keyword) !== -1;
-        })
+        SUPPLIER_HUTANG_AUDIT_V1_CONFIG.dateKeywords.some(
+          function(keyword) {
+            return normalized.indexOf(keyword) !== -1;
+          }
+        )
       ) {
         result.date_fields.push(item);
       }
 
       if (
-        normalized.indexOf('kode') !== -1 ||
-        normalized.indexOf('id') !== -1 ||
-        normalized.indexOf('no_') === 0 ||
-        normalized.indexOf('nomor') !== -1
+        SUPPLIER_HUTANG_AUDIT_V1_CONFIG.identityKeywords.some(
+          function(keyword) {
+            return normalized.indexOf(keyword) !== -1;
+          }
+        )
       ) {
         result.possible_identity_fields.push(item);
       }
@@ -399,16 +459,80 @@ function auditSupplierHutangClassifyFieldsV1(structures) {
 
 
 /**
- * Quote identifier setelah divalidasi.
- * Input hanya identifier sederhana, bukan SQL bebas.
+ * Petunjuk relasi yang mungkin dipakai tahap validasi berikutnya.
+ *
+ * Tidak melakukan JOIN dan tidak menetapkan source of truth.
+ */
+function auditSupplierHutangRelationshipHintsV1(structures) {
+  const result = {
+    supplier_identity: [],
+    nota_identity: [],
+    payment_identity: [],
+    financial_candidates: []
+  };
+
+  structures.forEach(function(structure) {
+    if (!structure || !structure.exists) return;
+
+    (structure.columns || []).forEach(function(column) {
+      const field = String(column.field || '').trim();
+      if (!field) return;
+
+      const normalized = field.toLowerCase();
+      const item = {
+        table: structure.table,
+        field: field,
+        type: column.type || 'UNKNOWN'
+      };
+
+      if (
+        normalized.indexOf('supplier') !== -1 ||
+        normalized.indexOf('pemasok') !== -1
+      ) {
+        result.supplier_identity.push(item);
+      }
+
+      if (
+        normalized.indexOf('nota') !== -1 ||
+        normalized.indexOf('faktur') !== -1 ||
+        normalized.indexOf('invoice') !== -1
+      ) {
+        result.nota_identity.push(item);
+      }
+
+      if (
+        normalized.indexOf('bayar') !== -1 ||
+        normalized.indexOf('pembayaran') !== -1
+      ) {
+        result.payment_identity.push(item);
+      }
+
+      if (
+        SUPPLIER_HUTANG_AUDIT_V1_CONFIG.financialKeywords.some(
+          function(keyword) {
+            return normalized.indexOf(keyword) !== -1;
+          }
+        )
+      ) {
+        result.financial_candidates.push(item);
+      }
+    });
+  });
+
+  return result;
+}
+
+
+/**
+ * MySQL identifier quoting menggunakan backtick.
+ * Contoh konsep: table_name dibungkus sebagai identifier SQL.
  */
 function auditSupplierHutangQuoteIdentifierV1(value) {
-  // MySQL identifier quoting: `table_name`.
-  // Jangan bungkus identifier dengan single quote karena itu
-  // mengubahnya menjadi string literal dan menyebabkan SQL syntax error.
-  return String.fromCharCode(96) +
+  return (
+    String.fromCharCode(96) +
     auditSupplierHutangValidateIdentifierV1(value) +
-    String.fromCharCode(96);
+    String.fromCharCode(96)
+  );
 }
 
 
