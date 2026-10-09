@@ -593,10 +593,15 @@ function testSupplierHutangAgingHttpV1(kodeSupplier) {
     jsonValid = false;
   }
 
-  var apiSuccess = !!json && json.status === 'success';
-  var payload = apiSuccess && json.data && typeof json.data === 'object'
+  // Web App API V1 memiliki envelope luar:
+  // { success: true, api_version: 'v1', action: '...', data: {...} }
+  // Sedangkan payload Supplier Hutang di dalamnya memiliki:
+  // { status: 'success', data: [...], summary: {...} }
+  var envelopeSuccess = !!json && json.success === true;
+  var payload = envelopeSuccess && json.data && typeof json.data === 'object'
     ? json.data
     : {};
+  var apiSuccess = envelopeSuccess && payload.status === 'success';
 
   var rows = Array.isArray(payload.data)
     ? payload.data
