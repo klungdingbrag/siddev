@@ -2264,7 +2264,7 @@ Source contract:
 
 ## Supplier Hutang V1 — Umur Hutang (Aging)
 
-**Status:** CONTRACT V1 APPROVED — backend implementation + deterministic contract test PASS; actual-data test pending execution
+**Status:** CONTRACT V1 APPROVED — backend implementation + deterministic contract test PASS + actual-data test PASS; HTTP test ready
 
 Supplier Hutang V1 now has an explicit aging contract based only on verified SID Retail fields.
 
@@ -2324,7 +2324,7 @@ Perhitungan dilakukan di backend berdasarkan kontrak yang telah disetujui.
 
 Contract test dengan tanggal referensi deterministic sudah **PASS**, termasuk boundary 30, 60, dan 121 hari.
 
-Test berikutnya adalah **actual-data validation** terhadap data Supplier Hutang nyata. Test read-only tersedia melalui:
+Actual-data validation terhadap data Supplier Hutang nyata sudah **PASS**. Test read-only yang digunakan:
 
 `testSupplierHutangAgingDataV1()`
 
@@ -2336,6 +2336,22 @@ Test ini memeriksa:
 - setiap nota memiliki `umur_hari` dan `aging_bucket`;
 - total `sisa_hutang` dari detail tetap sama dengan summary API;
 - distribusi bucket dapat diamati.
+
+Hasil actual-data test JAYA:
+
+- 30 nota outstanding;
+- total hutang Rp116.471.175,60;
+- balance match: PASS;
+- fields complete: PASS;
+- bucket: Normal 7, Perlu Perhatian 9, Tinggi 13, Urgent 1.
+
+HTTP validation read-only sekarang tersedia melalui:
+
+`testSupplierHutangAgingHttpV1()`
+
+Test ini memvalidasi jalur Web App Development penuh dari `doGet` sampai payload `supplierHutangDetail`, termasuk HTTP 2xx, API success, field aging, konsistensi total, dan keberadaan source contract aging.
+
+**Next manual test:** jalankan `testSupplierHutangAgingHttpV1()` pada deployment Web App Development. Hasil HTTP test harus PASS sebelum frontend mulai menampilkan aging.
 
 ### Development Workflow
 
