@@ -535,6 +535,62 @@ function renderProfitChart(container, rows) {
       }).join("")}
     </svg>
   `;
+
+  // Interaction layer only: the chart render above remains the source of truth.
+  // If this layer fails, the SVG and native <title> tooltip still remain usable.
+  try {
+    const tooltip = document.createElement("div");
+    tooltip.className = "dashboard-profit-tooltip";
+    tooltip.setAttribute("role", "status");
+    tooltip.setAttribute("aria-live", "polite");
+    container.classList.add("dashboard-profit-chart-interactive");
+    container.appendChild(tooltip);
+
+    const bars = Array.from(container.querySelectorAll(".dashboard-profit-bar"));
+    const hideTooltip = () => {
+      tooltip.classList.remove("is-visible");
+      tooltip.removeAttribute("data-open");
+    };
+
+    const showTooltip = (bar, row) => {
+      const containerRect = container.getBoundingClientRect();
+      const barRect = bar.getBoundingClientRect();
+
+      tooltip.innerHTML = `
+        <strong>${escapeHtml(row.label || row.bulan)}</strong>
+        <span>${escapeHtml(formatRupiah(row.total_laba))}</span>
+      `;
+
+      tooltip.classList.add("is-visible");
+      tooltip.setAttribute("data-open", "true");
+
+      const tooltipWidth = tooltip.offsetWidth;
+      const tooltipHeight = tooltip.offsetHeight;
+      const barCenter = barRect.left + (barRect.width / 2) - containerRect.left;
+      const preferredLeft = barCenter - (tooltipWidth / 2);
+      const preferredTop = barRect.top - containerRect.top - tooltipHeight - 8;
+
+      tooltip.style.left = `${Math.max(8, Math.min(containerRect.width - tooltipWidth - 8, preferredLeft))}px`;
+      tooltip.style.top = `${Math.max(8, preferredTop)}px`;
+    };
+
+    bars.forEach((bar, index) => {
+      const row = rows[index];
+      if (!row) return;
+
+      bar.addEventListener("mouseenter", () => showTooltip(bar, row));
+      bar.addEventListener("mouseleave", hideTooltip);
+      bar.addEventListener("click", () => {
+        if (tooltip.getAttribute("data-open") === "true") {
+          hideTooltip();
+        } else {
+          showTooltip(bar, row);
+        }
+      });
+    });
+  } catch (error) {
+    console.warn("[Dashboard] Laba Bulanan interaction layer gagal:", error);
+  }
 }
 
 
