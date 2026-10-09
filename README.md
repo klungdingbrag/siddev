@@ -2088,3 +2088,34 @@ NEW BASELINE
 ```
 
 **Current decision:** no production/business logic was changed by the audit. The first implementation target is Dashboard composition, followed by responsive refinement, cross-page consistency, selective architecture cleanup, QA, and documentation.
+
+
+## Dashboard V3 — Design Contract
+
+Dashboard V3 has an approved design contract before implementation begins. The goal is a compact executive-style Dashboard with clear visual hierarchy and no change to accounting/API/business contracts.
+
+Key composition:
+
+- 4 compact KPI cards
+- Desktop sales section approximately 70/30: Omzet Harian + Kalender
+- Desktop profit section 50/50: Laba Bulanan + Laba Harian
+- Source of Truth has lower visual priority
+- Tablet/mobile progressively collapse to readable single-column sections
+- Avoid excessive vertical whitespace
+
+### Refresh / Loading UX
+
+The Dashboard Refresh action is treated as an explicit interaction contract:
+
+- disable the button while the request is running;
+- preserve button dimensions to prevent layout shift;
+- show a subtle rotating loading indicator and calm `Memuat…` state;
+- keep dashboard-level loading feedback visible;
+- restore the normal Refresh state after completion;
+- respect `prefers-reduced-motion`.
+
+This is visual/interaction behavior only and does not alter the Dashboard API or business logic.
+
+Detailed contract:
+
+`docs/DASHBOARD_V3_DESIGN_CONTRACT.md`
