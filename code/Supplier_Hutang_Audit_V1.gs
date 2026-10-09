@@ -1460,3 +1460,124 @@ function auditSupplierHutangSupplierAggregationV1() {
     };
   }
 }
+
+
+/**
+ * DISCOVERY SUPPLIER DENGAN MULTIPLE NOTA BERSALDO V1
+ * ------------------------------------------------------------
+ * Tidak melakukan GROUP BY seluruh tabel.
+ * Mengambil sejumlah kecil pembelian terbaru yang masih memiliki
+ * hutang, lalu menghitung kandidat supplier di sisi GAS.
+ *
+ * Tujuan:
+ *   Menemukan supplier selain AHE yang memiliki >= 2 nota bersaldo
+ *   untuk validasi agregasi supplier berikutnya.
+ *
+ * Beban:
+ *   - 1 lightweight SELECT
+ *   - LIMIT 100
+ *   - tanpa JOIN
+ *   - tanpa aggregate SQL
+ *   - read-only
+ */
+function auditSupplierHutangFindMultiInvoiceSupplierV1() {
+  const started = Date.now();
+
+  const sql =
+    'SELECT ' +
+    'p.kode AS nota, ' +
+    'p.tanggal AS tanggal, ' +
+    'p.supplier AS supplier, ' +
+    'p.hutang AS hutang ' +
+    'FROM ' + auditSupplierHutangQuoteIdentifierV1('pembelian') + ' p ' +
+    'WHERE p.hutang_ke = \'supplier\' ' +
+    'AND p.hutang > 0 ' +
+    'ORDER BY p.tanggal DESC ' +
+    'LIMIT 100';
+
+  Logger.log('====================================================');
+  Logger.log('FIND MULTI-INVOICE SUPPLIER V1');
+  Logger.log('MODE: READ-ONLY');
+  Logger.log('QUERY: 1 lightweight SELECT');
+  Logger.log('LIMIT: 100');
+  Logger.log('====================================================');
+  Logger.log('QUERY: ' + sql);
+
+  try {
+    const response = sidRetailQuery(sql);
+    const rows = response && Array.isArray(response.data)
+      ? response.data
+      : [];
+
+    const bySupplier = {};
+
+    rows.forEach(function(row) {
+      const supplier = String(row.supplier || '').trim();
+      if (!supplier) return;
+
+      if (!bySupplier[supplier]) {
+        bySupplier[supplier] = {
+          supplier: supplier,
+          jumlah_nota: 0,
+          total_hutang_dari_sample: 0,
+          nota: []
+        };
+      }
+
+      const item = bySupplier[supplier];
+      item.jumlah_nota += 1;
+      item.total_hutang_dari_sample += Number(row.hutang || 0);
+      item.nota.push({
+        nota: row.nota,
+        tanggal: row.tanggal,
+        hutang: row.hutang
+      });
+    });
+
+    const candidates = Object.keys(bySupplier)
+      .map(function(key) { return bySupplier[key]; })
+      .filter(function(item) {
+        return item.jumlah_nota >= 2;
+      })
+      .sort(function(a, b) {
+        return b.jumlah_nota - a.jumlah_nota;
+      });
+
+    Logger.log('ROWS: ' + rows.length);
+    Logger.log('CANDIDATES: ' + candidates.length);
+    Logger.log(JSON.stringify(candidates));
+
+    const result = {
+      diagnostic: 'supplier_hutang_find_multi_invoice_supplier_v1',
+      read_only: true,
+      query_count: 1,
+      limit: 100,
+      source_field: 'pembelian.hutang',
+      row_count: rows.length,
+      candidates: candidates,
+      duration_ms: Date.now() - started
+    };
+
+    Logger.log('DURATION MS: ' + result.duration_ms);
+    Logger.log('====================================================');
+
+    return result;
+  } catch (error) {
+    const message = error && error.message
+      ? error.message
+      : String(error);
+
+    Logger.log('MULTI-INVOICE DISCOVERY ERROR: ' + message);
+    Logger.log('====================================================');
+
+    return {
+      diagnostic: 'supplier_hutang_find_multi_invoice_supplier_v1',
+      read_only: true,
+      query_count: 1,
+      limit: 100,
+      success: false,
+      error: message,
+      duration_ms: Date.now() - started
+    };
+  }
+}
