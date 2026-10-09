@@ -1085,11 +1085,6 @@ textarea:focus-visible {
   background: linear-gradient(to bottom, #fff, #fcfdff);
 }
 
-.dashboard-chart-tooltip {
-  border-color: var(--ui-border-soft);
-  box-shadow: 0 12px 32px rgba(16,24,40,.12);
-}
-
 .dashboard-definition-list {
   background: #fff;
 }
@@ -1228,12 +1223,6 @@ textarea:focus-visible {
 
   .dashboard-kpi small {
     font-size: 9px;
-  }
-
-  .dashboard-chart-tooltip {
-    min-width: 138px;
-    max-width: 165px;
-    padding: 8px 9px;
   }
 
   .mobile-customer-card {
