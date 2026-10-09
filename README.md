@@ -2221,3 +2221,62 @@ Source contract:
 6. Test Refresh.
 7. Test desktop and mobile layout.
 8. Test API-offline behavior.
+
+## Supplier Hutang V1 — Umur Hutang (Aging)
+
+**Status:** CONTRACT V1 APPROVED — implementation pending
+
+Supplier Hutang V1 now has an explicit aging contract based only on verified SID Retail fields.
+
+### Definition
+
+The official term is **Umur Hutang / Aging**, not jatuh tempo.
+
+Source fields:
+
+- invoice date: `pembelian.tanggal`
+- outstanding balance: `pembelian.hutang`
+- supplier scope: `pembelian.hutang_ke = 'supplier'`
+- outstanding filter: `pembelian.hutang > 0`
+
+Audit V1 verified the observed invoice date format as `DD/MM/YYYY`.
+
+### Aging Contract
+
+| Umur Hutang | Bucket |
+|---:|---|
+| 0–30 hari | Normal |
+| 31–60 hari | Perlu Perhatian |
+| 61–120 hari | Tinggi |
+| ≥121 hari | Urgent |
+
+Calculation:
+
+`umur_hari = tanggal_acuan - tanggal_nota`
+
+The backend is responsible for calculating aging. The frontend only displays the API result.
+
+### Important Boundary
+
+Aging is **not** a due-date calculation.
+
+No verified supplier payment-term or due-date field has been established. Therefore V1 does not invent:
+
+- termin pembayaran,
+- tanggal jatuh tempo,
+- payment term per supplier,
+- or other credit assumptions.
+
+The existing `pembelian.hutang` remains the source of truth for the outstanding balance. Aging only adds a time dimension to that existing balance.
+
+Detailed contract:
+
+`docs/SUPPLIER_HUTANG_AGING_V1_CONTRACT.md`
+
+### Next Implementation Step
+
+The next phase is intentionally small:
+
+`CONTRACT → BACKEND → HTTP TEST → FRONTEND → UI/UX → QA → DOCUMENTATION`
+
+The API will first expose aging fields such as `umur_hari` and `aging_bucket`. No accounting logic or existing Supplier Hutang balance calculation will be changed.
