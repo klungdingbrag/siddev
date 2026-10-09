@@ -1940,6 +1940,46 @@ Tujuannya agar pengembangan tidak menghilangkan versi terakhir yang sudah terbuk
 9. Setiap perubahan harus dapat ditelusuri melalui commit Git.
 10. Jika ada keraguan terhadap kondisi repository, **baseline terakhir yang sudah teruji menjadi titik referensi**, bukan asumsi dari percakapan lama.
 
+### Rule: No Manual Code Changes
+
+Untuk menjaga **traceability** dan audit trail repository, perubahan source code tidak boleh dilakukan dengan cara menambahkan atau mengubah kode secara manual di luar branch pekerjaan yang sedang dibahas.
+
+Aturan ini berlaku bahkan untuk perubahan kecil, termasuk:
+
+- menambah fungsi test;
+- memperbaiki typo;
+- mengubah satu baris JavaScript/CSS/GAS;
+- menambah field API;
+- perubahan dokumentasi yang menjelaskan perubahan code.
+
+Semua perubahan harus:
+
+1. dilakukan pada **branch development/feature/fix yang sedang aktif**;
+2. ditulis ke repository melalui commit Git;
+3. memiliki commit message yang menjelaskan tujuan perubahan;
+4. dapat ditelusuri kembali ke file, commit, dan konteks pekerjaan;
+5. diuji setelah perubahan bila perubahan tersebut memengaruhi runtime atau API.
+
+ChatGPT tidak boleh meminta user untuk menyalin-tempel kode hasil perubahan secara manual sebagai bagian dari workflow normal. Jika perubahan repository memang diperlukan, perubahan tersebut harus dilakukan langsung pada branch yang sedang dibahas melalui GitHub/repository workflow.
+
+Tujuannya bukan sekadar kerapian Git, tetapi menjaga **audit trail** sehingga perubahan sekecil apa pun dapat diketahui:
+
+```text
+Permintaan / Keputusan
+        ↓
+Branch aktif
+        ↓
+File yang diubah
+        ↓
+Commit
+        ↓
+Test / Review
+        ↓
+Baseline atau Merge
+```
+
+Pengecualian hanya untuk tindakan yang memang secara eksplisit membutuhkan input manual pada sistem eksternal, misalnya menjalankan test di Google Apps Script Development atau melakukan deployment Web App. Hasil tindakan tersebut tetap harus dicatat kembali di repository melalui dokumentasi/commit yang relevan.
+
 ### Tujuan Aturan Ini
 
 README ini sengaja mencatat branch discipline agar konteks proyek tetap dapat dipahami walaupun pengembangan dilanjutkan pada percakapan ChatGPT yang berbeda.
@@ -2224,7 +2264,7 @@ Source contract:
 
 ## Supplier Hutang V1 — Umur Hutang (Aging)
 
-**Status:** CONTRACT V1 APPROVED — implementation pending
+**Status:** CONTRACT V1 APPROVED — backend implementation + deterministic contract test PASS; actual-data test pending execution
 
 Supplier Hutang V1 now has an explicit aging contract based only on verified SID Retail fields.
 
@@ -2273,10 +2313,35 @@ Detailed contract:
 
 `docs/SUPPLIER_HUTANG_AGING_V1_CONTRACT.md`
 
-### Next Implementation Step
+### Implementation Status
 
-The next phase is intentionally small:
+Backend Supplier Hutang V1 sekarang sudah menghitung dan mengembalikan:
 
-`CONTRACT → BACKEND → HTTP TEST → FRONTEND → UI/UX → QA → DOCUMENTATION`
+- `umur_hari`
+- `aging_bucket`
 
-The API will first expose aging fields such as `umur_hari` and `aging_bucket`. No accounting logic or existing Supplier Hutang balance calculation will be changed.
+Perhitungan dilakukan di backend berdasarkan kontrak yang telah disetujui.
+
+Contract test dengan tanggal referensi deterministic sudah **PASS**, termasuk boundary 30, 60, dan 121 hari.
+
+Test berikutnya adalah **actual-data validation** terhadap data Supplier Hutang nyata. Test read-only tersedia melalui:
+
+`testSupplierHutangAgingDataV1()`
+
+Default supplier test: `JAYA`.
+
+Test ini memeriksa:
+
+- detail aktual berhasil dibaca;
+- setiap nota memiliki `umur_hari` dan `aging_bucket`;
+- total `sisa_hutang` dari detail tetap sama dengan summary API;
+- distribusi bucket dapat diamati.
+
+### Development Workflow
+
+Tahap berikutnya tetap mengikuti:
+
+`CONTRACT → BACKEND → ACTUAL DATA TEST → HTTP TEST → FRONTEND → UI/UX → QA → DOCUMENTATION`
+
+Tidak ada perubahan accounting logic atau perhitungan saldo Supplier Hutang yang dilakukan oleh aging.
+
