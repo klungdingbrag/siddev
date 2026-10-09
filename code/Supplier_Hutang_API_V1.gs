@@ -27,6 +27,96 @@
  * ============================================================
  */
 
+/**
+ * Parse tanggal SID Retail format DD/MM/YYYY menjadi tanggal kalender.
+ *
+ * Aging memakai tanggal kalender, bukan jam, agar hasil tidak berubah
+ * karena perbedaan jam/timezone browser.
+ */
+function supplierHutangParseDateV1(value) {
+  var text = String(value == null ? '' : value).trim();
+  var match = text.match(/^(\\d{2})\\/(\\d{2})\\/(\\d{4})$/);
+
+  if (!match) {
+    throw new Error(
+      'Format tanggal supplier hutang tidak valid: ' + text
+    );
+  }
+
+  var day = Number(match[1]);
+  var month = Number(match[2]);
+  var year = Number(match[3]);
+
+  var date = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    throw new Error(
+      'Tanggal supplier hutang tidak valid: ' + text
+    );
+  }
+
+  return date;
+}
+
+/**
+ * Tanggal acuan aging berasal dari kalender backend.
+ *
+ * Session.getScriptTimeZone() digunakan agar "hari ini" mengikuti
+ * timezone project GAS, bukan timezone browser user.
+ */
+function supplierHutangAgingReferenceDateV1() {
+  var timezone = Session.getScriptTimeZone() || 'Asia/Jakarta';
+  var todayText = Utilities.formatDate(
+    new Date(),
+    timezone,
+    'dd/MM/yyyy'
+  );
+
+  return supplierHutangParseDateV1(todayText);
+}
+
+/**
+ * Hitung umur hutang berdasarkan tanggal nota.
+ */
+function supplierHutangAgeV1(invoiceDate, referenceDate) {
+  var invoice = supplierHutangParseDateV1(invoiceDate);
+  var reference = referenceDate || supplierHutangAgingReferenceDateV1();
+
+  var diffMs = reference.getTime() - invoice.getTime();
+  var age = Math.floor(diffMs / 86400000);
+
+  if (age < 0) {
+    return 0;
+  }
+
+  return age;
+}
+
+/**
+ * Map umur hutang ke contract aging V1.
+ */
+function supplierHutangAgingBucketV1(age) {
+  var umur = Number(age);
+
+  if (umur <= 30) {
+    return 'Normal';
+  }
+
+  if (umur <= 60) {
+    return 'Perlu Perhatian';
+  }
+
+  if (umur <= 120) {
+    return 'Tinggi';
+  }
+
+  return 'Urgent';
+}
+
 function supplierHutangSqlQuoteV1(value) {
   return "'" + String(value == null ? '' : value).replace(/'/g, "''") + "'";
 }
@@ -135,16 +225,24 @@ function getSupplierHutangDetailV1(kodeSupplier) {
   var rows = result && Array.isArray(result.data)
     ? result.data
     : [];
+  var agingReferenceDate = supplierHutangAgingReferenceDateV1();
 
   var data = rows.map(function(row) {
     var totalNota = Number(row.total_nota || 0);
     var sisaHutang = Number(row.sisa_hutang || 0);
+    var tanggal = String(row.tanggal || '').trim();
+    var umurHari = supplierHutangAgeV1(
+      tanggal,
+      agingReferenceDate
+    );
 
     return {
       nota: String(row.nota || '').trim(),
-      tanggal: String(row.tanggal || '').trim(),
+      tanggal: tanggal,
       total_nota: totalNota,
       sisa_hutang: sisaHutang,
+      umur_hari: umurHari,
+      aging_bucket: supplierHutangAgingBucketV1(umurHari),
       status: sisaHutang > 0 ? 'OUTSTANDING' : 'LUNAS',
       lunas: String(row.lunas == null ? '' : row.lunas).trim(),
       kekurangan_sdh_dibayar:
@@ -173,6 +271,9 @@ function getSupplierHutangDetailV1(kodeSupplier) {
       supplier_code: 'pembelian.supplier',
       invoice: 'pembelian.kode',
       invoice_date: 'pembelian.tanggal',
+      aging: 'umur_hari = tanggal_acuan_backend - pembelian.tanggal',
+      aging_bucket: '0-30 Normal; 31-60 Perlu Perhatian; 61-120 Tinggi; >=121 Urgent',
+      aging_reference_timezone: Session.getScriptTimeZone() || 'Asia/Jakarta',
       invoice_total: 'pembelian.jumlah',
       outstanding_balance: 'pembelian.hutang',
       scope: "pembelian.hutang_ke = 'supplier' AND pembelian.hutang > 0",
@@ -269,5 +370,59 @@ function testSupplierHutangPartialPaymentV1() {
     nota: expectedNota,
     expected_sisa_hutang: expectedBalance,
     actual_sisa_hutang: match ? match.sisa_hutang : null
+  };
+}
+
+
+/**
+ * TEST KONTRAK AGING V1
+ *
+ * Memvalidasi boundary contract tanpa query database.
+ * Referensi tanggal dibuat eksplisit agar hasil deterministic.
+ */
+function testSupplierHutangAgingV1() {
+  var referenceDate = supplierHutangParseDateV1('09/10/2026');
+
+  var cases = [
+    { tanggal: '09/10/2026', expectedAge: 0, expectedBucket: 'Normal' },
+    { tanggal: '09/09/2026', expectedAge: 30, expectedBucket: 'Normal' },
+    { tanggal: '10/08/2026', expectedAge: 60, expectedBucket: 'Perlu Perhatian' },
+    { tanggal: '10/06/2026', expectedAge: 121, expectedBucket: 'Urgent' }
+  ];
+
+  var results = cases.map(function(testCase) {
+    var age = supplierHutangAgeV1(
+      testCase.tanggal,
+      referenceDate
+    );
+    var bucket = supplierHutangAgingBucketV1(age);
+    var passed =
+      age === testCase.expectedAge &&
+      bucket === testCase.expectedBucket;
+
+    return {
+      tanggal: testCase.tanggal,
+      umur_hari: age,
+      aging_bucket: bucket,
+      expected_umur_hari: testCase.expectedAge,
+      expected_aging_bucket: testCase.expectedBucket,
+      status: passed ? 'PASS' : 'FAIL'
+    };
+  });
+
+  var passedAll = results.every(function(item) {
+    return item.status === 'PASS';
+  });
+
+  Logger.log('====================================================');
+  Logger.log('SUPPLIER HUTANG AGING V1 - CONTRACT TEST');
+  Logger.log(JSON.stringify(results));
+  Logger.log('RESULT: ' + (passedAll ? 'PASS' : 'FAIL'));
+  Logger.log('====================================================');
+
+  return {
+    status: passedAll ? 'pass' : 'fail',
+    reference_date: '09/10/2026',
+    cases: results
   };
 }
