@@ -2154,3 +2154,26 @@ This phase is **visual/layout only**. No accounting, API, Piutang, Collection Pr
 Implementation commit:
 
 `7d2fdc81e5a4837b35e8256f52d1f6ad6bd14617`
+
+
+### Dashboard V3 — Laba Bulanan Tooltip Polish
+
+Tooltip pada **Performa Keuangan → Laba Bulanan** ditingkatkan agar terasa seperti komponen dashboard profesional, bukan native browser tooltip.
+
+Perubahan:
+
+- tooltip aktif mengikuti posisi pointer pada area grafik, bukan hanya saat tepat berada di batang;
+- crosshair vertikal dan focus point membantu menghubungkan tooltip dengan bulan yang dipilih;
+- informasi utama ditampilkan sebagai **bulan + nilai laba penuh**;
+- nilai menggunakan format Rupiah yang konsisten dengan Dashboard;
+- tooltip memiliki hierarchy visual yang lebih jelas, shadow ringan, radius, dan animasi halus;
+- posisi tooltip otomatis dijaga agar tidak keluar dari sisi panel;
+- pointer/touch interaction tetap mendukung pointermove dan pointerdown;
+- tidak ada perubahan pada data laba, API, perhitungan, atau source of truth.
+
+Commit implementation:
+
+- ba9a979b732c789d062394c62da6342966486e4a — tooltip interaction
+- 28247b6686bf77adef277589488a820d8c924e8c — tooltip visual polish
+
+**QA note:** perubahan perlu diuji secara visual di desktop dan mobile setelah deployment. Belum dianggap lulus visual QA hanya berdasarkan source code.
