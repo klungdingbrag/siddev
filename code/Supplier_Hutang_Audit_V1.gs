@@ -174,13 +174,13 @@ function auditSupplierHutangV1() {
 
 
 /**
- * AUDIT LANJUTAN TERFOKUS
+ * AUDIT RECORD TERFOKUS
  * ------------------------------------------------------------
  * Tujuan:
- *   Melihat isi record nyata dan mencari bukti relasi antar tabel.
+ *   Melihat isi record nyata dari enam tabel kandidat terkuat.
  *
  * Beban:
- *   Hanya 6 query SELECT * LIMIT 3.
+ *   Maksimal 6 query SELECT * LIMIT 3.
  *
  * Sengaja TIDAK melakukan:
  *   - JOIN
@@ -189,18 +189,6 @@ function auditSupplierHutangV1() {
  *   - perubahan data
  *   - perubahan Code.gs
  *   - API/frontend
- *
- * Enam tabel dipilih karena paling kuat dari hasil Audit V1:
- *   supplier
- *   pembelian
- *   hutang
- *   itemhutang
- *   return_pembelian
- *   potong_hutang_return
- *
- * Catatan:
- *   Record hanya dipakai untuk membaca pola key/nominal/tanggal.
- *   Belum menetapkan source of truth.
  */
 function auditSupplierHutangRelationsV1() {
   const started = Date.now();
@@ -286,10 +274,118 @@ function auditSupplierHutangRelationsV1() {
 
 
 /**
- * Discovery hanya terhadap kandidat tabel Hutang Supplier.
+ * TRACE RELASI HUTANG -> ITEM HUTANG -> PEMBELIAN
+ * ------------------------------------------------------------
+ * Tahap berikutnya sengaja hanya SATU query.
  *
- * SHOW TABLES tetap digunakan sebagai metadata utama, tetapi hasilnya
- * langsung difilter. Tidak ada audit terhadap seluruh database.
+ * Kita sudah memiliki tiga contoh kode hutang dari audit sebelumnya:
+ *   R32-250621003
+ *   R32-290621004
+ *   R32-010721005
+ *
+ * Query ini hanya mencari ketiga transaksi tersebut dan menampilkan:
+ *   - record hutang
+ *   - itemhutang yang menghubungkannya
+ *   - pembelian asal / nota
+ *
+ * Tujuannya membuktikan apakah pola:
+ *
+ *   hutang.kode
+ *       = itemhutang.kode
+ *   itemhutang.kode_hutang
+ *       = pembelian.kode
+ *
+ * benar-benar berlaku pada data nyata.
+ *
+ * Tidak ada aggregate dan tidak ada perubahan data.
+ */
+function auditSupplierHutangTraceV1() {
+  const started = Date.now();
+
+  const sql =
+    'SELECT ' +
+    'h.kode AS hutang_kode, ' +
+    'h.tanggal AS hutang_tanggal, ' +
+    'h.supplier AS hutang_supplier, ' +
+    'h.jumlah AS hutang_jumlah, ' +
+    'ih.kode AS itemhutang_kode, ' +
+    'ih.kode_hutang AS itemhutang_kode_hutang, ' +
+    'ih.tgl_hutang AS itemhutang_tgl_hutang, ' +
+    'ih.jumlah_hutang AS itemhutang_jumlah_hutang, ' +
+    'ih.return AS itemhutang_return, ' +
+    'ih.jumlah AS itemhutang_jumlah, ' +
+    'p.kode AS pembelian_kode, ' +
+    'p.tanggal AS pembelian_tanggal, ' +
+    'p.supplier AS pembelian_supplier, ' +
+    'p.jumlah AS pembelian_jumlah, ' +
+    'p.hutang AS pembelian_hutang, ' +
+    'p.lunas AS pembelian_lunas, ' +
+    'p.kekurangan_sdh_dibayar AS pembelian_kekurangan_sdh_dibayar, ' +
+    'p.hutang_ke AS pembelian_hutang_ke ' +
+    'FROM ' + auditSupplierHutangQuoteIdentifierV1('hutang') + ' h ' +
+    'LEFT JOIN ' + auditSupplierHutangQuoteIdentifierV1('itemhutang') + ' ih ' +
+    'ON ih.kode = h.kode ' +
+    'LEFT JOIN ' + auditSupplierHutangQuoteIdentifierV1('pembelian') + ' p ' +
+    'ON p.kode = ih.kode_hutang ' +
+    'WHERE h.kode IN (' +
+    "'R32-250621003','R32-290621004','R32-010721005'" +
+    ') ' +
+    'ORDER BY h.kode';
+
+  Logger.log('====================================================');
+  Logger.log('SUPPLIER HUTANG TRACE V1');
+  Logger.log('MODE: READ-ONLY');
+  Logger.log('QUERY: 1 targeted JOIN');
+  Logger.log('====================================================');
+  Logger.log('QUERY: ' + sql);
+
+  try {
+    const response = sidRetailQuery(sql);
+
+    const rows =
+      response && Array.isArray(response.data)
+        ? response.data
+        : [];
+
+    Logger.log('ROWS: ' + rows.length);
+    Logger.log(JSON.stringify(rows));
+
+    const result = {
+      diagnostic: 'supplier_hutang_trace_v1',
+      read_only: true,
+      query_count: 1,
+      row_count: rows.length,
+      rows: rows,
+      duration_ms: Date.now() - started
+    };
+
+    Logger.log('DURATION MS: ' + result.duration_ms);
+    Logger.log('====================================================');
+
+    return result;
+  } catch (error) {
+    const message =
+      error && error.message
+        ? error.message
+        : String(error);
+
+    Logger.log('TRACE ERROR: ' + message);
+    Logger.log('====================================================');
+
+    return {
+      diagnostic: 'supplier_hutang_trace_v1',
+      read_only: true,
+      query_count: 1,
+      success: false,
+      error: message,
+      duration_ms: Date.now() - started
+    };
+  }
+}
+
+
+/**
+ * Discovery hanya terhadap kandidat tabel Hutang Supplier.
  */
 function auditSupplierHutangDiscoverTablesV1() {
   Logger.log('--- DISCOVERY TABLE SUPPLIER HUTANG ---');
@@ -572,8 +668,6 @@ function auditSupplierHutangClassifyFieldsV1(structures) {
 
 /**
  * Petunjuk relasi yang mungkin dipakai tahap validasi berikutnya.
- *
- * Tidak melakukan JOIN dan tidak menetapkan source of truth.
  */
 function auditSupplierHutangRelationshipHintsV1(structures) {
   const result = {
@@ -635,10 +729,6 @@ function auditSupplierHutangRelationshipHintsV1(structures) {
 }
 
 
-/**
- * MySQL identifier quoting menggunakan backtick.
- * Contoh konsep: table_name dibungkus sebagai identifier SQL.
- */
 function auditSupplierHutangQuoteIdentifierV1(value) {
   return (
     String.fromCharCode(96) +
