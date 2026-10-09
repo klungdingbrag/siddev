@@ -5,6 +5,9 @@ export const api = Object.freeze({
   serverHealth: () => apiRequest("serverHealth"),
   validateConfig: () => apiRequest("validateConfig"),
   piutang: (params = {}) => apiRequest("piutang", params),
+  supplierHutang: () => apiRequest("supplierHutang"),
+  supplierHutangDetail: (kodeSupplier) =>
+    apiRequest("supplierHutangDetail", { kode_supplier: kodeSupplier }),
   pelanggan: () =>
     apiRequest("pelanggan"),
   pelangganDetail: (kodePelanggan) =>
