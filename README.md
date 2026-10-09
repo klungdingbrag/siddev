@@ -2262,6 +2262,46 @@ Source contract:
 7. Test desktop and mobile layout.
 8. Test API-offline behavior.
 
+## Supplier Hutang V1 — Frontend Cache
+
+**Status:** IMPLEMENTED — session cache mengikuti pola halaman Piutang/Customer.
+
+Halaman Supplier Hutang sekarang menggunakan cache browser berbasis `sessionStorage` untuk daftar supplier.
+
+### Contract
+
+- cache key: `sidretail:supplier-hutang:v1`
+- TTL: **2 menit**
+- scope: daftar Supplier Hutang, bukan detail invoice
+- cache hanya optimasi frontend; backend tetap source of truth
+
+### Behavior
+
+1. **Cache fresh (< 2 menit)**  
+   Halaman langsung menggunakan data cache dan tidak meminta ulang daftar supplier ke backend.
+
+2. **Cache stale (≥ 2 menit)**  
+   Data cache tetap ditampilkan terlebih dahulu, kemudian frontend melakukan refresh dari backend di background.
+
+3. **Manual Refresh**  
+   Tombol Refresh selalu memaksa request terbaru ke backend dan memperbarui cache.
+
+4. **Cache gagal dibaca/ditulis**  
+   Aplikasi tetap berjalan normal dan menggunakan backend seperti biasa.
+
+Detail supplier/aging tetap diambil on-demand melalui `supplierHutangDetail`; cache daftar tidak mencampur data detail.
+
+### QA
+
+Minimal test:
+
+- buka Hutang Supplier setelah Piutang → tidak ada request daftar ulang jika cache masih fresh;
+- tunggu/melewati TTL → data lama tampil lalu background refresh;
+- klik Refresh → request backend benar-benar terjadi;
+- pindah halaman/pencarian/pagination tetap bekerja dari data cache;
+- buka Detail supplier tetap mengambil detail sesuai kebutuhan;
+- refresh gagal saat cache tersedia tidak menghilangkan data yang sedang tampil.
+
 ## Supplier Hutang V1 — Umur Hutang (Aging)
 
 **Status:** CONTRACT V1 APPROVED — backend implementation + deterministic contract test PASS + actual-data test PASS; HTTP test ready
