@@ -5352,8 +5352,38 @@ function getPdfCustomerStatementV1(kodePelanggan) {
   };
 }
 
+/**
+ * Real downstream server health check.
+ *
+ * Berbeda dengan action "health" yang hanya memeriksa gateway GAS,
+ * fungsi ini melakukan SELECT ringan ke SID Retail sehingga status
+ * benar-benar merepresentasikan jalur GAS -> SID Retail Server.
+ *
+ * Read-only dan tidak mengubah data.
+ */
+function serverHealth() {
+  var startedAt = Date.now();
+
+  var result = sidRetailQuery(
+    'SELECT kode FROM penjualan LIMIT 1'
+  );
+
+  return {
+    status: 'ok',
+    server: 'online',
+    checked_at: new Date().toISOString(),
+    response_ms: Date.now() - startedAt,
+    rows_checked: Array.isArray(result && result.data)
+      ? result.data.length
+      : 0
+  };
+}
+
 function apiV1Dispatch_(action, request) {
   switch (action) {
+    case 'serverHealth':
+      return serverHealth();
+
     case 'health':
       return {
         status: 'ok',
