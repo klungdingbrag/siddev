@@ -227,3 +227,4 @@ if (reconnectButton) {
 }
 
 checkServerApi();
+setInterval(checkServerApi, 30000);
