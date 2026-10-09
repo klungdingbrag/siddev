@@ -70,8 +70,9 @@ sidebar.innerHTML = `
   </nav>
 
   <div class="sidebar-footer">
-    <span class="status-dot"></span>
+    <span class="status-dot" id="api-status-dot"></span>
     <span id="api-status">Checking API...</span>
+    <button type="button" id="api-reconnect" class="api-reconnect hidden" aria-label="Reconnect API">↻ Reconnect</button>
   </div>
 `;
 
@@ -169,37 +170,54 @@ window.addEventListener("hashchange", () => {
 initMobileNavigation();
 route();
 
-function setApiStatus(label) {
+function setApiStatus(label, state = "checking") {
   const status = document.querySelector("#api-status");
+  const dot = document.querySelector("#api-status-dot");
+  const reconnect = document.querySelector("#api-reconnect");
+
   if (status) status.textContent = label;
+  if (dot) {
+    dot.className = "status-dot status-" + state;
+  }
+  if (reconnect) {
+    reconnect.classList.toggle("hidden", state !== "error");
+    reconnect.disabled = state === "checking";
+    reconnect.textContent = state === "checking" ? "↻ Checking..." : "↻ Reconnect";
+  }
 }
 
 window.addEventListener("sid-api-success", (event) => {
-  setApiStatus("API Online");
+  setApiStatus("API Online", "online");
   console.info("[API] success:", event.detail);
 });
 
 window.addEventListener("sid-api-failure", (event) => {
-  setApiStatus("Request Error");
+  setApiStatus("Request Error", "error");
   console.warn("[API] request failed:", event.detail);
 });
 
 async function checkApi() {
-  setApiStatus("API Checking...");
+  setApiStatus("API Checking...", "checking");
   try {
     const data = await apiHealth();
 
     if (data?.status === "ok") {
-      setApiStatus("API Online");
+      setApiStatus("API Online", "online");
     } else {
-      setApiStatus("API Response");
+      setApiStatus("API Response", "error");
     }
 
     console.info("[API] health:", data);
+    return data;
   } catch (error) {
-    setApiStatus("API Error");
+    setApiStatus("API Error", "error");
     console.warn("[API] health check failed:", error);
+    return null;
   }
 }
+
+document.querySelector("#api-reconnect").addEventListener("click", () => {
+  checkApi();
+});
 
 checkApi();
