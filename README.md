@@ -2156,24 +2156,26 @@ Implementation commit:
 `7d2fdc81e5a4837b35e8256f52d1f6ad6bd14617`
 
 
-### Dashboard V3 — Laba Bulanan Tooltip Polish (Rolled Back)
+### Dashboard V3 — Laba Bulanan Tooltip Polish (Thin Interaction Layer)
 
-Eksperimen custom tooltip pada **Performa Keuangan → Laba Bulanan** sempat diterapkan untuk meningkatkan interaksi grafik. Setelah pengujian, perubahan tersebut menyebabkan Dashboard tidak menampilkan data pada lingkungan pengguna.
+Setelah eksperimen tooltip sebelumnya di-rollback demi stabilitas, interaksi Laba Bulanan diterapkan kembali dengan pendekatan yang lebih kecil dan terisolasi.
 
-Untuk menjaga stabilitas, perubahan pada `renderProfitChart()` telah dikembalikan ke versi chart yang sebelumnya terbukti stabil.
+Prinsip implementasi:
 
-Recovery commit:
+- **struktur SVG/chart tetap sama**;
+- **perhitungan dan data rows tetap sama**;
+- tidak mengubah API, accounting logic, sorting, skala, atau source of truth;
+- tooltip hanya ditambahkan sebagai **interaction layer** setelah SVG selesai dirender;
+- desktop: hover pada batang menampilkan tooltip;
+- mobile: tap pada batang menampilkan tooltip;
+- tooltip diposisikan relatif terhadap batang dan dibatasi agar tetap berada di dalam area chart;
+- jika interaction layer gagal, SVG dasar tetap tampil dan native SVG `<title>` tetap menjadi fallback.
 
-`9fc2e6bf78c82b26b4ff6c0df52ac0c490432e21`
+Implementation commits:
 
-Keputusan saat ini:
-
-- struktur rendering chart laba bulanan **tidak diubah**;
-- tidak ada custom tooltip aktif pada chart laba bulanan;
-- CSS tooltip eksperimental telah dibersihkan;
-- tidak ada perubahan pada data, API, accounting logic, atau source of truth;
-- custom tooltip baru hanya boleh dicoba kembali dengan implementasi yang lebih kecil dan terisolasi setelah ada metode testing yang aman.
+- `08bf7d21f5b761392126ba46db34330baa58ff95` — thin interaction layer
+- `6fce4d321955a551fdc217e0ccb16f3792cc9236` — tooltip visual polish
 
 Status:
 
-**STABLE — TOOLTIP EXPERIMENT DEFERRED**
+**STABLE BASE CHART + ISOLATED TOOLTIP INTERACTION — PENDING USER VISUAL TEST**
