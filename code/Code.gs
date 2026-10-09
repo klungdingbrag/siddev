@@ -5447,6 +5447,21 @@ function apiV1Dispatch_(action, request) {
         request.limit
       );
 
+    /*
+     * SUPPLIER HUTANG V1
+     * ------------------
+     * Adapter HTTP only.
+     * Business logic berada di Supplier_Hutang_API_V1.gs.
+     * Tidak mengubah kontrak fungsi production lain.
+     */
+    case 'supplierHutang':
+      return getSupplierHutangV1();
+
+    case 'supplierHutangDetail':
+      return getSupplierHutangDetailV1(
+        apiV1Required_(request, 'kode_supplier')
+      );
+
     case 'tabungan':
       return getSaldoTabunganPelanggan(
         apiV1Required_(request, 'kode_pelanggan')
