@@ -1666,3 +1666,92 @@ function auditSupplierHutangSupplierAggregationJayaV1() {
     };
   }
 }
+
+
+/**
+ * AUDIT FORMAT TANGGAL + AGING SUPPLIER V1
+ * ------------------------------------------------------------
+ * Tujuan:
+ *   Memastikan format p.tanggal pada nota supplier outstanding
+ *   sebelum aging dimasukkan ke kontrak API production.
+ *
+ * Audit ini READ-ONLY dan tidak mengubah API Supplier Hutang V1.
+ *
+ * Yang diperiksa:
+ *   - nota
+ *   - tanggal mentah dari database
+ *   - supplier
+ *   - hutang
+ *
+ * Sengaja belum menghitung aging di backend production.
+ * Hasil audit menjadi dasar kontrak aging berikutnya.
+ */
+function auditSupplierHutangTanggalAgingV1() {
+  const started = Date.now();
+
+  const sql =
+    'SELECT ' +
+      'p.kode AS nota, ' +
+      'p.tanggal AS tanggal, ' +
+      'p.supplier AS supplier, ' +
+      'p.hutang AS hutang ' +
+    'FROM ' + auditSupplierHutangQuoteIdentifierV1('pembelian') + ' p ' +
+    'WHERE p.hutang_ke = \'supplier\' ' +
+      'AND p.hutang > 0 ' +
+    'ORDER BY p.tanggal ASC, p.kode ASC ' +
+    'LIMIT 30';
+
+  Logger.log('====================================================');
+  Logger.log('SUPPLIER HUTANG TANGGAL / AGING AUDIT V1');
+  Logger.log('MODE: READ-ONLY');
+  Logger.log('QUERY: 1 targeted SELECT');
+  Logger.log('LIMIT: 30');
+  Logger.log('PURPOSE: validasi format p.tanggal sebelum aging');
+  Logger.log('====================================================');
+  Logger.log('QUERY: ' + sql);
+
+  try {
+    const response = sidRetailQuery(sql);
+    const rows = response && Array.isArray(response.data)
+      ? response.data
+      : [];
+
+    const result = {
+      diagnostic: 'supplier_hutang_tanggal_aging_v1',
+      read_only: true,
+      query_count: 1,
+      limit: 30,
+      source_date: 'pembelian.tanggal',
+      source_balance: 'pembelian.hutang',
+      row_count: rows.length,
+      rows: rows,
+      duration_ms: Date.now() - started
+    };
+
+    Logger.log('ROWS: ' + rows.length);
+    Logger.log(JSON.stringify(rows));
+    Logger.log('DURATION MS: ' + result.duration_ms);
+    Logger.log('====================================================');
+
+    return result;
+  } catch (error) {
+    const message = error && error.message
+      ? error.message
+      : String(error);
+
+    Logger.log('TANGGAL / AGING AUDIT ERROR: ' + message);
+    Logger.log('====================================================');
+
+    return {
+      diagnostic: 'supplier_hutang_tanggal_aging_v1',
+      read_only: true,
+      query_count: 1,
+      limit: 30,
+      source_date: 'pembelian.tanggal',
+      source_balance: 'pembelian.hutang',
+      success: false,
+      error: message,
+      duration_ms: Date.now() - started
+    };
+  }
+}
