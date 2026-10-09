@@ -21,7 +21,21 @@ function getSummary(result) {
 }
 function codeOf(row) { return row?.kode_supplier || row?.supplier || ""; }
 function nameOf(row) { return row?.nama_supplier || row?.nama || codeOf(row) || "Tanpa nama"; }
-function formatDate(value) { const s = String(value || ""); const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); return m ? m[3]+"-"+m[2]+"-"+m[1] : (s || "—"); }
+function formatDate(value) { const s = String(value || ""); return /^\d{2}\/\d{2}\/\d{4}$/.test(s) ? s : (s || "—"); }
+function agingClass(bucket) {
+  return ({
+    "Normal": "aging-normal",
+    "Perlu Perhatian": "aging-attention",
+    "Tinggi": "aging-high",
+    "Urgent": "aging-urgent"
+  })[String(bucket || "").trim()] || "aging-unknown";
+}
+function agingLabel(item) {
+  const age = Number(item?.umur_hari);
+  const bucket = String(item?.aging_bucket || "").trim();
+  const ageText = Number.isFinite(age) ? number.format(age) + " hari" : "—";
+  return { ageText, bucket: bucket || "—", className: agingClass(bucket) };
+}
 function mounted(id) { return id === state.mountId && Boolean(document.querySelector("#supplier-hutang-page")); }
 
 export function renderSupplierHutangPage() {
@@ -78,5 +92,35 @@ async function handleSupplierAction(e) { const b=e.target.closest("[data-supplie
 async function openDetail(code) { const modal=document.querySelector("#supplier-hutang-modal"),content=document.querySelector("#supplier-hutang-detail-content"),title=document.querySelector("#supplier-hutang-detail-title"),codeEl=document.querySelector("#supplier-hutang-detail-code"); if(!modal)return; state.selectedSupplier=code; const row=state.rows.find(r=>codeOf(r)===code)||{}; title.textContent=nameOf(row);codeEl.textContent=code;content.innerHTML="<div class=\"detail-loading\">Mengambil detail hutang supplier...</div>";modal.classList.remove("hidden");modal.setAttribute("aria-hidden","false");document.body.classList.add("modal-open");
   try { const result=await api.supplierHutangDetail(code); if(state.selectedSupplier!==code)return; const p=getPayload(result); state.detailRows=Array.isArray(p.data)?p.data:[];state.detailSummary=p.summary||{};renderDetail(); } catch(error) { if(state.selectedSupplier===code)content.innerHTML="<div class=\"detail-error\"><strong>Gagal mengambil detail hutang supplier.</strong><span>"+esc(error?.message||"Unknown error")+"</span></div>"; }
 }
-function renderDetail() { const c=document.querySelector("#supplier-hutang-detail-content"); if(!c)return; const total=money(state.detailSummary.total_nilai_nota),outstanding=money(state.detailSummary.total_hutang),count=money(state.detailSummary.jumlah_nota_bersaldo); c.innerHTML=`<div class="supplier-detail-summary"><div><span>Total nilai nota</span><strong>${formatMoney(total)}</strong></div><div class="supplier-detail-summary-primary"><span>Sisa hutang</span><strong>${formatMoney(outstanding)}</strong></div><div><span>Nota outstanding</span><strong>${number.format(count)}</strong></div></div><div class="detail-heading">Daftar Nota Outstanding</div><div class="detail-table-scroll supplier-detail-table-scroll"><table class="detail-table supplier-detail-table"><thead><tr><th>Nota</th><th>Tanggal</th><th>Total Nota</th><th>Sisa Hutang</th><th>Status</th></tr></thead><tbody>${state.detailRows.length?state.detailRows.map(item=>`<tr><td><strong>${esc(item.nota||"—")}</strong></td><td>${esc(formatDate(item.tanggal))}</td><td>${formatMoney(item.total_nota)}</td><td><strong>${formatMoney(item.sisa_hutang)}</strong></td><td><span class="supplier-status-badge">Outstanding</span></td></tr>`).join(""):"<tr><td colspan=\"5\" class=\"empty-cell\">Tidak ada nota outstanding.</td></tr>"}</tbody></table></div>`; }
+function renderDetail() {
+  const c=document.querySelector("#supplier-hutang-detail-content");
+  if(!c)return;
+  const total=money(state.detailSummary.total_nilai_nota),
+    outstanding=money(state.detailSummary.total_hutang),
+    count=money(state.detailSummary.jumlah_nota_bersaldo);
+
+  c.innerHTML=`<div class="supplier-detail-summary">
+    <div><span>Total nilai nota</span><strong>${formatMoney(total)}</strong></div>
+    <div class="supplier-detail-summary-primary"><span>Sisa hutang</span><strong>${formatMoney(outstanding)}</strong></div>
+    <div><span>Nota outstanding</span><strong>${number.format(count)}</strong></div>
+  </div>
+  <div class="detail-heading">Daftar Nota Outstanding</div>
+  <div class="supplier-aging-note">Umur hutang dihitung dari tanggal nota sampai tanggal acuan backend. Tidak menggunakan jatuh tempo atau termin pembayaran.</div>
+  <div class="detail-table-scroll supplier-detail-table-scroll">
+    <table class="detail-table supplier-detail-table">
+      <thead><tr><th>Nota</th><th>Tanggal</th><th>Umur Hutang</th><th>Total Nota</th><th>Sisa Hutang</th><th>Aging</th></tr></thead>
+      <tbody>${state.detailRows.length?state.detailRows.map(item=>{
+        const aging=agingLabel(item);
+        return `<tr>
+          <td><strong>${esc(item.nota||"—")}</strong></td>
+          <td>${esc(formatDate(item.tanggal))}</td>
+          <td><span class="supplier-aging-days">${aging.ageText}</span></td>
+          <td>${formatMoney(item.total_nota)}</td>
+          <td><strong>${formatMoney(item.sisa_hutang)}</strong></td>
+          <td><span class="supplier-aging-badge ${aging.className}">${esc(aging.bucket)}</span></td>
+        </tr>`;
+      }).join(""):"<tr><td colspan=\"6\" class=\"empty-cell\">Tidak ada nota outstanding.</td></tr>"}</tbody>
+    </table>
+  </div>`;
+}
 function closeDetail() { const modal=document.querySelector("#supplier-hutang-modal"); if(!modal)return;state.selectedSupplier=null;state.detailRows=[];state.detailSummary=null;modal.classList.add("hidden");modal.setAttribute("aria-hidden","true");document.body.classList.remove("modal-open"); }
