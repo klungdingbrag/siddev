@@ -2119,3 +2119,38 @@ This is visual/interaction behavior only and does not alter the Dashboard API or
 Detailed contract:
 
 `docs/DASHBOARD_V3_DESIGN_CONTRACT.md`
+
+
+### Dashboard V3 — Phase 1 Composition Implemented
+
+Phase 1 applies the approved composition contract without changing Dashboard data or API behavior.
+
+Desktop layout is now explicitly organized as:
+
+```
++---------------------------+-------------+
+|       Omzet Harian        |  Kalender   |
+|          ~70%             |    ~30%     |
++---------------------------+-------------+
+|    Laba Bulanan           | Laba Harian |
++---------------------------+-------------+
+|             Source of Truth             |
++-----------------------------------------+
+```
+
+The previous `grid-row: span 2` composition was removed because it made Omzet Harian inherit excessive vertical height from the panels beside it.
+
+Spacing was tightened by reducing chart/header geometry while preserving readable interaction areas.
+
+Responsive behavior:
+
+- desktop: sales 70/30 + profit 50/50;
+- tablet: single-column sections when the two-column layout becomes cramped;
+- mobile: KPI remains 2 × 2 and dashboard sections stack vertically;
+- no horizontal scrolling is introduced.
+
+This phase is **visual/layout only**. No accounting, API, Piutang, Collection Priority, or backend contract was changed.
+
+Implementation commit:
+
+`7d2fdc81e5a4837b35e8256f52d1f6ad6bd14617`
