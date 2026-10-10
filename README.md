@@ -2438,3 +2438,14 @@ Perbaikan scroll popup Hutang Supplier mengikuti pola yang sudah digunakan popup
 Dengan demikian, tidak ada lagi area scroll vertikal terpisah pada tabel nota. Perubahan hanya pada CSS; API, saldo, dan perhitungan aging tidak berubah.
 
 **QA browser tetap diperlukan** untuk memastikan perilaku sesuai pada desktop dan mobile.
+
+---
+
+## Handoff untuk Chat Baru — PDF Hutang Supplier
+
+Untuk melanjutkan pekerjaan PDF Hutang Supplier dari chat baru, baca dokumen handoff berikut sebelum mengubah kode:
+
+- [`docs/HANDOFF_SUPPLIER_HUTANG_PDF.md`](docs/HANDOFF_SUPPLIER_HUTANG_PDF.md)
+
+Dokumen tersebut mencatat keputusan desain, pilihan logo utama, temuan audit backend, kondisi implementasi saat ini, batasan Production/Development, rencana kerja, kriteria pengujian, dan prompt untuk memulai chat baru. **Status saat dicatat: PDF Hutang Supplier belum diimplementasikan dan belum diuji.**
+
