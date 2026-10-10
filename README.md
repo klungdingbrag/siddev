@@ -2423,3 +2423,18 @@ Popup detail Supplier Hutang menggunakan satu area scroll untuk tabel nota. Pane
 - Pastikan header dan ringkasan tetap terlihat saat daftar nota digulir.
 - Uji scroll horizontal bila tabel lebih lebar dari popup.
 - Uji desktop dan mobile.
+
+
+### Supplier Hutang V1 — Detail Scroll Aligned with Piutang
+
+Perbaikan scroll popup Hutang Supplier mengikuti pola yang sudah digunakan popup Detail Piutang:
+
+- panel popup dibatasi tinggi maksimum;
+- `.modal-body` menjadi satu-satunya area scroll vertikal;
+- tabel nota hanya menangani overflow horizontal;
+- header popup dan ringkasan ikut berada dalam area konten yang digulir, sama seperti pola Detail Piutang;
+- batas tinggi mobile mengikuti tinggi viewport.
+
+Dengan demikian, tidak ada lagi area scroll vertikal terpisah pada tabel nota. Perubahan hanya pada CSS; API, saldo, dan perhitungan aging tidak berubah.
+
+**QA browser tetap diperlukan** untuk memastikan perilaku sesuai pada desktop dan mobile.
