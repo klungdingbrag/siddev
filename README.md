@@ -2401,3 +2401,25 @@ Tahap berikutnya tetap mengikuti:
 
 Tidak ada perubahan accounting logic atau perhitungan saldo Supplier Hutang yang dilakukan oleh aging.
 
+
+
+## Supplier Hutang V1 — Single Scroll Detail Popup
+
+**Branch:** `ui/ux-polish-v3`
+
+Popup detail Supplier Hutang menggunakan satu area scroll untuk tabel nota. Panel popup tidak lagi membuat scrollbar kedua di luar area daftar nota.
+
+### UI behavior
+
+- Header popup dan ringkasan saldo tetap berada di atas.
+- Area tabel nota menangani scroll vertikal dan horizontal.
+- Scrollbar tabel dibatasi pada area daftar nota, dengan batas tinggi responsif.
+- Perubahan hanya pada CSS frontend; data, aging, API, dan perhitungan saldo tidak berubah.
+
+### QA manual
+
+- Buka Hutang Supplier → Detail supplier dengan banyak nota.
+- Pastikan hanya area daftar nota yang bisa digulir.
+- Pastikan header dan ringkasan tetap terlihat saat daftar nota digulir.
+- Uji scroll horizontal bila tabel lebih lebar dari popup.
+- Uji desktop dan mobile.
