@@ -147,3 +147,22 @@ Kerjakan berurutan; jangan melompati audit backend:
 Salin prompt berikut ke chat baru:
 
 > Lanjutkan proyek SID Retail dari repository `klungdingbrag/siddev`, branch `ui/ux-polish-v3`. Baca dahulu `docs/HANDOFF_SUPPLIER_HUTANG_PDF.md` dan bagian README yang dirujuk di dalamnya. Jangan mengubah stable/production. Fitur yang direncanakan adalah PDF Ringkasan Hutang Supplier dan PDF per Nota, dengan kop TB NUSANTARA memakai logo biru yang sudah dipilih. Fitur PDF supplier belum diimplementasikan dan belum diuji. Audit source GAS Development serta kontrak data nota supplier lebih dahulu, pastikan aset logo tersedia untuk generator PDF, lalu implementasikan secara bertahap, dokumentasikan, dan jangan menyatakan lulus sebelum diuji di browser Development. Jangan membuat endpoint atau asumsi data tanpa verifikasi.
+
+
+---
+
+## Addendum — Source Audit 2026-10-10
+
+Audit document: [`docs/SUPPLIER_HUTANG_PDF_SOURCE_AUDIT_2026-10-10.md`](SUPPLIER_HUTANG_PDF_SOURCE_AUDIT_2026-10-10.md)
+
+### Hasil audit source code
+
+- Kontrak source tetap: `pembelian.supplier`, `pembelian.kode`, `pembelian.tanggal`, `pembelian.jumlah`, dan saldo `pembelian.hutang`; scope `pembelian.hutang_ke = 'supplier'` dengan `pembelian.hutang > 0`.
+- `getSupplierHutangDetailV1()` hanya mengambil header nota dan saldo; rincian item pembelian belum terbukti tersedia. PDF per nota versi awal harus berupa laporan header nota kecuali audit detail pembelian membuktikan sumber item.
+- Dispatcher hanya memiliki PDF piutang/pelanggan; action PDF supplier belum ada. Jangan menganggap endpoint baru sudah aktif.
+- `assets/img/` hanya memiliki `.gitkeep`; logo terpilih belum tersedia di repository untuk generator PDF.
+- Audit ini memeriksa source code, bukan deployment runtime. HTTP test Development dan browser test masih pending.
+
+### Status
+
+**Source audit: selesai. Implementasi PDF supplier: belum dimulai.** Langkah berikutnya adalah mencocokkan snapshot GAS Development dengan source branch, menjalankan tes HTTP read-only untuk endpoint supplier yang sudah ada, dan memastikan aset logo tersedia. Jangan mengubah stable/production atau menyatakan fitur PDF lulus sebelum tes aktual selesai.
