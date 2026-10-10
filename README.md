@@ -2449,3 +2449,12 @@ Untuk melanjutkan pekerjaan PDF Hutang Supplier dari chat baru, baca dokumen han
 
 Dokumen tersebut mencatat keputusan desain, pilihan logo utama, temuan audit backend, kondisi implementasi saat ini, batasan Production/Development, rencana kerja, kriteria pengujian, dan prompt untuk memulai chat baru. **Status saat dicatat: PDF Hutang Supplier belum diimplementasikan dan belum diuji.**
 
+
+
+## Supplier Hutang PDF — Source Audit (2026-10-10)
+
+Source-code audit recorded in [`docs/SUPPLIER_HUTANG_PDF_SOURCE_AUDIT_2026-10-10.md`](docs/SUPPLIER_HUTANG_PDF_SOURCE_AUDIT_2026-10-10.md).
+
+Confirmed source contract remains `pembelian.hutang` for outstanding balance, filtered by `pembelian.hutang_ke = 'supplier'` and `pembelian.hutang > 0`. Current supplier detail source returns invoice header fields only; purchase item-detail fields have not been verified. PDF supplier endpoints are not yet implemented. The selected blue/orange/gray logo is not present in `assets/img/` (only `.gitkeep` exists), so logo integration remains blocked pending a usable asset.
+
+**Status:** source-code audit complete; Development HTTP/browser tests pending; supplier PDF features not implemented. Production/stable branches remain untouched.
