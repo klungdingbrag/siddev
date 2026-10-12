@@ -2554,3 +2554,7 @@ Handoff lengkap dan langkah uji tercatat di `docs/HANDOFF_SUPPLIER_HUTANG_PDF.md
 ### Supplier purchase item audit (Development only)
 
 A read-only diagnostic is available on branch `ui/ux-polish-v3`: [`code/Supplier_Purchase_Items_Audit_V1.gs`](https://github.com/klungdingbrag/siddev/blob/ui/ux-polish-v3/code/Supplier_Purchase_Items_Audit_V1.gs). Run `auditSupplierPurchaseMultiItemV1()` in GAS Development to find and reconcile a multi-item supplier purchase note, or pass a known supplier and invoice code. This is an audit only; it does not change PDF output or production. See [the supplier PDF handoff](docs/HANDOFF_SUPPLIER_HUTANG_PDF.md) for steps and limitations.
+
+### Supplier invoice PDF item-detail draft
+
+Read-only Development audit confirmed that `itempembelian` returned two item rows for sample invoice `R21-020722001` and their subtotals reconciled to the header total (Rp3.985.000). Commit `4bae10ee244259d2fc80af2985642e18ef74269d` adds item-detail rendering to the isolated supplier invoice PDF source on `ui/ux-polish-v3`. This is a source draft, not yet runtime-accepted: sync to GAS Development and test a multi-item invoice with outstanding debt before claiming success. See [handoff](docs/HANDOFF_SUPPLIER_HUTANG_PDF.md).
