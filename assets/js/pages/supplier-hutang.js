@@ -283,6 +283,19 @@ async function handleSupplierPdf(type, nota) {
   );
   const originalLabel = clickedButton?.textContent || "";
   const statusId = "supplier-pdf-loading-status";
+  if (!document.querySelector("#supplier-pdf-loading-styles")) {
+    document.head.insertAdjacentHTML("beforeend", `<style id="supplier-pdf-loading-styles">
+      .supplier-pdf-loading-status{display:flex;align-items:center;gap:14px;margin:0 0 16px;padding:14px 16px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;color:#1e3a8a}
+      .supplier-pdf-loading-status strong,.supplier-pdf-loading-status span{display:block}
+      .supplier-pdf-loading-status strong{font-size:14px;margin-bottom:4px}
+      .supplier-pdf-loading-status span:not(.supplier-pdf-loading-spinner){font-size:12px;line-height:1.5}
+      .supplier-pdf-loading-spinner,.supplier-pdf-button-spinner{display:inline-block;flex:0 0 auto;width:24px;height:24px;border:3px solid #bfdbfe;border-top-color:#2563eb;border-radius:50%;animation:supplier-pdf-spin .8s linear infinite}
+      .supplier-pdf-button-spinner{width:12px;height:12px;border-width:2px;vertical-align:-2px;border-color:#cbd5e1;border-top-color:currentColor}
+      [data-supplier-pdf].ui-busy{opacity:.8;cursor:wait}
+      @keyframes supplier-pdf-spin{to{transform:rotate(360deg)}}
+      @media(prefers-reduced-motion:reduce){.supplier-pdf-loading-spinner,.supplier-pdf-button-spinner{animation-duration:2s}}
+    </style>`);
+  }
   document.querySelector("#" + statusId)?.remove();
 
   buttons.forEach(button => {
