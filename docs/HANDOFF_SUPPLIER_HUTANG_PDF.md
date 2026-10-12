@@ -390,3 +390,5 @@ This confirms the `itempembelian` table, the tested `kode` relation, and these f
 
 **Not yet accepted:** the updated PDF source has not yet been synced to GAS Development or run in the Web App/browser. The first sample was paid and cannot be used to test the new outstanding-note PDF. Next, select a multi-item invoice with `pembelian.hutang > 0`, run `auditSupplierPurchaseItemsV1("SUPPLIER_CODE", "INVOICE_CODE")` to confirm item details and then test the invoice PDF action in Development. Inspect the rendered rows, prices/discounts, invoice total, remaining balance, logo, PDF validity, and browser download before treating this as complete.
 
+**Audit refinement:** commit [70ab9f3f9cccaac11ab75e1d573f609e3b045735](https://github.com/klungdingbrag/siddev/commit/70ab9f3f9cccaac11ab75e1d573f609e3b045735) updates the candidate search to require `COALESCE(p.hutang,0) > 0`. The default run now seeks a multi-item invoice that is still outstanding, which is the appropriate case for testing the PDF action. This source change still requires syncing the complete diagnostic file into GAS Development and running it.
+
