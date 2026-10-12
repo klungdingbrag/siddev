@@ -435,3 +435,19 @@ Atas persetujuan pengguna, UI pada `assets/js/pages/supplier-hutang.js` di branc
 Commit frontend: https://github.com/klungdingbrag/siddev/commit/420fcd5398595a436c3eb80269655e4ff908c875
 
 **Validasi:** source UI sudah dikomit. Belum ada verifikasi visual di browser atau tes klik/download PDF setelah perubahan tata letak ini. Sinkronkan ke lingkungan Development dan uji kedua tombol sebelum menerima. Production/stable tidak disentuh.
+
+
+### Loading state saat membuat PDF (2026-10-12)
+
+Pada `assets/js/pages/supplier-hutang.js`, handler PDF kini menampilkan status loading di bagian atas konten Supplier Detail:
+
+- PDF per nota menampilkan pesan `Membuat PDF Nota` dan nomor nota yang dipilih.
+- Ringkasan menampilkan pesan `Membuat Ringkasan PDF` serta menjelaskan bahwa semua nota outstanding supplier sedang diproses.
+- Spinner animasi tampil di status panel dan di tombol yang diklik; tombol PDF lainnya dinonaktifkan selama proses untuk mencegah permintaan ganda.
+- Status dan keadaan tombol dipulihkan pada blok `finally`, termasuk ketika request atau validasi PDF gagal.
+- CSS animasi dimasukkan satu kali secara dinamis dan menghormati preferensi `prefers-reduced-motion`.
+
+Commit loading handler: https://github.com/klungdingbrag/siddev/commit/f877ffb02d67dbfdbde213cecaa9d9fc573cc90f
+Commit styling: https://github.com/klungdingbrag/siddev/commit/bd9abaa23db89d4f553f04ea9da9cc34ffcdb470
+
+**Validasi:** source committed pada `ui/ux-polish-v3`. Belum diuji langsung di browser/GAS Development; verifikasi status muncul segera setelah klik, spinner berputar, tombol pulih setelah sukses/gagal, dan PDF tetap terbuka/terunduh. Production/stable tidak disentuh.
