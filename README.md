@@ -2506,3 +2506,17 @@ The frontend now has a Ringkasan PDF button and PDF action for each outstanding 
 **Status: implementation draft, not runtime-accepted.** Static syntax checks passed, but no Development Web App PDF request or browser download test has been completed. The generator requires the selected blue/orange/gray logo at `assets/img/logo-cv-nusantara.png`; the exact PNG has not yet been committed at that path. Do not deploy to Production or mark the feature complete until the logo is committed and both PDF actions pass Development/browser tests.
 
 Detailed progress, limitations, and next tests: [Supplier Hutang PDF handoff](docs/HANDOFF_SUPPLIER_HUTANG_PDF.md).
+
+
+### Development error follow-up — dispatcher action not recognized (2026-10-12)
+
+User reported: `Action API V1 tidak dikenal: pdfSupplierHutangSummaryV1`.
+
+Inspection of the current GitHub branch `ui/ux-polish-v3` confirms:
+- `code/Code.gs` contains `case 'pdfSupplierHutangSummaryV1'` and calls `getPdfSupplierHutangSummaryV1(...)`.
+- It also contains `case 'pdfSupplierHutangInvoiceV1'`.
+- `assets/js/api/endpoints.js` sends the exact action name `pdfSupplierHutangSummaryV1`.
+
+Therefore, the error is consistent with the active GAS Web App deployment executing an older/different `Code.gs` (or a different GAS project/deployment), not with the action name missing from the current GitHub source. This diagnosis is based on source comparison; the active deployment identity/version has not yet been independently verified.
+
+**Next safe action:** in the Development GAS project only, synchronize the dispatcher from this branch's `code/Code.gs` and ensure `Supplier_Hutang_PDF_V1.gs` is present in the same project; save and create a new Development deployment version (or update the existing Development deployment to a new version). Then re-test the summary action. Do not change Production/stable. If the same error persists, verify the frontend's configured Web App URL points to that Development deployment and inspect its deployed version. This step is required before testing logo/PDF generation.
