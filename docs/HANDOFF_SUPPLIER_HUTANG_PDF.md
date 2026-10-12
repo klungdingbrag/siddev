@@ -187,3 +187,29 @@ Ringkasan temuan:
 Dokumentasi audit dibuat pada commit `35eb1123e8e2aceb48eb21ac7a04d2299400a77f`; README diperbarui pada commit `f2346f2cbc7963ea62a16b51bab0f8752e831e4d`.
 
 **Status:** source review awal selesai; runtime Development belum diverifikasi; implementasi PDF supplier belum dimulai.
+
+
+## Addendum — Development Read-only Data Test (2026-10-12)
+
+User ran `testSupplierHutangV1()` and `testSupplierHutangDetailV1('JAYA')` directly in Apps Script. Both executions completed without an exception.
+
+### Observed results
+
+- List query: HTTP 200 from the SID Retail API; API status `success`.
+- Supplier list includes rows such as JAYA, CAKRA, ROHMAT, REDO and others. The log was truncated by Apps Script, so the full supplier count and list-level grand total cannot be independently confirmed from this pasted log.
+- JAYA detail query: HTTP 200 from the SID Retail API; API status `success`.
+- JAYA returned 30 outstanding invoice rows.
+- JAYA detail summary: total invoice value for the returned outstanding rows = Rp116.471.175,60; outstanding balance = Rp116.471.175,60.
+- JAYA list aggregation: 30 outstanding invoices; total outstanding = Rp116.471.175,60.
+- The 30-row detail and list aggregate agree for JAYA. This is a useful actual-data reconciliation for this supplier.
+- The oldest displayed invoice has age 128 days and bucket `Urgent`, consistent with the documented `>=121` boundary.
+
+### Scope and limitations
+
+This confirms that the directly invoked GAS functions successfully query SID Retail and return actual data for these tests. It does **not** prove that the deployed Web App dispatcher/HTTP envelope has been tested end-to-end, that the frontend downloads a PDF, or that PDF generation works. The Apps Script message `Logging output too large. Truncating output` also means the complete supplier list result cannot be certified from the pasted output alone.
+
+The 500-row limit remains in the detail query. JAYA has 30 outstanding notes, so this test does not exercise truncation. Before a PDF report is treated as complete for arbitrary suppliers, add a verified completeness strategy or an explicit truncation guard without changing the existing API behavior unexpectedly.
+
+### Next step
+
+Continue with isolated PDF supplier functions/actions on this branch only, preserving existing list/detail and customer PDF functions. Confirm logo asset handling and backend PDF transport before wiring the UI. Then run a separate Development Web App HTTP test and browser PDF QA. No production deployment or existing business function was changed by these tests.
