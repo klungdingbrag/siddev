@@ -8,6 +8,13 @@ export const api = Object.freeze({
   supplierHutang: () => apiRequest("supplierHutang"),
   supplierHutangDetail: (kodeSupplier) =>
     apiRequest("supplierHutangDetail", { kode_supplier: kodeSupplier }),
+  pdfSupplierHutangSummaryV1: (kodeSupplier) =>
+    apiRequest("pdfSupplierHutangSummaryV1", { kode_supplier: kodeSupplier }),
+  pdfSupplierHutangInvoiceV1: (kodeSupplier, kodeNota) =>
+    apiRequest("pdfSupplierHutangInvoiceV1", {
+      kode_supplier: kodeSupplier,
+      kode_nota: kodeNota
+    }),
   pelanggan: () =>
     apiRequest("pelanggan"),
   pelangganDetail: (kodePelanggan) =>
