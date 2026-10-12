@@ -2565,3 +2565,10 @@ The multi-item diagnostic now searches for invoices that also have outstanding d
 ### Supplier Hutang PDF — Invoice totals layout update (2026-10-12)
 
 Approved layout for the per-invoice PDF places a right-aligned, vertically stacked **Total Nota**, **Bayar**, and **Sisa Hutang** block immediately below **Total Subtotal Barang** and above the signature areas. **Sisa Hutang** is emphasized with bold text and a pale-blue background/blue rule. Source commit: [4e7b531a4ba37f25ba147529c7d5fda3481e4702](https://github.com/klungdingbrag/siddev/commit/4e7b531a4ba37f25ba147529c7d5fda3481e4702) on `ui/ux-polish-v3`. The displayed Bayar is currently inferred as `max(0, Total Nota - Sisa Hutang)`; verify partial-payment cases in GAS Development before accepting. This is source-only until runtime PDF/browser validation is complete. Production/stable is untouched.
+
+
+### Supplier Hutang PDF — ringkasan pembayaran pada PDF ringkasan (2026-10-12)
+
+Atas permintaan pengguna, PDF Ringkasan Hutang Supplier juga menampilkan blok nominal di bawah tabel nota dan di atas tanda tangan: **Total Nota**, **Bayar**, dan **Sisa Hutang**. Total Nota dan Sisa Hutang menggunakan agregat nota outstanding pada laporan; Bayar ditampilkan sebagai `max(0, totalNota - totalHutang)`. Baris Sisa Hutang menggunakan penekanan visual yang sama seperti PDF per nota. Source commit: [150a775a39f0cf492edf66ff0c1e80559409eccb](https://github.com/klungdingbrag/siddev/commit/150a775a39f0cf492edf66ff0c1e80559409eccb), branch `ui/ux-polish-v3`.
+
+**Status:** source-only, belum divalidasi melalui PDF yang dihasilkan GAS Development. Nilai Bayar adalah selisih agregat Total Nota dan Sisa Hutang, bukan rekonstruksi transaksi pembayaran terpisah. Uji output PDF dan rekonsiliasi nominal sebelum menerima perubahan. Production/stable tidak disentuh.
