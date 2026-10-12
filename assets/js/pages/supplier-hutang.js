@@ -276,14 +276,43 @@ function closeDetail() { const modal=document.querySelector("#supplier-hutang-mo
 async function handleSupplierPdf(type, nota) {
   const supplier = state.selectedSupplier;
   if (!supplier) return;
-  const buttons = document.querySelectorAll("[data-supplier-pdf]");
-  buttons.forEach(button => { button.disabled = true; });
+  const buttons = [...document.querySelectorAll("[data-supplier-pdf]")];
+  const clickedButton = buttons.find(button =>
+    button.dataset.supplierPdf === type &&
+    (type !== "invoice" || button.dataset.nota === nota)
+  );
+  const originalLabel = clickedButton?.textContent || "";
+  const statusId = "supplier-pdf-loading-status";
+  document.querySelector("#" + statusId)?.remove();
+
+  buttons.forEach(button => {
+    button.disabled = true;
+    button.setAttribute("aria-disabled", "true");
+  });
+  if (clickedButton) {
+    clickedButton.classList.add("ui-busy");
+    clickedButton.innerHTML = '<span class="supplier-pdf-button-spinner" aria-hidden="true"></span>' +
+      (type === "summary" ? " Membuat ringkasan..." : " Membuat PDF...");
+  }
+
+  const content = document.querySelector("#supplier-hutang-detail-content");
+  if (content) {
+    const message = type === "summary"
+      ? "Sedang membuat Ringkasan PDF seluruh nota outstanding supplier ini. Mohon tunggu..."
+      : "Sedang membuat PDF nota " + esc(nota) + ". Mohon tunggu...";
+    content.insertAdjacentHTML("afterbegin",
+      '<div id="' + statusId + '" class="supplier-pdf-loading-status" role="status" aria-live="polite">' +
+      '<span class="supplier-pdf-loading-spinner" aria-hidden="true"></span><div><strong>' +
+      (type === "summary" ? "Membuat Ringkasan PDF" : "Membuat PDF Nota") +
+      '</strong><span>' + message + '</span></div></div>');
+  }
+
   try {
     const data = type === "summary"
       ? await api.pdfSupplierHutangSummaryV1(supplier)
       : await api.pdfSupplierHutangInvoiceV1(supplier, nota);
     const payload = data?.data && typeof data.data === "object" ? data.data : data;
-    const base64 = String(payload?.pdf_base64 || "").replace(/\\s+/g, "");
+    const base64 = String(payload?.pdf_base64 || "").replace(/\s+/g, "");
     if (!base64) throw new Error("Backend tidak mengembalikan pdf_base64.");
     let binary;
     try { binary = atob(base64); } catch (_) { throw new Error("Data PDF tidak valid (base64 gagal didekode)."); }
@@ -312,6 +341,12 @@ async function handleSupplierPdf(type, nota) {
   } catch (error) {
     window.alert("Gagal membuat PDF supplier: " + (error?.message || "Kesalahan tidak diketahui"));
   } finally {
-    buttons.forEach(button => { button.disabled = false; });
+    document.querySelector("#" + statusId)?.remove();
+    buttons.forEach(button => {
+      button.disabled = false;
+      button.removeAttribute("aria-disabled");
+      button.classList.remove("ui-busy");
+    });
+    if (clickedButton) clickedButton.textContent = originalLabel;
   }
 }
