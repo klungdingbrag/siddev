@@ -407,3 +407,16 @@ Perubahan source pada `code/Supplier_Hutang_PDF_V1.gs` menambahkan baris Bayar d
 Commit source: [4e7b531a4ba37f25ba147529c7d5fda3481e4702](https://github.com/klungdingbrag/siddev/commit/4e7b531a4ba37f25ba147529c7d5fda3481e4702).
 
 **Status:** source committed pada `ui/ux-polish-v3`; belum diverifikasi pada PDF hasil runtime. Sinkronkan file penuh ke GAS Development, buat versi deployment Development baru, lalu periksa posisi blok, nilai Bayar pada nota yang belum dibayar dan yang sudah dibayar sebagian, serta ruang tanda tangan sebelum menyatakan lulus.
+
+
+### Tambahan — blok nominal pada PDF Ringkasan Hutang (2026-10-12)
+
+Pengguna meminta PDF Ringkasan Hutang Supplier juga menampilkan tiga baris di bawah tabel dan sebelum area tanda tangan, konsisten dengan PDF per nota:
+
+- **Total Nota** — `model.summary.totalNota` (jumlah nilai seluruh nota outstanding yang tampil).
+- **Bayar** — `max(0, totalNota - totalHutang)`.
+- **Sisa Hutang** — `model.summary.totalHutang`, ditebalkan dengan latar biru muda dan garis biru.
+
+Perubahan berada di `code/Supplier_Hutang_PDF_V1.gs` dan hanya memengaruhi presentasi HTML PDF ringkasan; query, accounting logic sumber, API dispatcher, dan Production/stable tidak diubah. Commit: [150a775a39f0cf492edf66ff0c1e80559409eccb](https://github.com/klungdingbrag/siddev/commit/150a775a39f0cf492edf66ff0c1e80559409eccb).
+
+**Validasi belum selesai:** sinkronkan file source terbaru ke GAS Development, buat versi deployment Development baru, lalu hasilkan PDF Ringkasan Hutang. Pastikan blok tampil setelah tabel, sebelum tanda tangan, dan nilai agregat benar. Nilai Bayar merupakan selisih agregat Total Nota dan Sisa Hutang; jangan menganggapnya sebagai data transaksi pembayaran independen tanpa audit lanjutan. Jangan deploy ke Production.
