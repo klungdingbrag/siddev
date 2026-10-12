@@ -2520,3 +2520,8 @@ Inspection of the current GitHub branch `ui/ux-polish-v3` confirms:
 Therefore, the error is consistent with the active GAS Web App deployment executing an older/different `Code.gs` (or a different GAS project/deployment), not with the action name missing from the current GitHub source. This diagnosis is based on source comparison; the active deployment identity/version has not yet been independently verified.
 
 **Next safe action:** in the Development GAS project only, synchronize the dispatcher from this branch's `code/Code.gs` and ensure `Supplier_Hutang_PDF_V1.gs` is present in the same project; save and create a new Development deployment version (or update the existing Development deployment to a new version). Then re-test the summary action. Do not change Production/stable. If the same error persists, verify the frontend's configured Web App URL points to that Development deployment and inspect its deployed version. This step is required before testing logo/PDF generation.
+
+
+### Logo asset path correction (2026-10-12)
+
+The selected logo has now been committed in `assets/img/CV. NUSANTARA BUILDING MATERIAL LOGO.png` (alongside `assets/img/Stempel TB Nusantara.png`). The PDF generator previously requested the nonexistent `assets/img/logo-cv-nusantara.png`, which caused HTTP 404. Commit `3e1237fc5ac2a20b7807da91525ccc87af2d9fba` updates `SUPPLIER_HUTANG_PDF_V1.logoUrl` to the existing logo path, URL-encoded for spaces. This fixes the path mismatch in GitHub source; it does **not** prove the GAS Development deployment has received the update or that PDF generation passes. Re-sync this file to Development GAS, deploy a new Development version, then test both PDF actions. Do not touch Production/stable.
