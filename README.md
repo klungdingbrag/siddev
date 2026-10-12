@@ -2560,3 +2560,8 @@ A read-only diagnostic is available on branch `ui/ux-polish-v3`: [`code/Supplier
 Read-only Development audit confirmed that `itempembelian` returned two item rows for sample invoice `R21-020722001` and their subtotals reconciled to the header total (Rp3.985.000). Commit `4bae10ee244259d2fc80af2985642e18ef74269d` adds item-detail rendering to the isolated supplier invoice PDF source on `ui/ux-polish-v3`. This is a source draft, not yet runtime-accepted: sync to GAS Development and test a multi-item invoice with outstanding debt before claiming success. See [handoff](docs/HANDOFF_SUPPLIER_HUTANG_PDF.md).
 
 The multi-item diagnostic now searches for invoices that also have outstanding debt (`p.hutang > 0`) so the next runtime test can exercise the actual supplier-hutang PDF path. Commit: `70ab9f3f9cccaac11ab75e1d573f609e3b045735`. Runtime test remains pending.
+
+
+### Supplier Hutang PDF — Invoice totals layout update (2026-10-12)
+
+Approved layout for the per-invoice PDF places a right-aligned, vertically stacked **Total Nota**, **Bayar**, and **Sisa Hutang** block immediately below **Total Subtotal Barang** and above the signature areas. **Sisa Hutang** is emphasized with bold text and a pale-blue background/blue rule. Source commit: [4e7b531a4ba37f25ba147529c7d5fda3481e4702](https://github.com/klungdingbrag/siddev/commit/4e7b531a4ba37f25ba147529c7d5fda3481e4702) on `ui/ux-polish-v3`. The displayed Bayar is currently inferred as `max(0, Total Nota - Sisa Hutang)`; verify partial-payment cases in GAS Development before accepting. This is source-only until runtime PDF/browser validation is complete. Production/stable is untouched.
