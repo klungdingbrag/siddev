@@ -276,3 +276,8 @@ The active runtime error says the dispatcher does not recognize the action. Give
 6. Do not deploy to or modify Production/stable.
 
 No source code or production function was changed in response to this runtime error. The current branch source already contains the action case, so the next step is to synchronize/verify the Development deployment rather than duplicate the dispatcher case.
+
+
+### Logo asset path correction (2026-10-12)
+
+The selected logo has now been committed in `assets/img/CV. NUSANTARA BUILDING MATERIAL LOGO.png` (alongside `assets/img/Stempel TB Nusantara.png`). The PDF generator previously requested the nonexistent `assets/img/logo-cv-nusantara.png`, which caused HTTP 404. Commit `3e1237fc5ac2a20b7807da91525ccc87af2d9fba` updates `SUPPLIER_HUTANG_PDF_V1.logoUrl` to the existing logo path, URL-encoded for spaces. This fixes the path mismatch in GitHub source; it does **not** prove the GAS Development deployment has received the update or that PDF generation passes. Re-sync this file to Development GAS, deploy a new Development version, then test both PDF actions. Do not touch Production/stable.
