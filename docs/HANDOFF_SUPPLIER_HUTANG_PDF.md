@@ -306,3 +306,40 @@ Committed on `ui/ux-polish-v3`:
 - This is a presentation-only change. It does not change SQL, accounting calculations, API actions, or production/stable branches.
 
 **Runtime validation pending:** synchronize this file to GAS Development and regenerate both PDFs. Check that totals appear after the final note row, signature blocks follow the totals, and for multi-page summary the signature block remains together rather than splitting awkwardly across pages. Inspect the rendered PDF before marking this change accepted.
+
+
+## 10. Audit lanjutan: rincian item pembelian untuk PDF per nota (2026-10-12)
+
+### Temuan dari source code GitHub
+
+- `getPdfSupplierHutangInvoiceV1()` pada `code/Supplier_Hutang_PDF_V1.gs` hanya mengambil `p.kode`, `p.tanggal`, `p.jumlah`, dan `p.hutang` dari tabel `pembelian`. Generator saat ini tidak mengambil detail barang.
+- `getSupplierHutangDetailV1()` pada `code/Supplier_Hutang_API_V1.gs` juga hanya mengembalikan header nota, total, sisa hutang, dan aging; tidak mengembalikan item barang.
+- `code/Code.gs` memiliki pola nota pelanggan `getNotaTransaksi()` yang membaca `itempenjualan` berdasarkan `kode`, dengan kolom `nourut,kode,kode_barang,nama_barang,satuan,qty,harga,diskon,diskon_rupiah,subtotal`. Pola ini hanya membuktikan struktur item penjualan, **bukan** struktur item pembelian; jangan menyalinnya begitu saja untuk supplier.
+- `code/Supplier_Hutang_Audit_V1.gs` memasukkan `itempembelian` sebagai nama tabel kandidat untuk audit, tetapi itu belum membuktikan tabel tersebut ada atau memiliki kolom/relasi yang diasumsikan.
+- Audit file dan source GitHub tidak bisa memastikan data aktual tabel pada database Development. Karena itu, nama tabel dan kolom item pembelian tetap BELUM TERVERIFIKASI.
+
+### Diagnostic baru
+
+File `code/Supplier_Purchase_Items_Audit_V1.gs` ditambahkan pada branch `ui/ux-polish-v3` (commit `3f0a9f1aea9fda2c01eb8dbca92aa301ad6f84f2`).
+
+Fungsi publik untuk dropdown GAS:
+`auditSupplierPurchaseItemsV1(kodeSupplier, kodeNota)`
+
+Default sampel:
+- Supplier: `BARU`
+- Nota: `R21-071026001`
+
+Fungsi ini READ-ONLY dan hanya menjalankan SELECT:
+1. Memeriksa header nota pada `pembelian` memakai kontrak yang sudah terverifikasi.
+2. Menguji hipotesis tabel kandidat `itempembelian` dengan `SELECT * ... LIMIT 20`, lalu mencatat nama kolom dan contoh baris.
+3. Menangkap error bila tabel/kolom tidak ada; tidak membuat asumsi dan tidak menulis data.
+
+### Langkah Development berikutnya
+
+1. Salin file diagnostic baru dari GitHub ke GAS Development.
+2. Jalankan `auditSupplierPurchaseItemsV1` tanpa parameter untuk sampel default atau masukkan kode supplier/nota lain.
+3. Kirim output Execution log, terutama kedua blok probe dan nama kolom item.
+4. Setelah hasil nyata ditinjau, verifikasi relasi item-header, subtotal, diskon, satuan, dan rekonsiliasi total nota.
+5. Baru setelah source contract lolos, implementasikan item pada PDF per nota. Jangan menambahkan query item ke generator PDF sebelum audit aktual berhasil.
+
+**Tidak ada perubahan pada fungsi produksi, query hutang, dispatcher, frontend, atau generator PDF dalam audit ini.** Belum ada endpoint baru dan belum ada klaim bahwa item purchase table sudah terverifikasi. Stable/production tidak disentuh.
