@@ -120,6 +120,7 @@ function supplierHutangPdfMapRowV1(row) {
 }
 
 function supplierHutangPdfHtmlV1(model) {
+  var logoDataUri = supplierHutangPdfGetLogoDataUriV1();
   var rowsHtml = model.rows.map(function(row) {
     return '<tr><td>' + supplierHutangPdfEscapeV1(row.nota) + '</td>' +
       '<td>' + supplierHutangPdfEscapeV1(row.tanggal) + '</td>' +
@@ -142,7 +143,7 @@ function supplierHutangPdfHtmlV1(model) {
     'th,td{padding:7px 6px;border:1px solid #d7deea}tr{page-break-inside:avoid}.num{text-align:right;white-space:nowrap}' +
     '.empty{text-align:center;color:#64748b;padding:16px}.foot{margin-top:16px;padding-top:8px;border-top:1px solid #dbe3ef;color:#64748b;font-size:8px}' +
     '</style></head><body><header class="head"><img class="logo" src="' +
-    supplierHutangPdfEscapeV1(SUPPLIER_HUTANG_PDF_V1.logoUrl) +
+    logoDataUri +
     '"><div class="brand"><div class="store">' + SUPPLIER_HUTANG_PDF_V1.store +
     '</div><div class="company">' + SUPPLIER_HUTANG_PDF_V1.company +
     '</div><div class="muted">' + SUPPLIER_HUTANG_PDF_V1.address +
@@ -157,6 +158,30 @@ function supplierHutangPdfHtmlV1(model) {
     model.summary.count + '</span></div></section>' +
     '<table><thead><tr><th>Nomor Nota</th><th>Tanggal</th><th>Umur</th><th>Aging</th><th>Total Nota</th><th>Sisa Hutang</th></tr></thead><tbody>' +
     rowsHtml + '</tbody></table><footer class="foot">Dokumen laporan yang dihasilkan SID Retail; bukan pengganti faktur asli supplier.</footer></body></html>';
+}
+
+function supplierHutangPdfGetLogoDataUriV1() {
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get('SUPPLIER_HUTANG_PDF_LOGO_V1');
+  if (cached) return cached;
+
+  var response = UrlFetchApp.fetch(SUPPLIER_HUTANG_PDF_V1.logoUrl, {
+    muteHttpExceptions: true,
+    followRedirects: true
+  });
+  if (response.getResponseCode() !== 200) {
+    throw new Error('Logo PDF TB Nusantara belum tersedia pada aset GitHub branch ui/ux-polish-v3. HTTP ' +
+      response.getResponseCode() + '. PDF dibatalkan agar kop tidak kehilangan logo.');
+  }
+  var blob = response.getBlob();
+  var contentType = String(blob.getContentType() || 'image/png').toLowerCase();
+  if (contentType.indexOf('image/') !== 0) {
+    throw new Error('Aset logo PDF tidak dikembalikan sebagai file gambar.');
+  }
+  var dataUri = 'data:' + contentType + ';base64,' +
+    Utilities.base64Encode(blob.getBytes());
+  cache.put('SUPPLIER_HUTANG_PDF_LOGO_V1', dataUri, 21600);
+  return dataUri;
 }
 
 function supplierHutangPdfRenderV1(html, filename) {
