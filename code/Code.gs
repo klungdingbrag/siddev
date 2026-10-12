@@ -5462,6 +5462,17 @@ function apiV1Dispatch_(action, request) {
         apiV1Required_(request, 'kode_supplier')
       );
 
+    case 'pdfSupplierHutangSummaryV1':
+      return getPdfSupplierHutangSummaryV1(
+        apiV1Required_(request, 'kode_supplier')
+      );
+
+    case 'pdfSupplierHutangInvoiceV1':
+      return getPdfSupplierHutangInvoiceV1(
+        apiV1Required_(request, 'kode_supplier'),
+        apiV1Required_(request, 'kode_nota')
+      );
+
     case 'tabungan':
       return getSaldoTabunganPelanggan(
         apiV1Required_(request, 'kode_pelanggan')
