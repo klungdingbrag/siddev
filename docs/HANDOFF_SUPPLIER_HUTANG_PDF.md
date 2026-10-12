@@ -392,3 +392,18 @@ This confirms the `itempembelian` table, the tested `kode` relation, and these f
 
 **Audit refinement:** commit [70ab9f3f9cccaac11ab75e1d573f609e3b045735](https://github.com/klungdingbrag/siddev/commit/70ab9f3f9cccaac11ab75e1d573f609e3b045735) updates the candidate search to require `COALESCE(p.hutang,0) > 0`. The default run now seeks a multi-item invoice that is still outstanding, which is the appropriate case for testing the PDF action. This source change still requires syncing the complete diagnostic file into GAS Development and running it.
 
+
+
+### Supplier invoice PDF — ringkasan nominal di atas tanda tangan (2026-10-12)
+
+Atas persetujuan pengguna, PDF per nota kini dirancang menampilkan blok ringkasan tepat di bawah baris **Total Subtotal Barang** dan sebelum area tanda tangan, rata kanan dengan tiga baris vertikal:
+
+1. **Total Nota**
+2. **Bayar**
+3. **Sisa Hutang** — ditebalkan dan diberi latar biru muda/garis biru untuk penekanan.
+
+Perubahan source pada `code/Supplier_Hutang_PDF_V1.gs` menambahkan baris Bayar dengan rumus sementara `max(0, total_nota - sisa_hutang)`, berdasarkan dua nilai header yang sudah dibaca dari `pembelian.jumlah` dan `pembelian.hutang`. Ini merupakan nilai pembayaran tersirat dari selisih, bukan rekonstruksi buku transaksi pembayaran terpisah; validasi terhadap nota outstanding parsial masih wajib dilakukan di GAS Development. Ringkasan PDF supplier, perhitungan saldo backend, dan Production/stable tidak diubah.
+
+Commit source: [4e7b531a4ba37f25ba147529c7d5fda3481e4702](https://github.com/klungdingbrag/siddev/commit/4e7b531a4ba37f25ba147529c7d5fda3481e4702).
+
+**Status:** source committed pada `ui/ux-polish-v3`; belum diverifikasi pada PDF hasil runtime. Sinkronkan file penuh ke GAS Development, buat versi deployment Development baru, lalu periksa posisi blok, nilai Bayar pada nota yang belum dibayar dan yang sudah dibayar sebagian, serta ruang tanda tangan sebelum menyatakan lulus.
