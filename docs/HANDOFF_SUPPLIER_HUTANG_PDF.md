@@ -281,3 +281,14 @@ No source code or production function was changed in response to this runtime er
 ### Logo asset path correction (2026-10-12)
 
 The selected logo has now been committed in `assets/img/CV. NUSANTARA BUILDING MATERIAL LOGO.png` (alongside `assets/img/Stempel TB Nusantara.png`). The PDF generator previously requested the nonexistent `assets/img/logo-cv-nusantara.png`, which caused HTTP 404. Commit `3e1237fc5ac2a20b7807da91525ccc87af2d9fba` updates `SUPPLIER_HUTANG_PDF_V1.logoUrl` to the existing logo path, URL-encoded for spaces. This fixes the path mismatch in GitHub source; it does **not** prove the GAS Development deployment has received the update or that PDF generation passes. Re-sync this file to Development GAS, deploy a new Development version, then test both PDF actions. Do not touch Production/stable.
+
+
+### Logo CacheService oversized value error (2026-10-12)
+
+**Observed Development error:** `Exception: Argument too large: value` at `Supplier_Hutang_PDF_V1.gs:183`.
+
+**Root cause:** `supplierHutangPdfGetLogoDataUriV1()` attempted to store the entire base64 logo data URI in `CacheService`. Apps Script cache values have a size limit; an image data URI can exceed it. The PDF failed before rendering, even though the logo URL was found.
+
+**Fix committed:** `da66e019d0cdf739c5480d7ff88d788e9c3b89f5` on `ui/ux-polish-v3` removes caching of the data URI. The logo is fetched and converted to a data URI for each PDF request. This is a small asset fetch and avoids caching a potentially oversized value. No existing supplier/production function was changed.
+
+**Validation status:** Source change is committed. Runtime success is not yet verified. Synchronize `code/Supplier_Hutang_PDF_V1.gs` to the Development GAS project, save and deploy a new Development version, then test both PDF actions. Confirm image fetch HTTP 200, PDF generation, valid PDF header/`startxref`/`%%EOF`, and correct logo rendering. Do not touch Production/stable.
