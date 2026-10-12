@@ -28,10 +28,20 @@ function auditSupplierPurchaseItemsV1(kodeSupplier, kodeNota) {
   var supplier = String(kodeSupplier || 'BARU').trim();
   var nota = String(kodeNota || 'R21-071026001').trim();
 
-  if (!supplier || !/^[a-zA-Z0-9._ -]+$/.test(supplier)) {
+  // Avoid regex character-class parsing issues in GAS editors.
+  function isSafeIdentifier(value) {
+    if (!value) return false;
+    var allowed = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._ -';
+    for (var i = 0; i < value.length; i++) {
+      if (allowed.indexOf(value.charAt(i)) === -1) return false;
+    }
+    return true;
+  }
+
+  if (!isSafeIdentifier(supplier)) {
     throw new Error('Kode supplier tidak valid.');
   }
-  if (!nota || !/^[a-zA-Z0-9._ -]+$/.test(nota)) {
+  if (!isSafeIdentifier(nota)) {
     throw new Error('Nomor nota tidak valid.');
   }
 
