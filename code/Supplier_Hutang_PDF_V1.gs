@@ -6,7 +6,7 @@
  * IMPORTANT: LOGO_URL must point to the committed, verified logo asset on this branch.
  */
 var SUPPLIER_HUTANG_PDF_V1 = {
-  logoUrl: 'https://raw.githubusercontent.com/klungdingbrag/siddev/ui/ux-polish-v3/assets/img/logo-cv-nusantara.png',
+  logoUrl: 'https://raw.githubusercontent.com/klungdingbrag/siddev/ui/ux-polish-v3/assets/img/CV.%20NUSANTARA%20BUILDING%20MATERIAL%20LOGO.png',
   company: 'CV NUSANTARA BUILDING MATERIAL',
   store: 'TB NUSANTARA',
   address: 'JL. LINTAS SELATAN RT.001 RW.001 DK. GAJAH, SUROREJAN PURING KEBUMEN',
