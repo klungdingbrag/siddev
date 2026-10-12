@@ -248,3 +248,31 @@ The new generator expects the selected logo at:
 ### Status
 
 **Implementation draft committed; not yet deployable/accepted.** Do not deploy to Production. Next: commit the exact selected logo asset, test both new actions in the Development GAS deployment, inspect PDF header/startxref/%%EOF/size and rendered pages, then test the buttons/download in the Development browser. Record the actual results here before marking any acceptance criteria complete.
+
+
+## Addendum — Development dispatcher action error (2026-10-12)
+
+### Observed error
+
+`Gagal membuat PDF supplier: API "pdfSupplierHutangSummaryV1" gagal: Action API V1 tidak dikenal: pdfSupplierHutangSummaryV1`
+
+### Source verification
+
+The current `ui/ux-polish-v3` GitHub source was fetched and inspected:
+- `code/Code.gs` contains a dispatcher case for `pdfSupplierHutangSummaryV1`, routed to `getPdfSupplierHutangSummaryV1(apiV1Required_(request, 'kode_supplier'))`.
+- The same dispatcher contains `pdfSupplierHutangInvoiceV1`.
+- `assets/js/api/endpoints.js` sends `pdfSupplierHutangSummaryV1` with the `kode_supplier` parameter.
+- `code/Supplier_Hutang_PDF_V1.gs` exists on this branch.
+
+The active runtime error says the dispatcher does not recognize the action. Given that the current GitHub source does recognize it, the leading diagnosis is that the Development Web App is serving an older/different deployed GAS version or the frontend is pointing at a different GAS project/deployment. This is not yet proven until the deployed version and Web App URL are checked.
+
+### Safe remediation
+
+1. Open the **Development GAS project only**.
+2. Confirm `Code.gs` matches `code/Code.gs` from this branch and that `Supplier_Hutang_PDF_V1.gs` has been added to the same GAS project.
+3. Save the project and create/update a **new Development deployment version**. Saving source alone does not update a versioned Web App deployment.
+4. Verify the frontend's configured GAS Web App URL points to that Development deployment.
+5. Re-run the summary action. If the action is recognized but another error appears, capture the new error; that will indicate the next runtime blocker (for example, missing logo asset or PDF conversion).
+6. Do not deploy to or modify Production/stable.
+
+No source code or production function was changed in response to this runtime error. The current branch source already contains the action case, so the next step is to synchronize/verify the Development deployment rather than duplicate the dispatcher case.
