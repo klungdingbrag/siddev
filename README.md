@@ -2525,3 +2525,8 @@ Therefore, the error is consistent with the active GAS Web App deployment execut
 ### Logo asset path correction (2026-10-12)
 
 The selected logo has now been committed in `assets/img/CV. NUSANTARA BUILDING MATERIAL LOGO.png` (alongside `assets/img/Stempel TB Nusantara.png`). The PDF generator previously requested the nonexistent `assets/img/logo-cv-nusantara.png`, which caused HTTP 404. Commit `3e1237fc5ac2a20b7807da91525ccc87af2d9fba` updates `SUPPLIER_HUTANG_PDF_V1.logoUrl` to the existing logo path, URL-encoded for spaces. This fixes the path mismatch in GitHub source; it does **not** prove the GAS Development deployment has received the update or that PDF generation passes. Re-sync this file to Development GAS, deploy a new Development version, then test both PDF actions. Do not touch Production/stable.
+
+
+### Supplier PDF logo cache size error fix (2026-10-12)
+
+Development GAS reported `Exception: Argument too large: value` at `Supplier_Hutang_PDF_V1.gs:183`. The cause was caching the full base64-encoded logo data URI in `CacheService`, whose per-value limit can be exceeded by an image. Commit `da66e019d0cdf739c5480d7ff88d788e9c3b89f5` removes caching of the data URI and fetches the logo for each PDF request instead. This avoids the oversized cache value without changing supplier balances, existing API behavior, or Production/stable. The fix is committed to `ui/ux-polish-v3`; it must still be synchronized to Development GAS and tested at runtime before acceptance.
