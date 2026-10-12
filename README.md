@@ -2558,3 +2558,5 @@ A read-only diagnostic is available on branch `ui/ux-polish-v3`: [`code/Supplier
 ### Supplier invoice PDF item-detail draft
 
 Read-only Development audit confirmed that `itempembelian` returned two item rows for sample invoice `R21-020722001` and their subtotals reconciled to the header total (Rp3.985.000). Commit `4bae10ee244259d2fc80af2985642e18ef74269d` adds item-detail rendering to the isolated supplier invoice PDF source on `ui/ux-polish-v3`. This is a source draft, not yet runtime-accepted: sync to GAS Development and test a multi-item invoice with outstanding debt before claiming success. See [handoff](docs/HANDOFF_SUPPLIER_HUTANG_PDF.md).
+
+The multi-item diagnostic now searches for invoices that also have outstanding debt (`p.hutang > 0`) so the next runtime test can exercise the actual supplier-hutang PDF path. Commit: `70ab9f3f9cccaac11ab75e1d573f609e3b045735`. Runtime test remains pending.
