@@ -141,7 +141,11 @@ function supplierHutangPdfHtmlV1(model) {
     '.label{display:block;color:#536174;font-size:9px;margin-bottom:5px}.value{font-size:13px;font-weight:bold}' +
     'table{width:100%;border-collapse:collapse;font-size:9px}th{background:#0b3f88;color:white;text-align:left}' +
     'th,td{padding:7px 6px;border:1px solid #d7deea}tr{page-break-inside:avoid}.num{text-align:right;white-space:nowrap}' +
-    '.empty{text-align:center;color:#64748b;padding:16px}.foot{margin-top:16px;padding-top:8px;border-top:1px solid #dbe3ef;color:#64748b;font-size:8px}' +
+    '.total-row td{background:#eef3fa;border-top:2px solid #0b3f88;padding-top:9px;padding-bottom:9px}' +
+    '.signatures{display:flex;justify-content:space-between;gap:40px;margin:30px 8px 0;page-break-inside:avoid;break-inside:avoid}' +
+    '.signature{width:42%;text-align:center;font-size:10px}.sign-space{height:58px}' +
+    '.sign-name{font-weight:600}.empty{text-align:center;color:#64748b;padding:16px}' +
+    '.foot{margin-top:16px;padding-top:8px;border-top:1px solid #dbe3ef;color:#64748b;font-size:8px}' +
     '</style></head><body><header class="head"><img class="logo" src="' +
     logoDataUri +
     '"><div class="brand"><div class="store">' + SUPPLIER_HUTANG_PDF_V1.store +
@@ -152,12 +156,13 @@ function supplierHutangPdfHtmlV1(model) {
     '<p class="supplier"><b>Supplier:</b> ' + supplierHutangPdfEscapeV1(model.supplier.nama) +
     ' (' + supplierHutangPdfEscapeV1(model.supplier.kode) + ')<br><b>Dicetak:</b> ' +
     supplierHutangPdfEscapeV1(model.generatedAt) + '</p>' +
-    '<section class="cards"><div class="card"><span class="label">Total nilai nota outstanding</span><span class="value">' +
-    supplierHutangPdfMoneyV1(model.summary.totalNota) + '</span></div><div class="card"><span class="label">Sisa hutang outstanding</span><span class="value">' +
-    supplierHutangPdfMoneyV1(model.summary.totalHutang) + '</span></div><div class="card"><span class="label">Jumlah nota outstanding</span><span class="value">' +
-    model.summary.count + '</span></div></section>' +
     '<table><thead><tr><th>Nomor Nota</th><th>Tanggal</th><th>Umur</th><th>Aging</th><th>Total Nota</th><th>Sisa Hutang</th></tr></thead><tbody>' +
-    rowsHtml + '</tbody></table><footer class="foot">Dokumen laporan yang dihasilkan SID Retail; bukan pengganti faktur asli supplier.</footer></body></html>';
+    rowsHtml + '</tbody><tfoot><tr class="total-row"><td colspan="4"><b>TOTAL (' + model.summary.count + ' nota)</b></td>' +
+    '<td class="num"><b>' + supplierHutangPdfMoneyV1(model.summary.totalNota) + '</b></td>' +
+    '<td class="num"><b>' + supplierHutangPdfMoneyV1(model.summary.totalHutang) + '</b></td></tr></tfoot></table>' +
+    '<section class="signatures"><div class="signature"><div>Supplier / Penerima</div><div class="sign-space"></div><div class="sign-name">(________________________)</div></div>' +
+    '<div class="signature"><div>TB Nusantara</div><div class="sign-space"></div><div class="sign-name">(________________________)</div></div></section>' +
+    '<footer class="foot">Dokumen laporan yang dihasilkan SID Retail; bukan pengganti faktur asli supplier.</footer></body></html>';
 }
 
 function supplierHutangPdfGetLogoDataUriV1() {
