@@ -2488,3 +2488,21 @@ JAYA reconciliation:
 This is an actual-data reconciliation for JAYA only. The pasted list log was truncated, so it does not independently verify the entire supplier count or global total. These were direct Apps Script function tests, not a complete Web App dispatcher/browser test. PDF supplier remains unimplemented and untested. The 500-note detail limit still requires a completeness guard/strategy before reports can be considered complete for every supplier.
 
 See `docs/GAS_SNAPSHOT_AUDIT_SUPPLIER_HUTANG_PDF_2026-10-12.md` and `docs/HANDOFF_SUPPLIER_HUTANG_PDF.md` for details.
+
+
+---
+
+## Supplier Hutang PDF V1 — Implementation Draft (2026-10-12)
+
+Two new Development-only feature actions are being prepared on `ui/ux-polish-v3`:
+
+- `pdfSupplierHutangSummaryV1` — summary and complete outstanding-note list for one supplier.
+- `pdfSupplierHutangInvoiceV1` — one selected outstanding supplier note.
+
+New backend file: `code/Supplier_Hutang_PDF_V1.gs`. The existing `supplierHutang`, `supplierHutangDetail`, and customer PDF generators are not rewritten. The supplier PDF source contract remains `pembelian.hutang`, with scope `pembelian.hutang_ke = 'supplier'` and `pembelian.hutang > 0`. The invoice PDF is a generated debt-position report, not the supplier's original invoice; item-level details are omitted until a source contract is verified.
+
+The frontend now has a Ringkasan PDF button and PDF action for each outstanding note, with PDF byte checks before opening/downloading. The summary query rejects output at its 5,000-row safety cap instead of silently treating a potentially truncated list as complete.
+
+**Status: implementation draft, not runtime-accepted.** Static syntax checks passed, but no Development Web App PDF request or browser download test has been completed. The generator requires the selected blue/orange/gray logo at `assets/img/logo-cv-nusantara.png`; the exact PNG has not yet been committed at that path. Do not deploy to Production or mark the feature complete until the logo is committed and both PDF actions pass Development/browser tests.
+
+Detailed progress, limitations, and next tests: [Supplier Hutang PDF handoff](docs/HANDOFF_SUPPLIER_HUTANG_PDF.md).
