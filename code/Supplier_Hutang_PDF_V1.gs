@@ -177,7 +177,8 @@ function supplierHutangPdfHtmlV1(model) {
       '<td class="num"><b>' + supplierHutangPdfMoneyV1((model.items || []).reduce(function(sum, item) { return sum + item.subtotal; }, 0)) +
       '</b></td></tr></tfoot></table>' +
       '<div class="invoice-totals"><div><span>Total Nota</span><b>' + supplierHutangPdfMoneyV1(invoice.total_nota) +
-      '</b></div><div><span>Sisa Hutang</span><b>' + supplierHutangPdfMoneyV1(invoice.sisa_hutang) + '</b></div></div>';
+      '</b></div><div><span>Bayar</span><b>' + supplierHutangPdfMoneyV1(Math.max(0, invoice.total_nota - invoice.sisa_hutang)) +
+      '</b></div><div class="invoice-balance"><span>Sisa Hutang</span><b>' + supplierHutangPdfMoneyV1(invoice.sisa_hutang) + '</b></div></div>';
     var invoiceMeta = '<p class="supplier"><b>Nomor Nota:</b> ' + supplierHutangPdfEscapeV1(invoice.nota) +
       '<br><b>Tanggal Nota:</b> ' + supplierHutangPdfEscapeV1(invoice.tanggal) +
       '<br><b>Umur Hutang:</b> ' + invoice.umur_hari + ' hari (' +
@@ -207,7 +208,10 @@ function supplierHutangPdfHtmlV1(model) {
     '.signatures{display:flex;justify-content:space-between;gap:40px;margin:30px 8px 0;page-break-inside:avoid;break-inside:avoid}' +
     '.signature{width:42%;text-align:center;font-size:10px}.sign-space{height:58px}' +
     '.sign-name{font-weight:600}.empty{text-align:center;color:#64748b;padding:16px}' +
-    '.invoice-totals{display:flex;justify-content:flex-end;gap:28px;margin:12px 0}.invoice-totals div{display:flex;flex-direction:column;gap:5px;text-align:right}.invoice-totals span{color:#536174;font-size:9px}.invoice-totals b{font-size:12px}' +
+    '.invoice-totals{display:flex;flex-direction:column;align-items:stretch;width:48%;margin:12px 0 0 auto;gap:0;border-top:1.5px solid #0b3f88}' +
+    '.invoice-totals div{display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:right;align-items:center;padding:6px 8px;border-bottom:1px solid #d7deea}' +
+    '.invoice-totals span{color:#172033;font-size:10px;font-weight:600}.invoice-totals b{font-size:11px;white-space:nowrap}' +
+    '.invoice-totals .invoice-balance{background:#eef3fa;border-bottom:2px solid #0b3f88}.invoice-totals .invoice-balance span,.invoice-totals .invoice-balance b{font-weight:800}' +
     'h2{font-size:12px;color:#0b3f88;margin:16px 0 8px;page-break-after:avoid}.foot{margin-top:16px;padding-top:8px;border-top:1px solid #dbe3ef;color:#64748b;font-size:8px}' +
     '</style></head><body><header class="head"><img class="logo" src="' +
     logoDataUri +
