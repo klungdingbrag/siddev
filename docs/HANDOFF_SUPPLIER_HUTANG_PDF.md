@@ -343,3 +343,10 @@ Fungsi ini READ-ONLY dan hanya menjalankan SELECT:
 5. Baru setelah source contract lolos, implementasikan item pada PDF per nota. Jangan menambahkan query item ke generator PDF sebelum audit aktual berhasil.
 
 **Tidak ada perubahan pada fungsi produksi, query hutang, dispatcher, frontend, atau generator PDF dalam audit ini.** Belum ada endpoint baru dan belum ada klaim bahwa item purchase table sudah terverifikasi. Stable/production tidak disentuh.
+
+
+### Diagnostic syntax fix (2026-10-12)
+
+Fixed invalid JavaScript regular expressions in `code/Supplier_Purchase_Items_Audit_V1.gs`. The hyphen is now placed at the end of the character class (`/^[a-zA-Z0-9._ -]+$/`) so valid supplier codes and invoice numbers containing hyphens can pass validation. Commit: `0e7c6c7605c5a9c28f05ee8dc0644e1cfe4d6946`.
+
+This is a syntax/input-validation fix only. It does not change database queries, business logic, dispatcher/API actions, PDF generation, or production/stable. Re-sync this file to GAS Development and run `auditSupplierPurchaseItemsV1()` again. Runtime audit remains pending until the execution log is reviewed.
