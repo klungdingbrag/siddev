@@ -357,3 +357,21 @@ This is a syntax/input-validation fix only. It does not change database queries,
 The user continued seeing the original `Invalid regular expression ... /[a-zA-Z0-9._\\- ]+/` error in GAS, which indicates their editor was still executing stale code or the prior copy did not replace the old lines. To eliminate this failure mode rather than relying on regex replacement, input validation in `code/Supplier_Purchase_Items_Audit_V1.gs` now uses a simple allowlist loop and contains no regular expressions. Commit: `38e1ef69d5a611136420ee5b4c1a51b333649c35`.
 
 For GAS Development, replace the entire contents of the existing diagnostic file with the latest file from this commit; editing only part of the validation block may leave the stale regex behind. This remains a diagnostic-only change and does not affect production or stable.
+
+### Multi-item purchase audit added (2026-10-12)
+
+Commit: [993712d3ba95f460f18b77d0353770000af68390](https://github.com/klungdingbrag/siddev/commit/993712d3ba95f460f18b77d0353770000af68390)
+
+The read-only diagnostic file now also exposes the public GAS function:
+
+`auditSupplierPurchaseMultiItemV1(kodeSupplier, kodeNota)`
+
+- Without parameters, it searches for multi-item purchase notes for supplier `BARU` using a grouped/joined SELECT.
+- If it finds candidates, it selects the first candidate and logs the invoice header, item rows (up to 100), item subtotal sum, header total, and difference.
+- To inspect a known multi-item invoice directly, pass both arguments, e.g. `auditSupplierPurchaseMultiItemV1("BARU", "KODE_NOTA")`.
+- The diagnostic is READ-ONLY. It does not alter PDF generation, API dispatch, supplier balances, or production/stable.
+- The query uses an aggregation/join to discover candidates; if the backend rejects that SQL form, the function logs the error and can be rerun with a known invoice code.
+- The subtotal comparison is only a diagnostic signal. Discounts, fees, rounding, or row limits may explain a mismatch; do not change PDF calculations until the actual rows and accounting semantics are reviewed.
+
+**User action required:** replace the entire `Supplier_Purchase_Items_Audit_V1.gs` file in GAS Development with the current GitHub file, save, and run `auditSupplierPurchaseMultiItemV1`. Send the complete Execution log, especially candidate query status, item count, item rows, and reconciliation. If it finds no candidates, provide a known invoice with multiple item lines and run the function with the supplier and invoice codes. No runtime test has been claimed yet.
+
