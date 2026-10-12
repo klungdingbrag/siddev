@@ -74,7 +74,11 @@ function bindEvents(mountId) {
   document.querySelector("#supplier-hutang-body")?.addEventListener("click", handleSupplierAction);
   document.querySelector("#supplier-hutang-cards")?.addEventListener("click", handleSupplierAction);
   document.querySelector("#supplier-hutang-detail-close")?.addEventListener("click", closeDetail);
-  document.querySelector("#supplier-hutang-modal")?.addEventListener("click", e => { if(e.target.classList.contains("modal-backdrop")) closeDetail(); });
+  document.querySelector("#supplier-hutang-modal")?.addEventListener("click", e => {
+    if(e.target.classList.contains("modal-backdrop")) { closeDetail(); return; }
+    const button = e.target.closest("[data-supplier-pdf]");
+    if(button) handleSupplierPdf(button.dataset.supplierPdf, button.dataset.nota || "");
+  });
 }
 async function loadSupplierHutang(mountId, force=false) {
   if(state.loading) return;
@@ -236,9 +240,12 @@ function renderDetail() {
     count=money(state.detailSummary.jumlah_nota_bersaldo);
 
   c.innerHTML=`<div class="supplier-detail-summary">
-    <div><span>Total nilai nota</span><strong>${formatMoney(total)}</strong></div>
+    <div><span>Total nilai nota outstanding</span><strong>${formatMoney(total)}</strong></div>
     <div class="supplier-detail-summary-primary"><span>Sisa hutang</span><strong>${formatMoney(outstanding)}</strong></div>
     <div><span>Nota outstanding</span><strong>${number.format(count)}</strong></div>
+  </div>
+  <div class="detail-actions" style="display:flex;justify-content:flex-end;gap:8px;margin:12px 0">
+    <button type="button" class="btn btn-primary" data-supplier-pdf="summary">Ringkasan PDF</button>
   </div>
   <div class="detail-heading">Daftar Nota Outstanding</div>
   <div class="supplier-aging-note">Umur hutang dihitung dari tanggal nota sampai tanggal acuan backend. Tidak menggunakan jatuh tempo atau termin pembayaran.</div>
@@ -248,7 +255,7 @@ function renderDetail() {
       <tbody>${state.detailRows.length?state.detailRows.map(item=>{
         const aging=agingLabel(item);
         return `<tr>
-          <td><strong>${esc(item.nota||"—")}</strong></td>
+          <td><strong>${esc(item.nota||"—")}</strong><br><button type="button" class="btn btn-light" data-supplier-pdf="invoice" data-nota="${esc(item.nota||"")}" style="margin-top:4px;padding:3px 8px;font-size:11px">PDF</button></td>
           <td>${esc(formatDate(item.tanggal))}</td>
           <td><span class="supplier-aging-days">${aging.ageText}</span></td>
           <td>${formatMoney(item.total_nota)}</td>
@@ -260,3 +267,46 @@ function renderDetail() {
   </div>`;
 }
 function closeDetail() { const modal=document.querySelector("#supplier-hutang-modal"); if(!modal)return;state.selectedSupplier=null;state.detailRows=[];state.detailSummary=null;modal.classList.add("hidden");modal.setAttribute("aria-hidden","true");document.body.classList.remove("modal-open"); }
+
+async function handleSupplierPdf(type, nota) {
+  const supplier = state.selectedSupplier;
+  if (!supplier) return;
+  const buttons = document.querySelectorAll("[data-supplier-pdf]");
+  buttons.forEach(button => { button.disabled = true; });
+  try {
+    const data = type === "summary"
+      ? await api.pdfSupplierHutangSummaryV1(supplier)
+      : await api.pdfSupplierHutangInvoiceV1(supplier, nota);
+    const payload = data?.data && typeof data.data === "object" ? data.data : data;
+    const base64 = String(payload?.pdf_base64 || "").replace(/\\s+/g, "");
+    if (!base64) throw new Error("Backend tidak mengembalikan pdf_base64.");
+    let binary;
+    try { binary = atob(base64); } catch (_) { throw new Error("Data PDF tidak valid (base64 gagal didekode)."); }
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const text = new TextDecoder("latin1").decode(bytes.subarray(Math.max(0, bytes.length - 4096)));
+    const headerOk = bytes.length >= 100 && bytes[0] === 37 && bytes[1] === 80 && bytes[2] === 68 && bytes[3] === 70 && bytes[4] === 45;
+    if (!headerOk || !text.includes("startxref") || !text.includes("%%EOF")) {
+      throw new Error("Validasi PDF gagal: header/startxref/EOF tidak lengkap.");
+    }
+    if (payload.size_bytes && Number(payload.size_bytes) !== bytes.length) {
+      throw new Error("Ukuran PDF tidak cocok dengan metadata backend.");
+    }
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = payload.filename || (type === "summary" ? "Ringkasan-Hutang-Supplier.pdf" : "Nota-Hutang-Supplier.pdf");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
+  } catch (error) {
+    window.alert("Gagal membuat PDF supplier: " + (error?.message || "Kesalahan tidak diketahui"));
+  } finally {
+    buttons.forEach(button => { button.disabled = false; });
+  }
+}
