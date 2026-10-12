@@ -350,3 +350,10 @@ Fungsi ini READ-ONLY dan hanya menjalankan SELECT:
 Fixed invalid JavaScript regular expressions in `code/Supplier_Purchase_Items_Audit_V1.gs`. The hyphen is now placed at the end of the character class (`/^[a-zA-Z0-9._ -]+$/`) so valid supplier codes and invoice numbers containing hyphens can pass validation. Commit: `0e7c6c7605c5a9c28f05ee8dc0644e1cfe4d6946`.
 
 This is a syntax/input-validation fix only. It does not change database queries, business logic, dispatcher/API actions, PDF generation, or production/stable. Re-sync this file to GAS Development and run `auditSupplierPurchaseItemsV1()` again. Runtime audit remains pending until the execution log is reviewed.
+
+
+### Follow-up fix: remove regex entirely (2026-10-12)
+
+The user continued seeing the original `Invalid regular expression ... /[a-zA-Z0-9._\\- ]+/` error in GAS, which indicates their editor was still executing stale code or the prior copy did not replace the old lines. To eliminate this failure mode rather than relying on regex replacement, input validation in `code/Supplier_Purchase_Items_Audit_V1.gs` now uses a simple allowlist loop and contains no regular expressions. Commit: `38e1ef69d5a611136420ee5b4c1a51b333649c35`.
+
+For GAS Development, replace the entire contents of the existing diagnostic file with the latest file from this commit; editing only part of the validation block may leave the stale regex behind. This remains a diagnostic-only change and does not affect production or stable.
