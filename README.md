@@ -2539,3 +2539,14 @@ The supplier PDF layout now places the totals **after the note table**, followed
 Implementation commit on `ui/ux-polish-v3`: `4e26c65fa8bb70ce479279075a786fef90a3979c`.
 
 This is a presentation-only change; supplier SQL, balance source (`pembelian.hutang`), dispatcher actions, and production/stable branches are unchanged. Runtime verification is pending: sync the updated `code/Supplier_Hutang_PDF_V1.gs` to GAS Development, generate both PDFs, and inspect the total row and signature placement, including the multi-page summary PDF.
+
+
+### Supplier PDF — audit detail barang pembelian (2026-10-12)
+
+Audit kode menunjukkan PDF per nota supplier saat ini hanya membaca header `pembelian` (`kode`, `tanggal`, `jumlah`, `hutang`), sehingga nama barang, qty, satuan, harga dan subtotal memang belum diambil.
+
+Fungsi nota pelanggan `getNotaTransaksi()` di `code/Code.gs` menggunakan `itempenjualan`, tetapi itu bukan bukti bahwa supplier purchase items menggunakan tabel/kontrak serupa. `itempembelian` baru merupakan hipotesis kandidat, belum terverifikasi dari database Development.
+
+Diagnostic read-only ditambahkan: `code/Supplier_Purchase_Items_Audit_V1.gs`, commit `3f0a9f1aea9fda2c01eb8dbca92aa301ad6f84f2`. Jalankan `auditSupplierPurchaseItemsV1()` pada GAS Development setelah menyalin file dari branch. Fungsi ini memeriksa header sampel `BARU / R21-071026001` dan mencoba `SELECT * FROM itempembelian WHERE kode = ... LIMIT 20`; hasilnya harus ditinjau sebelum menganggap nama tabel/kolom sebagai kontrak valid.
+
+Handoff lengkap dan langkah uji tercatat di `docs/HANDOFF_SUPPLIER_HUTANG_PDF.md`. Audit ini tidak mengubah generator PDF, query hutang, dispatcher, atau production/stable. Implementasi rincian barang ditahan sampai output database Development membuktikan sumber data dan rekonsiliasi nota.
