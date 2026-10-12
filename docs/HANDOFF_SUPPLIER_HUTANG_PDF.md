@@ -292,3 +292,17 @@ The selected logo has now been committed in `assets/img/CV. NUSANTARA BUILDING M
 **Fix committed:** `da66e019d0cdf739c5480d7ff88d788e9c3b89f5` on `ui/ux-polish-v3` removes caching of the data URI. The logo is fetched and converted to a data URI for each PDF request. This is a small asset fetch and avoids caching a potentially oversized value. No existing supplier/production function was changed.
 
 **Validation status:** Source change is committed. Runtime success is not yet verified. Synchronize `code/Supplier_Hutang_PDF_V1.gs` to the Development GAS project, save and deploy a new Development version, then test both PDF actions. Confirm image fetch HTTP 200, PDF generation, valid PDF header/`startxref`/`%%EOF`, and correct logo rendering. Do not touch Production/stable.
+
+
+### Layout update — totals and signatures below the note table (2026-10-12)
+
+User reviewed generated files `Nota-JAYA-R21-080626004.pdf` and `Ringkasan-Hutang-JAYA.pdf` and requested the total to appear below the note rows, followed by signature fields.
+
+Committed on `ui/ux-polish-v3`:
+- `code/Supplier_Hutang_PDF_V1.gs` commit: `4e26c65fa8bb70ce479279075a786fef90a3979c`
+- The KPI cards previously placed above the table are removed.
+- A total row is added to the table footer, after the note rows, showing note count, total invoice value and total outstanding balance.
+- Two blank signature areas are added below the table: `Supplier / Penerima` and `TB Nusantara`.
+- This is a presentation-only change. It does not change SQL, accounting calculations, API actions, or production/stable branches.
+
+**Runtime validation pending:** synchronize this file to GAS Development and regenerate both PDFs. Check that totals appear after the final note row, signature blocks follow the totals, and for multi-page summary the signature block remains together rather than splitting awkwardly across pages. Inspect the rendered PDF before marking this change accepted.
