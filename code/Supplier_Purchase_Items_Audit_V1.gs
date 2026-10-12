@@ -28,10 +28,10 @@ function auditSupplierPurchaseItemsV1(kodeSupplier, kodeNota) {
   var supplier = String(kodeSupplier || 'BARU').trim();
   var nota = String(kodeNota || 'R21-071026001').trim();
 
-  if (!supplier || !/^[a-zA-Z0-9._\\- ]+$/.test(supplier)) {
+  if (!supplier || !/^[a-zA-Z0-9._ -]+$/.test(supplier)) {
     throw new Error('Kode supplier tidak valid.');
   }
-  if (!nota || !/^[a-zA-Z0-9._\\- ]+$/.test(nota)) {
+  if (!nota || !/^[a-zA-Z0-9._ -]+$/.test(nota)) {
     throw new Error('Nomor nota tidak valid.');
   }
 
