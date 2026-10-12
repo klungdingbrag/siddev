@@ -213,3 +213,38 @@ The 500-row limit remains in the detail query. JAYA has 30 outstanding notes, so
 ### Next step
 
 Continue with isolated PDF supplier functions/actions on this branch only, preserving existing list/detail and customer PDF functions. Confirm logo asset handling and backend PDF transport before wiring the UI. Then run a separate Development Web App HTTP test and browser PDF QA. No production deployment or existing business function was changed by these tests.
+
+
+---
+
+## Addendum — Implementation Draft V1 (2026-10-12)
+
+### Source changes committed on `ui/ux-polish-v3`
+
+- Added `code/Supplier_Hutang_PDF_V1.gs` with isolated handlers:
+  - `getPdfSupplierHutangSummaryV1(kodeSupplier)`
+  - `getPdfSupplierHutangInvoiceV1(kodeSupplier, kodeNota)`
+- Registered actions in `code/Code.gs`:
+  - `pdfSupplierHutangSummaryV1`
+  - `pdfSupplierHutangInvoiceV1`
+- Added API clients and 60-second timeouts in `assets/js/api/endpoints.js` and `assets/js/api/client.js`.
+- Added the Detail Supplier PDF summary button and per-outstanding-invoice PDF action in `assets/js/pages/supplier-hutang.js`.
+- New generator uses `pembelian.hutang` and supplier-scoped invoice lookup. It does not change existing supplier list/detail functions or customer PDF generators.
+- Summary query has a 5,000-row safety cap; if the cap is reached, generation is rejected rather than silently presenting a potentially truncated report.
+- Invoice PDF is a generated SID Retail debt-position report, not a copy of the supplier's original invoice. Item detail is intentionally omitted because its source contract has not been verified.
+
+### Validation completed so far
+
+- Static JavaScript syntax checks passed for `Code.gs`, `Supplier_Hutang_PDF_V1.gs`, `assets/js/api/endpoints.js`, and `assets/js/pages/supplier-hutang.js` (module import/export declarations stripped for parser check).
+- The earlier read-only data test remains valid: JAYA has 30 outstanding notes and list/detail totals reconcile at Rp116.471.175,60.
+- No live Web App PDF action or browser download test has yet been run.
+- PDF generation uses HtmlService HTML-to-PDF conversion; actual runtime support/rendering, byte validation, multi-page behavior, and browser transport remain unverified.
+
+### Blocking requirement: logo asset
+
+The new generator expects the selected logo at:
+`assets/img/logo-cv-nusantara.png` on this branch and fails clearly if that asset is missing. The logo file has **not yet been committed** to the repository; therefore the generator is not ready for runtime acceptance until the actual user-provided blue/orange/gray PNG is added at that path. Do not substitute the pink stamp or an invented logo.
+
+### Status
+
+**Implementation draft committed; not yet deployable/accepted.** Do not deploy to Production. Next: commit the exact selected logo asset, test both new actions in the Development GAS deployment, inspect PDF header/startxref/%%EOF/size and rendered pages, then test the buttons/download in the Development browser. Record the actual results here before marking any acceptance criteria complete.
