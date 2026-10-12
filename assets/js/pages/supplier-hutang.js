@@ -244,27 +244,32 @@ function renderDetail() {
     <div class="supplier-detail-summary-primary"><span>Sisa hutang</span><strong>${formatMoney(outstanding)}</strong></div>
     <div><span>Nota outstanding</span><strong>${number.format(count)}</strong></div>
   </div>
-  <div class="detail-actions" style="display:flex;justify-content:flex-end;gap:8px;margin:12px 0">
-    <button type="button" class="btn btn-primary" data-supplier-pdf="summary">Ringkasan PDF</button>
-  </div>
   <div class="detail-heading">Daftar Nota Outstanding</div>
   <div class="supplier-aging-note">Umur hutang dihitung dari tanggal nota sampai tanggal acuan backend. Tidak menggunakan jatuh tempo atau termin pembayaran.</div>
   <div class="detail-table-scroll supplier-detail-table-scroll">
     <table class="detail-table supplier-detail-table">
-      <thead><tr><th>Nota</th><th>Tanggal</th><th>Umur Hutang</th><th>Total Nota</th><th>Sisa Hutang</th><th>Aging</th></tr></thead>
+      <thead><tr><th>Nota</th><th>Tanggal</th><th>Umur Hutang</th><th>Total Nota</th><th>Sisa Hutang</th><th>Aging</th><th>Aksi</th></tr></thead>
       <tbody>${state.detailRows.length?state.detailRows.map(item=>{
         const aging=agingLabel(item);
         return `<tr>
-          <td><strong>${esc(item.nota||"—")}</strong><br><button type="button" class="btn btn-light" data-supplier-pdf="invoice" data-nota="${esc(item.nota||"")}" style="margin-top:4px;padding:3px 8px;font-size:11px">PDF</button></td>
+          <td><strong>${esc(item.nota||"—")}</strong></td>
           <td>${esc(formatDate(item.tanggal))}</td>
           <td><span class="supplier-aging-days">${aging.ageText}</span></td>
           <td>${formatMoney(item.total_nota)}</td>
           <td><strong>${formatMoney(item.sisa_hutang)}</strong></td>
           <td><span class="supplier-aging-badge ${aging.className}">${esc(aging.bucket)}</span></td>
+          <td><button type="button" class="btn btn-light" data-supplier-pdf="invoice" data-nota="${esc(item.nota||"")}" style="padding:5px 10px;font-size:12px">PDF</button></td>
         </tr>`;
-      }).join(""):"<tr><td colspan=\"6\" class=\"empty-cell\">Tidak ada nota outstanding.</td></tr>"}</tbody>
+      }).join(""):"<tr><td colspan=\"7\" class=\"empty-cell\">Tidak ada nota outstanding.</td></tr>"}</tbody>
     </table>
-  </div>`;
+  </div>
+  <section class="supplier-report-section" style="margin-top:22px;padding-top:16px;border-top:1px solid var(--border-color, #e5e7eb)">
+    <div class="detail-heading">Laporan</div>
+    <p class="supplier-aging-note">Ringkasan mencakup seluruh nota outstanding milik supplier ini, bukan hanya baris yang terlihat pada layar.</p>
+    <div style="display:flex;justify-content:flex-start;gap:8px;margin-top:12px">
+      <button type="button" class="btn btn-primary" data-supplier-pdf="summary">Buat Ringkasan PDF</button>
+    </div>
+  </section>`;
 }
 function closeDetail() { const modal=document.querySelector("#supplier-hutang-modal"); if(!modal)return;state.selectedSupplier=null;state.detailRows=[];state.detailSummary=null;modal.classList.add("hidden");modal.setAttribute("aria-hidden","true");document.body.classList.remove("modal-open"); }
 
