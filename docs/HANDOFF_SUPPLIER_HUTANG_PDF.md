@@ -375,3 +375,18 @@ The read-only diagnostic file now also exposes the public GAS function:
 
 **User action required:** replace the entire `Supplier_Purchase_Items_Audit_V1.gs` file in GAS Development with the current GitHub file, save, and run `auditSupplierPurchaseMultiItemV1`. Send the complete Execution log, especially candidate query status, item count, item rows, and reconciliation. If it finds no candidates, provide a known invoice with multiple item lines and run the function with the supplier and invoice codes. No runtime test has been claimed yet.
 
+### Multi-item audit result and PDF detail draft (2026-10-12)
+
+**Runtime evidence provided by the user:** `auditSupplierPurchaseMultiItemV1()` completed successfully in GAS Development and found multi-item candidates for supplier `BARU`. The selected invoice was `R21-020722001`, dated `02/07/2022`, with 2 item rows:
+- PVC RUCIKA 4 D — 20 LJR × Rp167.000 = Rp3.340.000
+- GLASS BLOCK DIAMOND — 30 PCS × Rp21.500 = Rp645.000
+- Sum of item subtotals: Rp3.985.000
+- Header `pembelian.jumlah`: Rp3.985.000
+- Difference: Rp0
+
+This confirms the `itempembelian` table, the tested `kode` relation, and these fields for this sample: `nourut`, `kode_barang`, `nama_barang`, `satuan`, `qty`, `harga_beli`, `harga_setelah_diskon`, `diskon`, `subtotal`. It does not prove all invoices have the same semantics or that discounts/fees never affect reconciliation. The sample note is already paid (`pembelian.hutang = .00`), so it validates item sourcing but not the outstanding-note PDF path.
+
+**PDF source draft committed:** [`code/Supplier_Hutang_PDF_V1.gs`](../code/Supplier_Hutang_PDF_V1.gs), commit [`4bae10ee244259d2fc80af2985642e18ef74269d`](https://github.com/klungdingbrag/siddev/commit/4bae10ee244259d2fc80af2985642e18ef74269d). The invoice PDF handler now queries `itempembelian` for the selected outstanding supplier note and adds an item table with item number, item name/code, quantity, unit, unit price, discount field, and subtotal; totals for invoice value and remaining debt are retained. It aborts if item rows are missing or reach the 500-row guard. The summary PDF path and supplier balance calculations are not changed.
+
+**Not yet accepted:** the updated PDF source has not yet been synced to GAS Development or run in the Web App/browser. The first sample was paid and cannot be used to test the new outstanding-note PDF. Next, select a multi-item invoice with `pembelian.hutang > 0`, run `auditSupplierPurchaseItemsV1("SUPPLIER_CODE", "INVOICE_CODE")` to confirm item details and then test the invoice PDF action in Development. Inspect the rendered rows, prices/discounts, invoice total, remaining balance, logo, PDF validity, and browser download before treating this as complete.
+
