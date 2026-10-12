@@ -228,6 +228,11 @@ function supplierHutangPdfHtmlV1(model) {
     rowsHtml + '</tbody><tfoot><tr class="total-row"><td colspan="4"><b>TOTAL (' + model.summary.count + ' nota)</b></td>' +
     '<td class="num"><b>' + supplierHutangPdfMoneyV1(model.summary.totalNota) + '</b></td>' +
     '<td class="num"><b>' + supplierHutangPdfMoneyV1(model.summary.totalHutang) + '</b></td></tr></tfoot></table>') +
+    (model.singleInvoice ? '' :
+    '<div class="invoice-totals"><div><span>Total Nota</span><b>' + supplierHutangPdfMoneyV1(model.summary.totalNota) +
+    '</b></div><div><span>Bayar</span><b>' + supplierHutangPdfMoneyV1(Math.max(0, model.summary.totalNota - model.summary.totalHutang)) +
+    '</b></div><div class="invoice-balance"><span>Sisa Hutang</span><b>' + supplierHutangPdfMoneyV1(model.summary.totalHutang) +
+    '</b></div></div>') +
     '<section class="signatures"><div class="signature"><div>Supplier / Penerima</div><div class="sign-space"></div><div class="sign-name">(________________________)</div></div>' +
     '<div class="signature"><div>TB Nusantara</div><div class="sign-space"></div><div class="sign-name">(________________________)</div></div></section>' +
     '<footer class="foot">Dokumen laporan yang dihasilkan SID Retail; bukan pengganti faktur asli supplier.</footer></body></html>';
