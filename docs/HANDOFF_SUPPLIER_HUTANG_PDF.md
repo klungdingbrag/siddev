@@ -166,3 +166,24 @@ Audit document: [`docs/SUPPLIER_HUTANG_PDF_SOURCE_AUDIT_2026-10-10.md`](SUPPLIER
 ### Status
 
 **Source audit: selesai. Implementasi PDF supplier: belum dimulai.** Langkah berikutnya adalah mencocokkan snapshot GAS Development dengan source branch, menjalankan tes HTTP read-only untuk endpoint supplier yang sudah ada, dan memastikan aset logo tersedia. Jangan mengubah stable/production atau menyatakan fitur PDF lulus sebelum tes aktual selesai.
+
+
+---
+
+## Addendum — GAS Snapshot Audit 2026-10-12
+
+Snapshot `v13uiux-polish-v3.zip` sudah diperiksa secara statis. Laporan lengkap berada di [`docs/GAS_SNAPSHOT_AUDIT_SUPPLIER_HUTANG_PDF_2026-10-12.md`](SUPPLIER_HUTANG_PDF_SOURCE_AUDIT_2026-10-10.md).
+
+Ringkasan temuan:
+- `Code.gs` sudah mendaftarkan action `supplierHutang` dan `supplierHutangDetail`.
+- Belum ada action PDF supplier. Action `pdfRingkasanPiutang` dan `pdfInvoice` adalah jalur piutang pelanggan dan tidak boleh digunakan sebagai pengganti.
+- Detail supplier saat ini dibatasi `LIMIT 500` tanpa indikator truncation. Summary detail dihitung dari baris yang diambil, sehingga perlu perlindungan sebelum digunakan untuk PDF yang dianggap lengkap.
+- `summary.total_nilai_nota` pada detail hanya menjumlahkan nilai nota outstanding yang dikembalikan; jangan memberi label sebagai total historis semua nota.
+- Payload detail belum memberikan nama supplier dan tidak membuktikan tersedianya rincian item pembelian.
+- Static syntax check dengan Node.js lulus untuk keenam file GAS. Ini bukan pengujian runtime GAS atau HTTP Development.
+- Static scan pada dua file supplier tidak menemukan statement SQL mutasi. Tidak ada fungsi atau deployment yang diubah dalam audit ini.
+- Snapshot belum membuktikan versi yang aktif pada deployment Web App Development. HTTP read-only test dan rekonsiliasi data masih wajib.
+
+Dokumentasi audit dibuat pada commit `35eb1123e8e2aceb48eb21ac7a04d2299400a77f`; README diperbarui pada commit `f2346f2cbc7963ea62a16b51bab0f8752e831e4d`.
+
+**Status:** source review awal selesai; runtime Development belum diverifikasi; implementasi PDF supplier belum dimulai.
