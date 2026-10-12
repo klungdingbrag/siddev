@@ -61,12 +61,49 @@ function getPdfSupplierHutangInvoiceV1(kodeSupplier, kodeNota) {
       'Nota tidak ditemukan sebagai hutang supplier outstanding.');
   }
   var row = supplierHutangPdfMapRowV1(rows[0]);
+  var itemQuery = 'SELECT nourut, kode_barang, nama_barang, satuan, qty, ' +
+    'harga_beli, harga_setelah_diskon, diskon, subtotal ' +
+    'FROM itempembelian WHERE kode = ' + supplierHutangSqlQuoteV1(nota) +
+    ' ORDER BY nourut ASC LIMIT 500';
+  var itemResult = sidRetailQuery(itemQuery);
+  if (!itemResult || itemResult.status !== 'success') {
+    throw new Error('Gagal mengambil rincian barang nota supplier.');
+  }
+  var itemRows = Array.isArray(itemResult.data) ? itemResult.data : [];
+  if (!itemRows.length) {
+    throw new Error('Rincian barang tidak ditemukan untuk nota ini; PDF dibatalkan agar tidak menampilkan nota tanpa item.');
+  }
+  if (itemRows.length >= 500) {
+    throw new Error('Rincian barang mencapai batas 500 baris; PDF dibatalkan agar tidak diam-diam terpotong.');
+  }
+  var items = itemRows.map(function(item) {
+    var rawPrice = item.harga_setelah_diskon;
+    if (rawPrice === undefined || rawPrice === null || rawPrice === '') rawPrice = item.harga_beli;
+    return {
+      nomor: String(item.nourut || ''),
+      kode_barang: String(item.kode_barang || ''),
+      nama_barang: String(item.nama_barang || item.kode_barang || ''),
+      satuan: String(item.satuan || ''),
+      qty: Number(item.qty || 0),
+      harga: Number(rawPrice || 0),
+      diskon: String(item.diskon || '').trim(),
+      subtotal: Number(item.subtotal || 0)
+    };
+  });
+  var itemSubtotal = items.reduce(function(sum, item) { return sum + item.subtotal; }, 0);
+  Logger.log('SUPPLIER INVOICE PDF ITEM AUDIT: ' + JSON.stringify({
+    supplier: kode, invoice: nota, item_count: items.length,
+    item_subtotal_sum: Number(itemSubtotal.toFixed(2)),
+    invoice_total: row.total_nota,
+    difference: Number((itemSubtotal - row.total_nota).toFixed(2))
+  }));
   var html = supplierHutangPdfHtmlV1({
     title: 'DETAIL NOTA HUTANG SUPPLIER',
     supplier: meta,
     generatedAt: Utilities.formatDate(new Date(), 'Asia/Jakarta', 'dd/MM/yyyy HH:mm'),
     summary: { count: 1, totalNota: row.total_nota, totalHutang: row.sisa_hutang },
     rows: [row],
+    items: items,
     singleInvoice: true
   });
   return supplierHutangPdfRenderV1(html,
@@ -121,6 +158,31 @@ function supplierHutangPdfMapRowV1(row) {
 
 function supplierHutangPdfHtmlV1(model) {
   var logoDataUri = supplierHutangPdfGetLogoDataUriV1();
+  if (model.singleInvoice) {
+    var itemRowsHtml = (model.items || []).map(function(item) {
+      return '<tr><td>' + supplierHutangPdfEscapeV1(item.nomor) + '</td>' +
+        '<td>' + supplierHutangPdfEscapeV1(item.nama_barang) +
+        (item.kode_barang ? '<div class="muted">Kode: ' + supplierHutangPdfEscapeV1(item.kode_barang) + '</div>' : '') +
+        '</td><td class="num">' + supplierHutangPdfNumberV1(item.qty) + '</td>' +
+        '<td>' + supplierHutangPdfEscapeV1(item.satuan) + '</td>' +
+        '<td class="num">' + supplierHutangPdfMoneyV1(item.harga) + '</td>' +
+        '<td>' + supplierHutangPdfEscapeV1(item.diskon || '-') + '</td>' +
+        '<td class="num">' + supplierHutangPdfMoneyV1(item.subtotal) + '</td></tr>';
+    }).join('');
+    var invoice = model.rows[0];
+    var invoiceItemsTable = '<h2>RINCIAN BARANG</h2><table><thead><tr>' +
+      '<th>No.</th><th>Nama Barang</th><th>Qty</th><th>Satuan</th>' +
+      '<th>Harga Satuan</th><th>Diskon</th><th>Subtotal</th></tr></thead><tbody>' +
+      itemRowsHtml + '</tbody><tfoot><tr class="total-row"><td colspan="6"><b>Total Subtotal Barang</b></td>' +
+      '<td class="num"><b>' + supplierHutangPdfMoneyV1((model.items || []).reduce(function(sum, item) { return sum + item.subtotal; }, 0)) +
+      '</b></td></tr></tfoot></table>' +
+      '<div class="invoice-totals"><div><span>Total Nota</span><b>' + supplierHutangPdfMoneyV1(invoice.total_nota) +
+      '</b></div><div><span>Sisa Hutang</span><b>' + supplierHutangPdfMoneyV1(invoice.sisa_hutang) + '</b></div></div>';
+    var invoiceMeta = '<p class="supplier"><b>Nomor Nota:</b> ' + supplierHutangPdfEscapeV1(invoice.nota) +
+      '<br><b>Tanggal Nota:</b> ' + supplierHutangPdfEscapeV1(invoice.tanggal) +
+      '<br><b>Umur Hutang:</b> ' + invoice.umur_hari + ' hari (' +
+      supplierHutangPdfEscapeV1(invoice.aging_bucket) + ')</p>';
+  }
   var rowsHtml = model.rows.map(function(row) {
     return '<tr><td>' + supplierHutangPdfEscapeV1(row.nota) + '</td>' +
       '<td>' + supplierHutangPdfEscapeV1(row.tanggal) + '</td>' +
@@ -145,7 +207,8 @@ function supplierHutangPdfHtmlV1(model) {
     '.signatures{display:flex;justify-content:space-between;gap:40px;margin:30px 8px 0;page-break-inside:avoid;break-inside:avoid}' +
     '.signature{width:42%;text-align:center;font-size:10px}.sign-space{height:58px}' +
     '.sign-name{font-weight:600}.empty{text-align:center;color:#64748b;padding:16px}' +
-    '.foot{margin-top:16px;padding-top:8px;border-top:1px solid #dbe3ef;color:#64748b;font-size:8px}' +
+    '.invoice-totals{display:flex;justify-content:flex-end;gap:28px;margin:12px 0}.invoice-totals div{display:flex;flex-direction:column;gap:5px;text-align:right}.invoice-totals span{color:#536174;font-size:9px}.invoice-totals b{font-size:12px}' +
+    'h2{font-size:12px;color:#0b3f88;margin:16px 0 8px;page-break-after:avoid}.foot{margin-top:16px;padding-top:8px;border-top:1px solid #dbe3ef;color:#64748b;font-size:8px}' +
     '</style></head><body><header class="head"><img class="logo" src="' +
     logoDataUri +
     '"><div class="brand"><div class="store">' + SUPPLIER_HUTANG_PDF_V1.store +
@@ -156,10 +219,11 @@ function supplierHutangPdfHtmlV1(model) {
     '<p class="supplier"><b>Supplier:</b> ' + supplierHutangPdfEscapeV1(model.supplier.nama) +
     ' (' + supplierHutangPdfEscapeV1(model.supplier.kode) + ')<br><b>Dicetak:</b> ' +
     supplierHutangPdfEscapeV1(model.generatedAt) + '</p>' +
+    (model.singleInvoice ? invoiceMeta + invoiceItemsTable :
     '<table><thead><tr><th>Nomor Nota</th><th>Tanggal</th><th>Umur</th><th>Aging</th><th>Total Nota</th><th>Sisa Hutang</th></tr></thead><tbody>' +
     rowsHtml + '</tbody><tfoot><tr class="total-row"><td colspan="4"><b>TOTAL (' + model.summary.count + ' nota)</b></td>' +
     '<td class="num"><b>' + supplierHutangPdfMoneyV1(model.summary.totalNota) + '</b></td>' +
-    '<td class="num"><b>' + supplierHutangPdfMoneyV1(model.summary.totalHutang) + '</b></td></tr></tfoot></table>' +
+    '<td class="num"><b>' + supplierHutangPdfMoneyV1(model.summary.totalHutang) + '</b></td></tr></tfoot></table>') +
     '<section class="signatures"><div class="signature"><div>Supplier / Penerima</div><div class="sign-space"></div><div class="sign-name">(________________________)</div></div>' +
     '<div class="signature"><div>TB Nusantara</div><div class="sign-space"></div><div class="sign-name">(________________________)</div></div></section>' +
     '<footer class="foot">Dokumen laporan yang dihasilkan SID Retail; bukan pengganti faktur asli supplier.</footer></body></html>';
@@ -206,6 +270,13 @@ function supplierHutangPdfRenderV1(html, filename) {
     source_contract: 'pembelian.hutang; outstanding supplier only',
     invoice_count: (html.match(/<tr><td>/g) || []).length
   };
+}
+
+
+function supplierHutangPdfNumberV1(value) {
+  return Number(value || 0).toLocaleString('id-ID', {
+    minimumFractionDigits: 0, maximumFractionDigits: 3
+  });
 }
 
 function supplierHutangPdfMoneyV1(value) {
