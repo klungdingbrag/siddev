@@ -2550,3 +2550,7 @@ Fungsi nota pelanggan `getNotaTransaksi()` di `code/Code.gs` menggunakan `itempe
 Diagnostic read-only ditambahkan: `code/Supplier_Purchase_Items_Audit_V1.gs`, commit `3f0a9f1aea9fda2c01eb8dbca92aa301ad6f84f2`. Jalankan `auditSupplierPurchaseItemsV1()` pada GAS Development setelah menyalin file dari branch. Fungsi ini memeriksa header sampel `BARU / R21-071026001` dan mencoba `SELECT * FROM itempembelian WHERE kode = ... LIMIT 20`; hasilnya harus ditinjau sebelum menganggap nama tabel/kolom sebagai kontrak valid.
 
 Handoff lengkap dan langkah uji tercatat di `docs/HANDOFF_SUPPLIER_HUTANG_PDF.md`. Audit ini tidak mengubah generator PDF, query hutang, dispatcher, atau production/stable. Implementasi rincian barang ditahan sampai output database Development membuktikan sumber data dan rekonsiliasi nota.
+
+### Supplier purchase item audit (Development only)
+
+A read-only diagnostic is available on branch `ui/ux-polish-v3`: [`code/Supplier_Purchase_Items_Audit_V1.gs`](https://github.com/klungdingbrag/siddev/blob/ui/ux-polish-v3/code/Supplier_Purchase_Items_Audit_V1.gs). Run `auditSupplierPurchaseMultiItemV1()` in GAS Development to find and reconcile a multi-item supplier purchase note, or pass a known supplier and invoice code. This is an audit only; it does not change PDF output or production. See [the supplier PDF handoff](docs/HANDOFF_SUPPLIER_HUTANG_PDF.md) for steps and limitations.
