@@ -2474,3 +2474,17 @@ Temuan utama:
 - Deployment GAS Development belum diverifikasi terhadap snapshot ini. Implementasi PDF dan pengujian browser masih pending.
 
 Commit dokumentasi audit: [`35eb112`](https://github.com/klungdingbrag/siddev/commit/35eb1123e8e2aceb48eb21ac7a04d2299400a77f).
+
+
+## Supplier Hutang PDF — Development Data Test (2026-10-12)
+
+Read-only tests `testSupplierHutangV1()` and `testSupplierHutangDetailV1('JAYA')` were run directly in Apps Script. Both completed successfully and received HTTP 200 / API status `success` from SID Retail.
+
+JAYA reconciliation:
+- List aggregation: 30 outstanding notes, Rp116.471.175,60.
+- Detail response: 30 outstanding notes; `summary.total_nilai_nota` and `summary.total_hutang` both Rp116.471.175,60.
+- The oldest returned invoice is 128 days old and classified `Urgent`.
+
+This is an actual-data reconciliation for JAYA only. The pasted list log was truncated, so it does not independently verify the entire supplier count or global total. These were direct Apps Script function tests, not a complete Web App dispatcher/browser test. PDF supplier remains unimplemented and untested. The 500-note detail limit still requires a completeness guard/strategy before reports can be considered complete for every supplier.
+
+See `docs/GAS_SNAPSHOT_AUDIT_SUPPLIER_HUTANG_PDF_2026-10-12.md` and `docs/HANDOFF_SUPPLIER_HUTANG_PDF.md` for details.
