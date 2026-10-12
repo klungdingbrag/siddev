@@ -420,3 +420,18 @@ Pengguna meminta PDF Ringkasan Hutang Supplier juga menampilkan tiga baris di ba
 Perubahan berada di `code/Supplier_Hutang_PDF_V1.gs` dan hanya memengaruhi presentasi HTML PDF ringkasan; query, accounting logic sumber, API dispatcher, dan Production/stable tidak diubah. Commit: [150a775a39f0cf492edf66ff0c1e80559409eccb](https://github.com/klungdingbrag/siddev/commit/150a775a39f0cf492edf66ff0c1e80559409eccb).
 
 **Validasi belum selesai:** sinkronkan file source terbaru ke GAS Development, buat versi deployment Development baru, lalu hasilkan PDF Ringkasan Hutang. Pastikan blok tampil setelah tabel, sebelum tanda tangan, dan nilai agregat benar. Nilai Bayar merupakan selisih agregat Total Nota dan Sisa Hutang; jangan menganggapnya sebagai data transaksi pembayaran independen tanpa audit lanjutan. Jangan deploy ke Production.
+
+
+### Penataan lokasi tombol PDF di Supplier Detail (2026-10-12)
+
+Atas persetujuan pengguna, UI pada `assets/js/pages/supplier-hutang.js` di branch `ui/ux-polish-v3` diperbarui:
+
+- Tombol PDF per nota dipindahkan dari kolom **Nota** ke kolom **Aksi** pada tabel **Daftar Nota Outstanding**.
+- Tombol ringkasan dipindahkan ke bagian **Laporan** di bawah tabel daftar nota.
+- Bagian Laporan menjelaskan bahwa PDF Ringkasan mencakup **seluruh nota outstanding milik supplier yang sedang dibuka**, bukan hanya nota yang terlihat di layar atau halaman saat ini.
+- Endpoint backend tidak diubah. Ringkasan PDF mengambil data terpisah untuk supplier terpilih dan menggunakan batas pengaman 5.000 baris; jika batas tercapai, generator membatalkan laporan agar tidak diam-diam terpotong.
+- Kolom Aksi ditambahkan ke header tabel dan keadaan kosong diperbarui menjadi colspan 7.
+
+Commit frontend: https://github.com/klungdingbrag/siddev/commit/420fcd5398595a436c3eb80269655e4ff908c875
+
+**Validasi:** source UI sudah dikomit. Belum ada verifikasi visual di browser atau tes klik/download PDF setelah perubahan tata letak ini. Sinkronkan ke lingkungan Development dan uji kedua tombol sebelum menerima. Production/stable tidak disentuh.
