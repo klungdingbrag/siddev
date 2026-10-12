@@ -172,7 +172,7 @@ function auditSupplierPurchaseMultiItemV1(kodeSupplier, kodeNota) {
       'COUNT(i.kode) AS jumlah_item, SUM(i.subtotal) AS total_subtotal ' +
       'FROM pembelian p JOIN itempembelian i ON i.kode = p.kode ' +
       'WHERE p.supplier = ' + supplierHutangSqlQuoteV1(supplier) +
-      " AND p.hutang_ke = 'supplier' " +
+      " AND p.hutang_ke = 'supplier' AND COALESCE(p.hutang,0) > 0 " +
       'GROUP BY p.kode, p.supplier, p.tanggal, p.jumlah, p.hutang ' +
       'HAVING COUNT(i.kode) > 1 LIMIT 10';
     try {
