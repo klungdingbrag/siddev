@@ -2458,3 +2458,19 @@ Source-code audit recorded in [`docs/SUPPLIER_HUTANG_PDF_SOURCE_AUDIT_2026-10-10
 Confirmed source contract remains `pembelian.hutang` for outstanding balance, filtered by `pembelian.hutang_ke = 'supplier'` and `pembelian.hutang > 0`. Current supplier detail source returns invoice header fields only; purchase item-detail fields have not been verified. PDF supplier endpoints are not yet implemented. The selected blue/orange/gray logo is not present in `assets/img/` (only `.gitkeep` exists), so logo integration remains blocked pending a usable asset.
 
 **Status:** source-code audit complete; Development HTTP/browser tests pending; supplier PDF features not implemented. Production/stable branches remain untouched.
+
+
+## 9B. Audit Snapshot GAS — Supplier Hutang PDF (2026-10-12)
+
+Snapshot GAS dari pengguna telah diperiksa secara statis tanpa mengubah fungsi produksi atau deployment. Laporan lengkap: [`docs/GAS_SNAPSHOT_AUDIT_SUPPLIER_HUTANG_PDF_2026-10-12.md`](docs/GAS_SNAPSHOT_AUDIT_SUPPLIER_HUTANG_PDF_2026-10-12.md).
+
+Temuan utama:
+- `Code.gs` sudah mendaftarkan action `supplierHutang` dan `supplierHutangDetail`; endpoint PDF supplier belum ada.
+- Endpoint PDF piutang pelanggan tidak boleh digunakan untuk hutang supplier.
+- `getSupplierHutangDetailV1()` membatasi hasil ke 500 nota tanpa indikator truncation. Summary detail dihitung dari baris yang dikembalikan, sehingga berpotensi tidak lengkap.
+- `summary.total_nilai_nota` pada detail mencakup nilai nota outstanding yang dikembalikan, bukan seluruh histori supplier.
+- Payload detail belum menyertakan nama supplier atau rincian item pembelian yang terverifikasi.
+- Modul audit supplier bersifat read-only menurut source; audit runtime Development tetap diperlukan.
+- Deployment GAS Development belum diverifikasi terhadap snapshot ini. Implementasi PDF dan pengujian browser masih pending.
+
+Commit dokumentasi audit: [`35eb112`](https://github.com/klungdingbrag/siddev/commit/35eb1123e8e2aceb48eb21ac7a04d2299400a77f).
