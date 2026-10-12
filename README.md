@@ -2530,3 +2530,12 @@ The selected logo has now been committed in `assets/img/CV. NUSANTARA BUILDING M
 ### Supplier PDF logo cache size error fix (2026-10-12)
 
 Development GAS reported `Exception: Argument too large: value` at `Supplier_Hutang_PDF_V1.gs:183`. The cause was caching the full base64-encoded logo data URI in `CacheService`, whose per-value limit can be exceeded by an image. Commit `da66e019d0cdf739c5480d7ff88d788e9c3b89f5` removes caching of the data URI and fetches the logo for each PDF request instead. This avoids the oversized cache value without changing supplier balances, existing API behavior, or Production/stable. The fix is committed to `ui/ux-polish-v3`; it must still be synchronized to Development GAS and tested at runtime before acceptance.
+
+
+### Supplier Hutang PDF — Totals and Signature Layout (2026-10-12)
+
+The supplier PDF layout now places the totals **after the note table**, followed by two blank signature areas: **Supplier / Penerima** and **TB Nusantara**. The earlier summary KPI cards above the table were removed so the total is visible directly after the listed notes.
+
+Implementation commit on `ui/ux-polish-v3`: `4e26c65fa8bb70ce479279075a786fef90a3979c`.
+
+This is a presentation-only change; supplier SQL, balance source (`pembelian.hutang`), dispatcher actions, and production/stable branches are unchanged. Runtime verification is pending: sync the updated `code/Supplier_Hutang_PDF_V1.gs` to GAS Development, generate both PDFs, and inspect the total row and signature placement, including the multi-page summary PDF.
