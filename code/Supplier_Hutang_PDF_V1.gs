@@ -161,10 +161,9 @@ function supplierHutangPdfHtmlV1(model) {
 }
 
 function supplierHutangPdfGetLogoDataUriV1() {
-  var cache = CacheService.getScriptCache();
-  var cached = cache.get('SUPPLIER_HUTANG_PDF_LOGO_V1');
-  if (cached) return cached;
-
+  // Do not cache the base64 data URI: CacheService has a per-value size limit,
+  // and a legitimate company logo may exceed that limit. Fetch the small asset
+  // for each PDF request instead of failing with "Argument too large: value".
   var response = UrlFetchApp.fetch(SUPPLIER_HUTANG_PDF_V1.logoUrl, {
     muteHttpExceptions: true,
     followRedirects: true
@@ -178,10 +177,8 @@ function supplierHutangPdfGetLogoDataUriV1() {
   if (contentType.indexOf('image/') !== 0) {
     throw new Error('Aset logo PDF tidak dikembalikan sebagai file gambar.');
   }
-  var dataUri = 'data:' + contentType + ';base64,' +
+  return 'data:' + contentType + ';base64,' +
     Utilities.base64Encode(blob.getBytes());
-  cache.put('SUPPLIER_HUTANG_PDF_LOGO_V1', dataUri, 21600);
-  return dataUri;
 }
 
 function supplierHutangPdfRenderV1(html, filename) {
