@@ -3,7 +3,7 @@ import { apiServerHealth } from "./api/client.js";
 import { renderPiutangPage } from "./pages/piutang.js?v=20261006-piutang-current-1";
 import { renderDashboardPage } from "./pages/dashboard.js?v=20261006-dashboard-current-1";
 import { renderPelangganPage } from "./pages/pelanggan.js?v=20261006-customer-current-1";
-import { renderSupplierHutangPage } from "./pages/supplier-hutang.js?v=20261009-supplier-hutang-v1";
+import { renderSupplierHutangPage } from "./pages/supplier-hutang.js?v=20261015-supplier-uiux-v1";
 
 const sidebar = document.querySelector("#sidebar");
 const content = document.querySelector("#page-content");
