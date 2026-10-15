@@ -90,7 +90,7 @@ function diagnosticSupplierPaymentQueriesV6() {
       result.error = String(error && error.message ? error.message : error);
     }
 
-    Logger.log('\\n--- QUERY: ' + q.name + ' ---');
+    Logger.log('\n--- QUERY: ' + q.name + ' ---');
     Logger.log('PURPOSE: ' + q.purpose);
     Logger.log('SQL: ' + q.sql);
     Logger.log('RESULT: ' + JSON.stringify(result));
@@ -105,7 +105,7 @@ function diagnosticSupplierPaymentQueriesV6() {
     queries: results
   };
 
-  Logger.log('\\nSUPPLIER PAYMENT GLOBAL DIAGNOSTIC V6 FINAL RESULT: ' +
+  Logger.log('\nSUPPLIER PAYMENT GLOBAL DIAGNOSTIC V6 FINAL RESULT: ' +
     JSON.stringify(output));
   return output;
 }
