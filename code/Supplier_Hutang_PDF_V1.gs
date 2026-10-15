@@ -9,8 +9,11 @@ var SUPPLIER_HUTANG_PDF_V1 = {
   logoUrl: 'https://raw.githubusercontent.com/klungdingbrag/siddev/ui/ux-polish-v3/assets/img/CV.%20NUSANTARA%20BUILDING%20MATERIAL%20LOGO.png',
   company: 'CV NUSANTARA BUILDING MATERIAL',
   store: 'TB NUSANTARA',
-  address: 'JL. LINTAS SELATAN RT.001 RW.001 DK. GAJAH, SUROREJAN PURING KEBUMEN',
-  phone: '081234563843',
+  address: 'Jalan Lintas Selatan, Dk. Gudang RT 001/RW 001, Ds. Surorejan, Kec. Puring, Kab. Kebumen, Jawa Tengah 54383',
+  phone: '0823-4250-9336',
+  whatsapp: '0812-3456-3843',
+  email: 'cvnbmgroup@gmail.com',
+  website: 'tbnusatara.com',
   detailLimit: 5000
 };
 
@@ -196,8 +199,8 @@ function supplierHutangPdfHtmlV1(model) {
 
   return '<!doctype html><html><head><meta charset="utf-8"><style>' +
     '@page{size:A4;margin:14mm 12mm}body{font:10px Arial,sans-serif;color:#172033}' +
-    '.head{display:flex;align-items:center;gap:16px;border-bottom:3px solid #0b3f88;padding-bottom:12px;margin-bottom:18px}' +
-    '.logo{width:115px;height:auto;object-fit:contain}.brand{flex:1}.store{font-size:17px;font-weight:800;color:#0b3f88}' +
+    '.head{display:block;text-align:center;border-bottom:3px solid #0b3f88;padding-bottom:12px;margin-bottom:18px}' +
+    '.logo{display:block;width:90px;height:auto;object-fit:contain;margin:0 auto 6px}.brand{text-align:center}.store{font-size:17px;font-weight:800;color:#0b3f88}' +
     '.company{font-size:12px;font-weight:700;margin:3px 0}.muted{color:#4b5563;line-height:1.5}' +
     'h1{font-size:16px;margin:0 0 12px;color:#0b3f88}.supplier{margin:0 0 12px;font-size:11px}' +
     '.cards{display:flex;gap:8px;margin:14px 0}.card{border:1px solid #dbe3ef;border-radius:5px;padding:9px;flex:1}' +
@@ -215,10 +218,13 @@ function supplierHutangPdfHtmlV1(model) {
     'h2{font-size:12px;color:#0b3f88;margin:16px 0 8px;page-break-after:avoid}.foot{margin-top:16px;padding-top:8px;border-top:1px solid #dbe3ef;color:#64748b;font-size:8px}' +
     '</style></head><body><header class="head"><img class="logo" src="' +
     logoDataUri +
-    '"><div class="brand"><div class="store">' + SUPPLIER_HUTANG_PDF_V1.store +
-    '</div><div class="company">' + SUPPLIER_HUTANG_PDF_V1.company +
+    '" alt="Logo TB Nusantara"><div class="brand"><div class="company">' + SUPPLIER_HUTANG_PDF_V1.company +
+    '</div><div class="store">' + SUPPLIER_HUTANG_PDF_V1.store +
     '</div><div class="muted">' + SUPPLIER_HUTANG_PDF_V1.address +
     '<br>Telepon: ' + SUPPLIER_HUTANG_PDF_V1.phone +
+    ' | WhatsApp: ' + SUPPLIER_HUTANG_PDF_V1.whatsapp +
+    '<br>Email: ' + SUPPLIER_HUTANG_PDF_V1.email +
+    ' | Website: ' + SUPPLIER_HUTANG_PDF_V1.website +
     '</div></div></header><h1>' + model.title + '</h1>' +
     '<p class="supplier"><b>Supplier:</b> ' + supplierHutangPdfEscapeV1(model.supplier.nama) +
     ' (' + supplierHutangPdfEscapeV1(model.supplier.kode) + ')<br><b>Dicetak:</b> ' +
