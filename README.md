@@ -2590,3 +2590,17 @@ Planned product behavior, once that write contract is confirmed:
 - Returns are excluded from this feature because they are handled by the POS server.
 
 The read-only V1–V7 supplier-payment diagnostic GAS scripts have been removed from the current source tree after the audit. Their execution findings and limitations remain documented in [Diagnostic V6](docs/SUPPLIER_PAYMENT_GLOBAL_V1_DIAGNOSTIC_V6.md) and [Diagnostic V7](docs/SUPPLIER_PAYMENT_GLOBAL_V1_DIAGNOSTIC_V7.md), and in Git history. These diagnostics did not authorize or perform payment writes.
+
+
+## UI/UX Stabilization — 2026-10-15
+
+Frontend-only refinements on `feature/supplier-payment-global-v1`:
+
+- Supplier Hutang currency display now preserves up to two decimal places when the source contains fractional values.
+- Supplier Hutang distinguishes server-refreshed data, cached data, refresh-in-progress, and unavailable data. A failed refresh keeps the existing cached totals visible and identifies the failed refresh.
+- SPA navigation announces the active page with `aria-current`, updates the document title, and moves focus to the main content after route changes. The mobile drawer is removed from keyboard navigation while closed and returns focus to its menu button when dismissed with Escape or the backdrop.
+- Modal focus handling now detects visibility changes on modal wrappers, so opening/closing the detail dialogs can move and restore focus.
+- API health polling pauses while the page is hidden and backs off up to five minutes after repeated failures. Failure of an unrelated API action no longer marks the global server status offline.
+- UI asset query versions were updated so browsers request the refined files.
+
+These changes do not modify SID Retail queries, accounting rules, GAS endpoints, or Production. Status: source changes are committed; perform browser review on Development before accepting the visual result.
