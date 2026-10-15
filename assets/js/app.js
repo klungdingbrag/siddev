@@ -40,7 +40,9 @@ function setMobileNav(open) {
   if (menuButton) menuButton.setAttribute("aria-expanded", open ? "true" : "false");
   if (sidebar) {
     const isMobile = window.matchMedia("(max-width: 800px)").matches;
-    sidebar.setAttribute("aria-hidden", isMobile && !open ? "true" : "false");
+    const navHidden = isMobile && !open;
+    sidebar.setAttribute("aria-hidden", navHidden ? "true" : "false");
+    sidebar.inert = navHidden;
   }
   const backdrop = document.querySelector("#mobile-nav-backdrop");
   if (backdrop) {
@@ -50,8 +52,10 @@ function setMobileNav(open) {
   }
 }
 
-function closeMobileNav() {
+function closeMobileNav(restoreFocus = false) {
+  const wasOpen = document.body.classList.contains("mobile-nav-open");
   setMobileNav(false);
+  if (restoreFocus && wasOpen) document.querySelector("#mobile-menu-toggle")?.focus();
 }
 
 sidebar.innerHTML = `
@@ -167,10 +171,10 @@ function initMobileNavigation() {
     document.body.appendChild(backdrop);
   }
 
-  backdrop.addEventListener("click", closeMobileNav);
+  backdrop.addEventListener("click", () => closeMobileNav(true));
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeMobileNav();
+    if (event.key === "Escape") closeMobileNav(true);
   });
 
   setMobileNav(false);
@@ -208,7 +212,6 @@ window.addEventListener("sid-api-success", (event) => {
 });
 
 window.addEventListener("sid-api-failure", (event) => {
-  setApiStatus("Server Offline", "error");
   console.warn("[API] request failed:", event.detail);
 });
 
@@ -217,15 +220,13 @@ async function checkServerApi() {
   try {
     const data = await apiServerHealth();
 
+    console.info("[API] server health:", data);
     if (data?.status === "ok" && data?.server === "online") {
       setApiStatus("API Online", "online");
       return true;
-    } else {
-      setApiStatus("Server Offline", "error");
-      return false;
     }
-
-    console.info("[API] server health:", data);
+    setApiStatus("Server Offline", "error");
+    return false;
   } catch (error) {
     setApiStatus("Server Offline", "error");
     console.warn("[API] server health check failed:", error);
