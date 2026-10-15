@@ -2070,11 +2070,14 @@ function buildInvoicePdfHtml_(nota) {
   '<body>' +
 
     '<div class="header">' +
-      '<div class="company">TB NUSANTARA</div>' +
-      '<div class="legal">CV NUSANTARA BUILDING MATERIAL</div>' +
-      '<div class="company-detail">' +
-        'JL. LINTAS SELATAN SUROREJAN PURING<br>' +
-        '081234563843' +
+      '<div class="logo-cell"><img class="company-logo" src="' + logoDataUri + '" alt="Logo TB Nusantara"></div>' +
+      '<div class="brand-copy">' +
+        '<div class="company">TB NUSANTARA</div>' +
+        '<div class="legal">CV NUSANTARA BUILDING MATERIAL</div>' +
+        '<div class="company-detail">' +
+          'JL. LINTAS SELATAN SUROREJAN PURING<br>' +
+          '081234563843' +
+        '</div>' +
       '</div>' +
     '</div>' +
 
