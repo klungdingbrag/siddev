@@ -74,3 +74,15 @@ For these samples, `hutang.kode` matches `itemhutang.kode`; `itemhutang.kode_hut
 - V7 does not read return data or use return values in its calculations.
 
 Do not treat the observed table relationship as permission to write directly to these tables. Continue the Development-only audit of the supported write mechanism before implementing a payment action.
+
+
+## Follow-up source audit — payment write path
+
+Read-only inspection of the uploaded GAS snapshot confirms:
+
+- `doPost(e)` routes through the existing API V1 handler, and the handler can parse a JSON POST body.
+- The current API dispatcher has read actions for supplier list/detail and supplier PDFs; no supplier payment write action was found.
+- The current frontend API client sends GET requests and includes retry behavior for transient failures. A payment writer must use a dedicated no-blind-retry request path and server-side idempotency.
+- `sidRetailQuery(sql)` sends the SQL string to an external SID Retail endpoint using HTTP GET. Its use for SELECT diagnostics does not prove that the external endpoint supports DML, transactions, atomic writes, or rollback.
+
+Therefore the exact write route and supported transaction boundary remain unknown. No direct table write should be implemented until the SID Retail write contract or existing POS payment endpoint is inspected and verified.
