@@ -2636,7 +2636,7 @@ textarea:focus-visible {
    SUPPLIER HUTANG — STATUS & NUMERIC READABILITY
    ========================================================= */
 
-.supplier-hutang-status {
+.supplier-hutang-summary .supplier-hutang-status {
   display: inline-flex;
   align-items: center;
   width: fit-content;
