@@ -38,7 +38,10 @@ function setMobileNav(open) {
   const menuButton = document.querySelector("#mobile-menu-toggle");
   const sidebar = document.querySelector("#sidebar");
   if (menuButton) menuButton.setAttribute("aria-expanded", open ? "true" : "false");
-  if (sidebar) sidebar.setAttribute("aria-hidden", open ? "false" : "true");
+  if (sidebar) {
+    const isMobile = window.matchMedia("(max-width: 800px)").matches;
+    sidebar.setAttribute("aria-hidden", isMobile && !open ? "true" : "false");
+  }
   const backdrop = document.querySelector("#mobile-nav-backdrop");
   if (backdrop) {
     backdrop.classList.toggle("is-visible", open);
@@ -80,7 +83,10 @@ sidebar.innerHTML = `
 
 function setActiveNav(hash) {
   document.querySelectorAll(".nav-item").forEach((item) => {
-    item.classList.toggle("active", item.getAttribute("href") === hash);
+    const isActive = item.getAttribute("href") === hash;
+    item.classList.toggle("active", isActive);
+    if (isActive) item.setAttribute("aria-current", "page");
+    else item.removeAttribute("aria-current");
   });
 }
 
@@ -96,7 +102,7 @@ function renderComingSoonPage(title, description) {
   `;
 }
 
-function route() {
+function route({ focusContent = false } = {}) {
   const hash = window.location.hash || "#dashboard";
   const routes = {
     "#dashboard": {
@@ -135,6 +141,8 @@ function route() {
 
   routeConfig.render();
   setActiveNav(routes[hash] ? hash : "#dashboard");
+  document.title = `${routeConfig.title} — ${APP_CONFIG.appName}`;
+  if (focusContent) content.focus({ preventScroll: true });
 }
 
 function initMobileNavigation() {
@@ -162,15 +170,18 @@ function initMobileNavigation() {
   backdrop.addEventListener("click", closeMobileNav);
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      closeMobileNav();
-    }
+    if (event.key === "Escape") closeMobileNav();
+  });
+
+  setMobileNav(false);
+  window.matchMedia("(max-width: 800px)").addEventListener("change", () => {
+    closeMobileNav();
   });
 }
 
 window.addEventListener("hashchange", () => {
   closeMobileNav();
-  route();
+  route({ focusContent: true });
 });
 
 initMobileNavigation();
@@ -193,10 +204,6 @@ function setApiStatus(label, state = "checking") {
 }
 
 window.addEventListener("sid-api-success", (event) => {
-  const action = event.detail?.action;
-  if (action === "serverHealth") {
-    setApiStatus("API Online", "online");
-  }
   console.info("[API] success:", event.detail);
 });
 
@@ -212,25 +219,51 @@ async function checkServerApi() {
 
     if (data?.status === "ok" && data?.server === "online") {
       setApiStatus("API Online", "online");
+      return true;
     } else {
       setApiStatus("Server Offline", "error");
+      return false;
     }
 
     console.info("[API] server health:", data);
-    return data;
   } catch (error) {
     setApiStatus("Server Offline", "error");
     console.warn("[API] server health check failed:", error);
-    return null;
+    return false;
   }
 }
 
+let healthCheckTimer = null;
+let healthFailureDelay = 30000;
+function scheduleHealthCheck(delay = 30000) {
+  window.clearTimeout(healthCheckTimer);
+  healthCheckTimer = window.setTimeout(async () => {
+    if (document.visibilityState === "hidden") {
+      scheduleHealthCheck(30000);
+      return;
+    }
+    const online = await checkServerApi();
+    if (online) {
+      healthFailureDelay = 30000;
+      scheduleHealthCheck(30000);
+    } else {
+      healthFailureDelay = Math.min(Math.max(healthFailureDelay * 2, 60000), 300000);
+      scheduleHealthCheck(healthFailureDelay);
+    }
+  }, delay);
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") scheduleHealthCheck(0);
+});
+
 const reconnectButton = document.querySelector("#api-reconnect");
 if (reconnectButton) {
-  reconnectButton.addEventListener("click", () => {
-    checkServerApi();
+  reconnectButton.addEventListener("click", async () => {
+    const online = await checkServerApi();
+    healthFailureDelay = online ? 30000 : 60000;
+    scheduleHealthCheck(online ? 30000 : healthFailureDelay);
   });
 }
 
-checkServerApi();
-setInterval(checkServerApi, 30000);
+scheduleHealthCheck(0);
