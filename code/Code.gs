@@ -1526,17 +1526,7 @@ function buildRingkasanPiutangPdfHtml_(ringkasan) {
 
   '<body>' +
 
-    '<div class="header">' +
-      '<div class="logo-cell"><img class="company-logo" src="' + logoDataUri + '" alt="Logo TB Nusantara"></div>' +
-      '<div class="brand-copy">' +
-        '<div class="company">TB NUSANTARA</div>' +
-        '<div class="legal">CV NUSANTARA BUILDING MATERIAL</div>' +
-        '<div class="company-detail">' +
-          'JL. LINTAS SELATAN SUROREJAN PURING<br>' +
-          '081234563843' +
-        '</div>' +
-      '</div>' +
-    '</div>' +
+    buildPiutangPdfCompanyHeaderHtml_(logoDataUri) +
 
     '<div class="title">RINGKASAN PIUTANG PELANGGAN</div>' +
 
@@ -2069,17 +2059,7 @@ function buildInvoicePdfHtml_(nota) {
 
   '<body>' +
 
-    '<div class="header">' +
-      '<div class="logo-cell"><img class="company-logo" src="' + logoDataUri + '" alt="Logo TB Nusantara"></div>' +
-      '<div class="brand-copy">' +
-        '<div class="company">TB NUSANTARA</div>' +
-        '<div class="legal">CV NUSANTARA BUILDING MATERIAL</div>' +
-        '<div class="company-detail">' +
-          'JL. LINTAS SELATAN SUROREJAN PURING<br>' +
-          '081234563843' +
-        '</div>' +
-      '</div>' +
-    '</div>' +
+    buildPiutangPdfCompanyHeaderHtml_(logoDataUri) +
 
     '<div class="invoice-title">NOTA PENJUALAN</div>' +
 
@@ -2442,7 +2422,7 @@ function stage6dBuildAddress_(header) {
 }
 
 
-function stage6dBuildInvoiceHtml_(nota, invoiceIndex) {
+function stage6dBuildInvoiceHtml_(nota, invoiceIndex, logoDataUri) {
   const header = nota.header || {};
   const summary = nota.summary || {};
   const items = Array.isArray(nota.items)
@@ -2497,15 +2477,9 @@ function stage6dBuildInvoiceHtml_(nota, invoiceIndex) {
 
       '<div class="invoice-top">' +
         '<div>' +
-          '<div class="company">TB NUSANTARA</div>' +
-          '<div class="legal">CV NUSANTARA BUILDING MATERIAL</div>' +
-          '<div class="company-detail">' +
-            'JL. LINTAS SELATAN SUROREJAN PURING<br>' +
-            '081234563843' +
-          '</div>' +
+          buildPiutangPdfCompanyHeaderHtml_(logoDataUri) +
         '</div>' +
-
-        '<div class="document-number">' +
+        '<div class="document-number">' +'<div class="document-number">' +
           '<div class="small-label">NOTA</div>' +
           '<div class="invoice-code">' +
             stage6dEscapeHtml_(header.kode_transaksi || '') +
@@ -2644,6 +2618,7 @@ function buildSemuaDetailPiutangPdfHtml_(data) {
     ? data.invoices
     : [];
 
+  const logoDataUri = getPiutangPdfLogoDataUri_();
   let invoiceSections = '';
 
   invoices.forEach(function(nota, index) {
@@ -2654,7 +2629,7 @@ function buildSemuaDetailPiutangPdfHtml_(data) {
     }
 
     invoiceSections +=
-      stage6dBuildInvoiceHtml_(nota, index);
+      stage6dBuildInvoiceHtml_(nota, index, logoDataUri);
   });
 
   if (!invoiceSections) {
@@ -2737,21 +2712,20 @@ function buildSemuaDetailPiutangPdfHtml_(data) {
       '}' +
 
       '.invoice-top {' +
-        'display: table;' +
+        'display: block;' +
         'width: 100%;' +
-        'border-bottom: 2px solid #111827;' +
-        'padding-bottom: 6px;' +
+        'text-align: center;' +
         'margin-bottom: 9px;' +
       '}' +
 
       '.invoice-top > div {' +
-        'display: table-cell;' +
-        'vertical-align: top;' +
+        'display: block;' +
+        'text-align: center;' +
       '}' +
 
       '.document-number {' +
-        'text-align: right;' +
-        'width: 35%;' +
+        'text-align: center;' +
+        'width: 100%;' +
       '}' +
 
       '.company {' +
@@ -2959,12 +2933,7 @@ function buildSemuaDetailPiutangPdfHtml_(data) {
   '<body>' +
 
     '<section class="cover">' +
-      '<div class="cover-company">TB NUSANTARA</div>' +
-      '<div class="cover-legal">CV NUSANTARA BUILDING MATERIAL</div>' +
-      '<div>' +
-        'JL. LINTAS SELATAN SUROREJAN PURING<br>' +
-        '081234563843' +
-      '</div>' +
+      buildPiutangPdfCompanyHeaderHtml_(logoDataUri) +
 
       '<div class="cover-title">' +
         'SEMUA DETAIL PIUTANG' +
@@ -3716,7 +3685,7 @@ function getSemuaNotaOutstanding_6D1(kodePelanggan) {
  * 6D.1 - HTML PDF
  * ------------------------------------------------------------
  */
-function stage6d1BuildInvoiceHtml_(nota, invoiceIndex) {
+function stage6d1BuildInvoiceHtml_(nota, invoiceIndex, logoDataUri) {
   const header =
     nota.header || {};
 
@@ -3804,17 +3773,9 @@ function stage6d1BuildInvoiceHtml_(nota, invoiceIndex) {
 
       '<div class="invoice-top">' +
         '<div>' +
-          '<div class="company">TB NUSANTARA</div>' +
-          '<div class="legal">' +
-            'CV NUSANTARA BUILDING MATERIAL' +
-          '</div>' +
-          '<div class="company-detail">' +
-            'JL. LINTAS SELATAN SUROREJAN PURING<br>' +
-            '081234563843' +
-          '</div>' +
+          buildPiutangPdfCompanyHeaderHtml_(logoDataUri) +
         '</div>' +
-
-        '<div class="document-number">' +
+        '<div class="document-number">' +'<div class="document-number">' +
           '<div class="small-label">NOTA</div>' +
           '<div class="invoice-code">' +
             stage6d1EscapeHtml_(
@@ -3985,13 +3946,15 @@ function buildSemuaDetailPiutangPdfHtml_6D1(data) {
       ? data.invoices
       : [];
 
+  const logoDataUri = getPiutangPdfLogoDataUri_();
   let invoiceSections = '';
 
   invoices.forEach(function(nota, index) {
     invoiceSections +=
       stage6d1BuildInvoiceHtml_(
         nota,
-        index
+        index,
+        logoDataUri
       );
   });
 
@@ -4075,21 +4038,20 @@ function buildSemuaDetailPiutangPdfHtml_6D1(data) {
         '}' +
 
         '.invoice-top {' +
-          'display: table;' +
+          'display: block;' +
           'width: 100%;' +
-          'border-bottom: 2px solid #111827;' +
-          'padding-bottom: 6px;' +
+          'text-align: center;' +
           'margin-bottom: 9px;' +
         '}' +
 
         '.invoice-top > div {' +
-          'display: table-cell;' +
-          'vertical-align: top;' +
+          'display: block;' +
+          'text-align: center;' +
         '}' +
 
         '.document-number {' +
-          'text-align: right;' +
-          'width: 35%;' +
+          'text-align: center;' +
+          'width: 100%;' +
         '}' +
 
         '.company {' +
@@ -4320,18 +4282,7 @@ function buildSemuaDetailPiutangPdfHtml_6D1(data) {
     '<body>' +
 
       '<section class="cover">' +
-        '<div class="cover-company">' +
-          'TB NUSANTARA' +
-        '</div>' +
-
-        '<div class="cover-legal">' +
-          'CV NUSANTARA BUILDING MATERIAL' +
-        '</div>' +
-
-        '<div>' +
-          'JL. LINTAS SELATAN SUROREJAN PURING<br>' +
-          '081234563843' +
-        '</div>' +
+        buildPiutangPdfCompanyHeaderHtml_(logoDataUri) +
 
         '<div class="cover-title">' +
           'SEMUA DETAIL PIUTANG' +
@@ -4912,7 +4863,7 @@ function stage6d2BuildReportHtml_(data) {
   html += '.company{font-size:9.5pt;font-weight:700;margin-top:1px;}';
   html += '.address{font-size:8pt;margin-top:2px;}';
   html += '.phone{font-size:8pt;margin-top:1px;}';
-  html += '.separator{border-top:2px solid #111;margin:5px 0 6px;}';
+  html += '.separator{margin:5px 0 6px;}';
   html += '.title{font-size:12pt;font-weight:700;text-transform:uppercase;margin-bottom:4px;}';
   html += '.meta{width:100%;border-collapse:collapse;margin-bottom:5px;}';
   html += '.meta td{padding:1.5px 2px;vertical-align:top;}';
@@ -4957,14 +4908,7 @@ function stage6d2BuildReportHtml_(data) {
   html += '.footer-total{margin-top:5px;padding-top:4px;border-top:2px solid #111;font-size:10pt;font-weight:700;text-align:right;}';
   html += '</style></head><body><div class="page">';
 
-  html += '<div class="brand-row">';
-  html += '<div class="brand-logo"><img src="' + stage6d2EscapeHtml_(logoDataUri) + '" alt="Logo TB Nusantara"></div>';
-  html += '<div class="brand-copy">';
-  html += '<div class="brand">TB. NUSANTARA</div>';
-  html += '<div class="company">CV NUSANTARA BUILDING MATERIAL</div>';
-  html += '<div class="address">Jl. Lintas Selatan Surorejan Puring Kebumen 54383</div>';
-  html += '<div class="phone">081-234-563-843</div>';
-  html += '</div></div>';
+  html += buildPiutangPdfCompanyHeaderHtml_(logoDataUri);
   html += '<div class="separator"></div>';
 
   html += '<div class="title">LAPORAN DETAIL PIUTANG PELANGGAN</div>';
@@ -4998,13 +4942,8 @@ function stage6d2BuildReportHtml_(data) {
     const items = Array.isArray(nota.items) ? nota.items : [];
 
     html += '<tr class="nota-brand-row"><td colspan="7">';
-    html += '<table class="nota-brand"><tr>';
-    html += '<td class="nota-brand-logo"><img src="' + stage6d2EscapeHtml_(logoDataUri) + '" alt="Logo TB Nusantara"></td>';
-    html += '<td class="nota-brand-copy"><strong>TB NUSANTARA</strong><br>';
-    html += 'CV NUSANTARA BUILDING MATERIAL<br>';
-    html += 'Jl. Lintas Selatan Surorejan Puring Kebumen 54383<br>';
-    html += '081-234-563-843</td>';
-    html += '</tr></table></td></tr>';
+    html += buildPiutangPdfCompanyHeaderHtml_(logoDataUri);
+    html += '</td></tr>';
 
     html += '<tr class="nota-row">';
     html += '<td class="nota-no">' + stage6d2EscapeHtml_(String(index + 1).padStart(2, '0')) + '</td>';
@@ -5286,6 +5225,7 @@ function getPdfCustomerStatementV1(kodePelanggan) {
   var saldoPiutang = Number(customer.saldo_piutang || 0);
   var jumlahNota = Number(customer.jumlah_nota_outstanding || 0);
   var selisih = saldoTabungan - saldoPiutang;
+  var logoDataUri = getPiutangPdfLogoDataUri_();
 
   var html = '';
   html += '<!DOCTYPE html><html><head><meta charset="UTF-8">';
@@ -5316,12 +5256,7 @@ function getPdfCustomerStatementV1(kodePelanggan) {
   html += '.footer{margin-top:24px;padding-top:8px;border-top:1px solid #d9dee8;color:#64748b;font-size:8px;}';
   html += '</style></head><body>';
 
-  html += '<div class="company-header">';
-  html += '<div class="company-name">TB NUSANTARA</div>';
-  html += '<div class="company-legal">CV NUSANTARA BUILDING MATERIAL</div>';
-  html += '<div class="company-address">JL LINTAS SELATAN SELATAN SUROREJAN PURING</div>';
-  html += '<div class="company-phone">081234563843</div>';
-  html += '</div>';
+  html += buildPiutangPdfCompanyHeaderHtml_(logoDataUri);
   html += '<h1>LAPORAN POSISI KEUANGAN PELANGGAN</h1>';
   html += '<div class="subtitle">Dokumen customer-facing berdasarkan data yang tercatat pada sistem.</div>';
 
@@ -5804,4 +5739,26 @@ function getPiutangPdfLogoDataUri_() {
   }
   return 'data:' + contentType + ';base64,' +
     Utilities.base64Encode(blob.getBytes());
+}
+/**
+ * Kop perusahaan standar untuk seluruh PDF customer-facing.
+ * Penerima logoDataUri agar laporan multi-nota dapat memakai satu fetch logo.
+ */
+function buildPiutangPdfCompanyHeaderHtml_(logoDataUri) {
+  const safeLogo = String(logoDataUri || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;');
+  return '<div style="text-align:center;margin:0 auto 10px;padding:0 0 7px;border-bottom:2px solid #111827;">' +
+    '<img src="' + safeLogo + '" alt="Logo TB Nusantara" style="display:block;width:22mm;height:auto;margin:0 auto 5px;">' +
+    '<div style="font-size:9pt;font-weight:700;line-height:1.2;">CV NUSANTARA BUILDING MATERIAL</div>' +
+    '<div style="font-size:14pt;font-weight:700;line-height:1.2;margin-top:2px;">TB NUSANTARA</div>' +
+    '<div style="font-size:8pt;line-height:1.25;margin-top:3px;">' +
+      'Jalan Lintas Selatan, Dk. Gudang RT 001/RW 001, Ds. Surorejan,<br>' +
+      'Kec. Puring, Kab. Kebumen, Jawa Tengah 54383' +
+    '</div>' +
+    '<div style="font-size:7.5pt;line-height:1.25;margin-top:3px;">' +
+      'Telepon: 0823-4250-9336 | WhatsApp: 0812-3456-3843<br>' +
+      'Email: cvnbmgroup@gmail.com | Website: tbnusatara.com' +
+    '</div>' +
+  '</div>';
 }
