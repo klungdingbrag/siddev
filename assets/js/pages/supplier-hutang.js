@@ -1,9 +1,9 @@
 import { api } from "../api/endpoints.js";
 
-const state = { mountId: 0, loaded: false, loading: false, rows: [], filtered: [], search: "", page: 1, pageSize: 25, selectedSupplier: null, detailRows: [], detailSummary: null };
+const state = { mountId: 0, loaded: false, loading: false, rows: [], filtered: [], search: "", page: 1, pageSize: 25, selectedSupplier: null, detailRows: [], detailSummary: null, dataSavedAt: null };
 const SUPPLIER_HUTANG_CACHE_KEY = "sidretail:supplier-hutang:v1";
 const SUPPLIER_HUTANG_CACHE_TTL_MS = 2 * 60 * 1000;
-const rupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
+const rupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0, maximumFractionDigits: 2 });
 const number = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 });
 const root = () => document.querySelector("#page-content");
 const money = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
@@ -42,7 +42,7 @@ function mounted(id) { return id === state.mountId && Boolean(document.querySele
 
 export function renderSupplierHutangPage() {
   const mountId = ++state.mountId;
-  Object.assign(state, { loaded:false, loading:false, rows:[], filtered:[], search:"", page:1, pageSize:25, selectedSupplier:null, detailRows:[], detailSummary:null });
+  Object.assign(state, { loaded:false, loading:false, rows:[], filtered:[], search:"", page:1, pageSize:25, selectedSupplier:null, detailRows:[], detailSummary:null, dataSavedAt:null });
   root().innerHTML = `
     <section id="supplier-hutang-page">
       <section class="page-heading supplier-hutang-heading"><div><p class="eyebrow">Keuangan · Supplier</p><h2>Hutang Supplier</h2><p class="page-description">Daftar saldo hutang supplier berdasarkan sisa hutang pada transaksi pembelian yang masih outstanding.</p></div><button id="supplier-hutang-refresh" class="btn btn-primary" type="button">↻ Refresh</button></section>
@@ -50,7 +50,7 @@ export function renderSupplierHutangPage() {
         <article class="summary-card supplier-hutang-total-card"><span>Total Hutang Supplier</span><strong id="supplier-hutang-total">Rp0</strong><small>seluruh supplier outstanding</small></article>
         <article class="summary-card"><span>Supplier Outstanding</span><strong id="supplier-hutang-suppliers">0</strong><small>supplier dengan saldo hutang</small></article>
         <article class="summary-card"><span>Nota Outstanding</span><strong id="supplier-hutang-invoices">0</strong><small>total nota bersaldo</small></article>
-        <article class="summary-card"><span>Status Data</span><strong id="supplier-hutang-status">Siap</strong><small id="supplier-hutang-status-detail">Belum memuat data</small></article>
+        <article class="summary-card"><span>Status Data</span><strong id="supplier-hutang-status" class="supplier-hutang-status" data-state="idle">Siap</strong><small id="supplier-hutang-status-detail" role="status" aria-live="polite">Belum memuat data</small></article>
       </section>
       <section class="card panel supplier-hutang-panel">
         <div class="toolbar supplier-hutang-toolbar"><div class="search-box"><span>⌕</span><input id="supplier-hutang-search" type="search" placeholder="Cari kode atau nama supplier..." autocomplete="off"></div><label class="page-size"><span>Baris</span><select id="supplier-hutang-page-size"><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label></div>
@@ -130,10 +130,11 @@ async function refreshSupplierHutangFromBackend(mountId, isManualRefresh) {
     const savedAt=Date.now();
     writeSupplierHutangCache(result, savedAt);
 
+    state.dataSavedAt=savedAt;
     state.rows=rows;
     state.loaded=true;
     state.page=1;
-    updateSummary(result);
+    updateSummary(result, "current", "Diperbarui " + formatUpdatedAt(savedAt));
     applyFilterAndRender();
     setRefreshButton(false, savedAt);
   } catch(error) {
@@ -142,11 +143,13 @@ async function refreshSupplierHutangFromBackend(mountId, isManualRefresh) {
     if(!state.loaded){
       state.rows=[];
       state.filtered=[];
-      updateSummary(null);
+      updateSummary(null, "error", "Data hutang supplier belum tersedia");
       renderRows();
       setState("error",error?.message||"Gagal mengambil data hutang supplier.");
     } else {
       console.warn("[SUPPLIER HUTANG CACHE] refresh failed:", error);
+      const age=Date.now()-Number(state.dataSavedAt||0);
+      updateDataStatus("cache", "Cache · diperbarui " + formatCacheAge(age) + " · refresh gagal");
     }
   } finally {
     if(mounted(mountId) && isManualRefresh){
@@ -163,15 +166,12 @@ function applySupplierHutangData(result, savedAt) {
 
   state.rows=rows;
   state.loaded=true;
+  state.dataSavedAt=Number(savedAt)||Date.now();
   state.page=1;
-  updateSummary(result);
+  const age=Date.now()-state.dataSavedAt;
+  updateSummary(result, "cache", number.format(rows.length)+" supplier · diperbarui "+formatCacheAge(age));
   applyFilterAndRender();
-
-  const age=Date.now()-Number(savedAt||Date.now());
   setRefreshButton(false, age);
-  const statusDetail=document.querySelector("#supplier-hutang-status-detail");
-  if(statusDetail) statusDetail.textContent =
-    number.format(state.rows.length)+" supplier dimuat · cache "+formatCacheAge(age);
   return true;
 }
 
@@ -220,7 +220,31 @@ function formatCacheAge(ageMs) {
   return minutes+" mnt lalu";
 }
 
-function updateSummary(result) { const s=getSummary(result); const total=money(s.total_hutang); const suppliers=money(s.jumlah_supplier); const invoices=state.rows.reduce((n,r)=>n+money(r.jumlah_nota_bersaldo),0); document.querySelector("#supplier-hutang-total").textContent=formatMoney(total); document.querySelector("#supplier-hutang-suppliers").textContent=number.format(suppliers); document.querySelector("#supplier-hutang-invoices").textContent=number.format(invoices); document.querySelector("#supplier-hutang-status").textContent=result?"Online":"Error"; document.querySelector("#supplier-hutang-status-detail").textContent=result?number.format(state.rows.length)+" supplier dimuat":"Tidak ada data yang tersedia"; }
+function updateSummary(result, dataState="current", detail="") {
+  const summary=getSummary(result);
+  const total=money(summary.total_hutang);
+  const suppliers=money(summary.jumlah_supplier);
+  const invoices=state.rows.reduce((count,row)=>count+money(row.jumlah_nota_bersaldo),0);
+  document.querySelector("#supplier-hutang-total").textContent=formatMoney(total);
+  document.querySelector("#supplier-hutang-suppliers").textContent=number.format(suppliers);
+  document.querySelector("#supplier-hutang-invoices").textContent=number.format(invoices);
+  updateDataStatus(dataState, detail || (result ? number.format(state.rows.length)+" supplier dimuat" : "Tidak ada data yang tersedia"));
+}
+function updateDataStatus(dataState, detail) {
+  const status=document.querySelector("#supplier-hutang-status");
+  const statusDetail=document.querySelector("#supplier-hutang-status-detail");
+  const labels={current:"Terkini",cache:"Cache",error:"Gagal",idle:"Siap"};
+  if(status) {
+    status.textContent=labels[dataState]||"Status";
+    status.dataset.state=dataState;
+  }
+  if(statusDetail) statusDetail.textContent=detail||"";
+}
+function formatUpdatedAt(value) {
+  const date=new Date(value);
+  return Number.isNaN(date.getTime()) ? "baru saja" :
+    new Intl.DateTimeFormat("id-ID",{dateStyle:"short",timeStyle:"short"}).format(date);
+}
 function applyFilterAndRender() { const q=state.search; state.filtered=!q?[...state.rows]:state.rows.filter(r=>[codeOf(r),nameOf(r)].join(" ").toLowerCase().includes(q)); const pages=Math.max(1,Math.ceil(state.filtered.length/state.pageSize)); state.page=Math.min(state.page,pages); renderRows(); }
 function renderRows() { const body=document.querySelector("#supplier-hutang-body"), table=document.querySelector("#supplier-hutang-table-wrap"), cards=document.querySelector("#supplier-hutang-cards"), pagination=document.querySelector("#supplier-hutang-pagination"); if(!body)return; const rows=state.filtered.slice((state.page-1)*state.pageSize,state.page*state.pageSize); if(!rows.length){table.classList.add("hidden");cards.classList.add("hidden");pagination.classList.add("hidden"); if(!state.loading)setState(state.rows.length?"empty":"error",state.rows.length?(state.search?"Tidak ada supplier yang cocok dengan pencarian.":"Tidak ada hutang supplier outstanding."):"Data hutang supplier belum tersedia."); updatePagination(); return;} table.classList.remove("hidden");cards.classList.remove("hidden");pagination.classList.remove("hidden");body.innerHTML=rows.map(supplierRowHtml).join("");cards.innerHTML=rows.map(supplierCardHtml).join("");setState("","");updatePagination(); }
 function supplierRowHtml(r) { return `<tr><td><div class="supplier-cell"><strong>${esc(nameOf(r))}</strong><span>${esc(codeOf(r))}</span></div></td><td>${number.format(money(r.jumlah_nota_bersaldo))}</td><td><strong>${formatMoney(r.total_hutang)}</strong></td><td><button class="icon-btn" type="button" data-supplier-code="${esc(codeOf(r))}">Detail</button></td></tr>`; }
