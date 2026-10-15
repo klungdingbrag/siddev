@@ -5748,17 +5748,21 @@ function buildPiutangPdfCompanyHeaderHtml_(logoDataUri) {
   const safeLogo = String(logoDataUri || '')
     .replace(/&/g, '&amp;')
     .replace(/"/g, '&quot;');
-  return '<div style="text-align:center;margin:0 auto 10px;padding:0 0 7px;border-bottom:2px solid #111827;">' +
-    '<img src="' + safeLogo + '" alt="Logo TB Nusantara" style="display:block;width:22mm;height:auto;margin:0 auto 5px;">' +
-    '<div style="font-size:9pt;font-weight:700;line-height:1.2;">CV NUSANTARA BUILDING MATERIAL</div>' +
-    '<div style="font-size:14pt;font-weight:700;line-height:1.2;margin-top:2px;">TB NUSANTARA</div>' +
-    '<div style="font-size:8pt;line-height:1.25;margin-top:3px;">' +
-      'Jalan Lintas Selatan, Dk. Gudang RT 001/RW 001, Ds. Surorejan,<br>' +
-      'Kec. Puring, Kab. Kebumen, Jawa Tengah 54383' +
+  return '<div style="display:table;width:100%;text-align:left;margin:0 0 10px;padding:0 0 7px;border-bottom:2px solid #111827;">' +
+    '<div style="display:table-cell;width:27mm;vertical-align:middle;padding-right:5mm;">' +
+      '<img src="' + safeLogo + '" alt="Logo TB Nusantara" style="display:block;width:22mm;height:auto;margin:0;">' +
     '</div>' +
-    '<div style="font-size:7.5pt;line-height:1.25;margin-top:3px;">' +
-      'Telepon: 0823-4250-9336 | WhatsApp: 0812-3456-3843<br>' +
-      'Email: cvnbmgroup@gmail.com | Website: tbnusatara.com' +
+    '<div style="display:table-cell;text-align:left;vertical-align:middle;">' +
+      '<div style="font-size:9pt;font-weight:700;line-height:1.2;">CV NUSANTARA BUILDING MATERIAL</div>' +
+      '<div style="font-size:14pt;font-weight:700;line-height:1.2;margin-top:2px;">TB NUSANTARA</div>' +
+      '<div style="font-size:8pt;line-height:1.25;margin-top:3px;">' +
+        'Jalan Lintas Selatan, Dk. Gudang RT 001/RW 001, Ds. Surorejan,<br>' +
+        'Kec. Puring, Kab. Kebumen, Jawa Tengah 54383' +
+      '</div>' +
+      '<div style="font-size:7.5pt;line-height:1.25;margin-top:3px;">' +
+        'Telepon: 0823-4250-9336 | WhatsApp: 0812-3456-3843<br>' +
+        'Email: cvnbmgroup@gmail.com | Website: tbnusatara.com' +
+      '</div>' +
     '</div>' +
   '</div>';
 }
