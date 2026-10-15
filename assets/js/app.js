@@ -39,7 +39,7 @@ function setMobileNav(open) {
   const sidebar = document.querySelector("#sidebar");
   if (menuButton) menuButton.setAttribute("aria-expanded", open ? "true" : "false");
   if (sidebar) {
-    const isMobile = window.matchMedia("(max-width: 800px)").matches;
+    const isMobile = window.matchMedia("(max-width: 1100px)").matches;
     const navHidden = isMobile && !open;
     sidebar.setAttribute("aria-hidden", navHidden ? "true" : "false");
     sidebar.inert = navHidden;
@@ -178,7 +178,7 @@ function initMobileNavigation() {
   });
 
   setMobileNav(false);
-  window.matchMedia("(max-width: 800px)").addEventListener("change", () => {
+  window.matchMedia("(max-width: 1100px)").addEventListener("change", () => {
     closeMobileNav();
   });
 }
