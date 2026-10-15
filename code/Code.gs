@@ -1291,6 +1291,7 @@ function buildRingkasanPiutangPdfHtml_(ringkasan) {
   if (!ringkasan || ringkasan.status !== 'success') {
     throw new Error('Data ringkasan PDF tidak valid.');
   }
+  const logoDataUri = getPiutangPdfLogoDataUri_();
 
   const rows = Array.isArray(ringkasan.data)
     ? ringkasan.data
@@ -1360,9 +1361,24 @@ function buildRingkasanPiutangPdfHtml_(ringkasan) {
       '}' +
 
       '.header {' +
+        'display: table;' +
+        'width: 100%;' +
         'border-bottom: 2px solid #111827;' +
         'padding-bottom: 7px;' +
         'margin-bottom: 13px;' +
+      '}' +
+      '.logo-cell {' +
+        'display: table-cell;' +
+        'width: 25mm;' +
+        'vertical-align: middle;' +
+      '}' +
+      '.company-logo {' +
+        'width: 22mm;' +
+        'height: auto;' +
+      '}' +
+      '.brand-copy {' +
+        'display: table-cell;' +
+        'vertical-align: middle;' +
       '}' +
 
       '.company {' +
@@ -1511,11 +1527,14 @@ function buildRingkasanPiutangPdfHtml_(ringkasan) {
   '<body>' +
 
     '<div class="header">' +
-      '<div class="company">TB NUSANTARA</div>' +
-      '<div class="legal">CV NUSANTARA BUILDING MATERIAL</div>' +
-      '<div class="company-detail">' +
-        'JL. LINTAS SELATAN SUROREJAN PURING<br>' +
-        '081234563843' +
+      '<div class="logo-cell"><img class="company-logo" src="' + logoDataUri + '" alt="Logo TB Nusantara"></div>' +
+      '<div class="brand-copy">' +
+        '<div class="company">TB NUSANTARA</div>' +
+        '<div class="legal">CV NUSANTARA BUILDING MATERIAL</div>' +
+        '<div class="company-detail">' +
+          'JL. LINTAS SELATAN SUROREJAN PURING<br>' +
+          '081234563843' +
+        '</div>' +
       '</div>' +
     '</div>' +
 
@@ -1786,6 +1805,7 @@ function buildInvoicePdfHtml_(nota) {
     throw new Error('Header atau summary nota tidak tersedia.');
   }
 
+  const logoDataUri = getPiutangPdfLogoDataUri_();
   const header = nota.header;
   const summary = nota.summary;
   const items = Array.isArray(nota.items)
@@ -1856,6 +1876,19 @@ function buildInvoicePdfHtml_(nota) {
         'border-bottom: 2px solid #111827;' +
         'padding-bottom: 7px;' +
         'margin-bottom: 11px;' +
+      '}' +
+      '.logo-cell {' +
+        'display: table-cell;' +
+        'width: 25mm;' +
+        'vertical-align: middle;' +
+      '}' +
+      '.company-logo {' +
+        'width: 22mm;' +
+        'height: auto;' +
+      '}' +
+      '.brand-copy {' +
+        'display: table-cell;' +
+        'vertical-align: middle;' +
       '}' +
 
       '.company {' +
@@ -4854,12 +4887,17 @@ function stage6d2BuildReportHtml_(data) {
   const namaPelanggan = String(data.nama_pelanggan || '').trim();
   const kodePelanggan = String(data.kode_pelanggan || '').trim();
 
+  const logoDataUri = getPiutangPdfLogoDataUri_();
   let html = '<!DOCTYPE html><html><head><meta charset="UTF-8">';
   html += '<style>';
   html += '@page { size: A4 portrait; margin: 8mm 7mm 10mm 7mm; }';
   html += 'html,body{margin:0;padding:0;background:#fff;color:#111;}';
   html += 'body{font-family:Arial,Helvetica,sans-serif;font-size:8.2pt;line-height:1.2;}';
   html += '.page{width:100%;box-sizing:border-box;}';
+  html += '.brand-row{display:table;width:100%;}';
+  html += '.brand-logo,.brand-copy{display:table-cell;vertical-align:middle;}';
+  html += '.brand-logo{width:25mm;}';
+  html += '.brand-logo img{width:22mm;height:auto;}';
   html += '.brand{font-size:16pt;font-weight:700;letter-spacing:.2px;}';
   html += '.company{font-size:9.5pt;font-weight:700;margin-top:1px;}';
   html += '.address{font-size:8pt;margin-top:2px;}';
@@ -4909,10 +4947,14 @@ function stage6d2BuildReportHtml_(data) {
   html += '.footer-total{margin-top:5px;padding-top:4px;border-top:2px solid #111;font-size:10pt;font-weight:700;text-align:right;}';
   html += '</style></head><body><div class="page">';
 
+  html += '<div class="brand-row">';
+  html += '<div class="brand-logo"><img src="' + stage6d2EscapeHtml_(logoDataUri) + '" alt="Logo TB Nusantara"></div>';
+  html += '<div class="brand-copy">';
   html += '<div class="brand">TB. NUSANTARA</div>';
   html += '<div class="company">CV NUSANTARA BUILDING MATERIAL</div>';
   html += '<div class="address">Jl. Lintas Selatan Surorejan Puring Kebumen 54383</div>';
   html += '<div class="phone">081-234-563-843</div>';
+  html += '</div></div>';
   html += '<div class="separator"></div>';
 
   html += '<div class="title">LAPORAN DETAIL PIUTANG PELANGGAN</div>';
@@ -5720,3 +5762,27 @@ function doPost(e) {
  * Default pelanggan: 2606030.
  */
 
+/**
+ * Memuat logo perusahaan sebagai data URI untuk seluruh PDF Piutang.
+ * Mengikuti aset dan validasi logo yang sudah digunakan PDF Supplier.
+ */
+function getPiutangPdfLogoDataUri_() {
+  const logoUrl = 'https://raw.githubusercontent.com/klungdingbrag/siddev/ui/ux-polish-v3/assets/img/CV.%20NUSANTARA%20BUILDING%20MATERIAL%20LOGO.png';
+  const response = UrlFetchApp.fetch(logoUrl, {
+    muteHttpExceptions: true,
+    followRedirects: true
+  });
+  if (response.getResponseCode() !== 200) {
+    throw new Error(
+      'Logo PDF TB Nusantara belum tersedia pada aset GitHub branch ui/ux-polish-v3. HTTP ' +
+      response.getResponseCode() + '. PDF dibatalkan agar kop tidak kehilangan logo.'
+    );
+  }
+  const blob = response.getBlob();
+  const contentType = String(blob.getContentType() || 'image/png').toLowerCase();
+  if (contentType.indexOf('image/') !== 0) {
+    throw new Error('Aset logo PDF tidak dikembalikan sebagai file gambar.');
+  }
+  return 'data:' + contentType + ';base64,' +
+    Utilities.base64Encode(blob.getBytes());
+}
