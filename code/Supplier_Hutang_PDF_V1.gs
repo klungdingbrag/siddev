@@ -199,8 +199,8 @@ function supplierHutangPdfHtmlV1(model) {
 
   return '<!doctype html><html><head><meta charset="utf-8"><style>' +
     '@page{size:A4;margin:14mm 12mm}body{font:10px Arial,sans-serif;color:#172033}' +
-    '.head{display:block;text-align:center;border-bottom:3px solid #0b3f88;padding-bottom:12px;margin-bottom:18px}' +
-    '.logo{display:block;width:90px;height:auto;object-fit:contain;margin:0 auto 6px}.brand{text-align:center}.store{font-size:17px;font-weight:800;color:#0b3f88}' +
+    '.head{display:table;width:100%;text-align:left;border-bottom:3px solid #0b3f88;padding-bottom:12px;margin-bottom:18px}' +
+    '.logo-wrap{display:table-cell;width:105px;vertical-align:middle;padding-right:16px}.logo{display:block;width:90px;height:auto;object-fit:contain;margin:0}.brand{display:table-cell;text-align:left;vertical-align:middle}.store{font-size:17px;font-weight:800;color:#0b3f88}' +
     '.company{font-size:12px;font-weight:700;margin:3px 0}.muted{color:#4b5563;line-height:1.5}' +
     'h1{font-size:16px;margin:0 0 12px;color:#0b3f88}.supplier{margin:0 0 12px;font-size:11px}' +
     '.cards{display:flex;gap:8px;margin:14px 0}.card{border:1px solid #dbe3ef;border-radius:5px;padding:9px;flex:1}' +
@@ -216,9 +216,9 @@ function supplierHutangPdfHtmlV1(model) {
     '.invoice-totals span{color:#172033;font-size:10px;font-weight:600}.invoice-totals b{font-size:11px;white-space:nowrap}' +
     '.invoice-totals .invoice-balance{background:#eef3fa;border-bottom:2px solid #0b3f88}.invoice-totals .invoice-balance span,.invoice-totals .invoice-balance b{font-weight:800}' +
     'h2{font-size:12px;color:#0b3f88;margin:16px 0 8px;page-break-after:avoid}.foot{margin-top:16px;padding-top:8px;border-top:1px solid #dbe3ef;color:#64748b;font-size:8px}' +
-    '</style></head><body><header class="head"><img class="logo" src="' +
+    '</style></head><body><header class="head"><div class="logo-wrap"><img class="logo" src="' +
     logoDataUri +
-    '" alt="Logo TB Nusantara"><div class="brand"><div class="company">' + SUPPLIER_HUTANG_PDF_V1.company +
+    '" alt="Logo TB Nusantara"></div><div class="brand"><div class="company">' + SUPPLIER_HUTANG_PDF_V1.company +
     '</div><div class="store">' + SUPPLIER_HUTANG_PDF_V1.store +
     '</div><div class="muted">' + SUPPLIER_HUTANG_PDF_V1.address +
     '<br>Telepon: ' + SUPPLIER_HUTANG_PDF_V1.phone +
