@@ -4898,6 +4898,13 @@ function stage6d2BuildReportHtml_(data) {
   html += '.brand-logo,.brand-copy{display:table-cell;vertical-align:middle;}';
   html += '.brand-logo{width:25mm;}';
   html += '.brand-logo img{width:22mm;height:auto;}';
+  html += '.nota-brand-row{page-break-after:avoid;break-after:avoid;}';
+  html += '.nota-brand{width:100%;border-collapse:collapse;margin-bottom:2px;}';
+  html += '.nota-brand td{padding:0;vertical-align:middle;}';
+  html += '.nota-brand-logo{width:22mm;}';
+  html += '.nota-brand-logo img{width:18mm;height:auto;}';
+  html += '.nota-brand-copy{font-size:7.5pt;line-height:1.15;}';
+  html += '.nota-brand-copy strong{font-size:9pt;}';
   html += '.brand{font-size:16pt;font-weight:700;letter-spacing:.2px;}';
   html += '.company{font-size:9.5pt;font-weight:700;margin-top:1px;}';
   html += '.address{font-size:8pt;margin-top:2px;}';
@@ -4986,6 +4993,15 @@ function stage6d2BuildReportHtml_(data) {
   invoices.forEach(function(nota, index) {
     const header = nota.header || {};
     const items = Array.isArray(nota.items) ? nota.items : [];
+
+    html += '<tr class="nota-brand-row"><td colspan="7">';
+    html += '<table class="nota-brand"><tr>';
+    html += '<td class="nota-brand-logo"><img src="' + stage6d2EscapeHtml_(logoDataUri) + '" alt="Logo TB Nusantara"></td>';
+    html += '<td class="nota-brand-copy"><strong>TB NUSANTARA</strong><br>';
+    html += 'CV NUSANTARA BUILDING MATERIAL<br>';
+    html += 'Jl. Lintas Selatan Surorejan Puring Kebumen 54383<br>';
+    html += '081-234-563-843</td>';
+    html += '</tr></table></td></tr>';
 
     html += '<tr class="nota-row">';
     html += '<td class="nota-no">' + stage6d2EscapeHtml_(String(index + 1).padStart(2, '0')) + '</td>';
