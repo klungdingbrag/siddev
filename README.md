@@ -2572,3 +2572,21 @@ Approved layout for the per-invoice PDF places a right-aligned, vertically stack
 Atas permintaan pengguna, PDF Ringkasan Hutang Supplier juga menampilkan blok nominal di bawah tabel nota dan di atas tanda tangan: **Total Nota**, **Bayar**, dan **Sisa Hutang**. Total Nota dan Sisa Hutang menggunakan agregat nota outstanding pada laporan; Bayar ditampilkan sebagai `max(0, totalNota - totalHutang)`. Baris Sisa Hutang menggunakan penekanan visual yang sama seperti PDF per nota. Source commit: [150a775a39f0cf492edf66ff0c1e80559409eccb](https://github.com/klungdingbrag/siddev/commit/150a775a39f0cf492edf66ff0c1e80559409eccb), branch `ui/ux-polish-v3`.
 
 **Status:** source-only, belum divalidasi melalui PDF yang dihasilkan GAS Development. Nilai Bayar adalah selisih agregat Total Nota dan Sisa Hutang, bukan rekonstruksi transaksi pembayaran terpisah. Uji output PDF dan rekonsiliasi nominal sebelum menerima perubahan. Production/stable tidak disentuh.
+
+
+## Supplier Global Payment — Planning
+
+**Status: planning only. No payment UI or write path is active.** The supplied SID Retail API examples show a URL pattern of `/api/{api-key}/{transaction-code}/{command}`, with MySQL-style commands. The examples demonstrate `SELECT` and `DELETE`, but do not define an approved supplier-payment procedure. They do not establish support for `INSERT`/`UPDATE`, atomic transactions/rollback, duplicate protection, partial-failure recovery, or the required cash-ledger effects. A successful read or a generic SQL endpoint is not sufficient evidence to write payment records safely.
+
+The user currently has only the API key and the GAS project, not the POS server handler or a documented write contract. Therefore, do not issue write commands or enable payment storage against Production. Before implementation, obtain and verify the POS provider's supported supplier-payment command/endpoint and its transaction, idempotency, and failure-handling behavior, preferably in an isolated Development environment.
+
+Planned product behavior, once that write contract is confirmed:
+
+- A dedicated supplier-payment UI, separate from the existing read-only Supplier Hutang view.
+- One supplier and one entered global payment amount; preview allocation FIFO by oldest invoice date, with a deterministic invoice-code tie-breaker.
+- Partial payment per invoice is allowed; reject an amount exceeding that supplier's total open balance.
+- Persist only through the verified supported write mechanism. Do not blindly retry payment writes.
+- Offer a WhatsApp share link only after the server confirms the payment was recorded; build the message from the confirmed transaction.
+- Returns are excluded from this feature because they are handled by the POS server.
+
+The read-only V1–V7 supplier-payment diagnostic GAS scripts have been removed from the current source tree after the audit. Their execution findings and limitations remain documented in [Diagnostic V6](docs/SUPPLIER_PAYMENT_GLOBAL_V1_DIAGNOSTIC_V6.md) and [Diagnostic V7](docs/SUPPLIER_PAYMENT_GLOBAL_V1_DIAGNOSTIC_V7.md), and in Git history. These diagnostics did not authorize or perform payment writes.
