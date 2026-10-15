@@ -19,7 +19,7 @@ const MODAL_FOCUSABLE_SELECTOR = [
 ].join(",");
 
 const modalFocusState = new WeakMap();
-let activeDialog = null;
+const visibleDialogs = new Set();
 
 function isVisibleDialog(dialog) {
   return dialog?.matches('[role="dialog"][aria-modal="true"]') &&
@@ -110,43 +110,45 @@ function handleModalFocusKeydown(event) {
   }
 }
 
+function syncModalFocus() {
+  const currentDialogs = new Set(
+    [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].filter(isVisibleDialog)
+  );
+
+  currentDialogs.forEach((dialog) => {
+    if (visibleDialogs.has(dialog)) return;
+    rememberDialogTrigger(dialog);
+    visibleDialogs.add(dialog);
+    focusDialog(dialog);
+  });
+
+  [...visibleDialogs].forEach((dialog) => {
+    if (currentDialogs.has(dialog)) return;
+    visibleDialogs.delete(dialog);
+    restoreDialogFocus(dialog);
+  });
+}
+
 function observeModalFocus() {
-  const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      if (mutation.type !== "attributes") continue;
-
-      const dialog = mutation.target;
-      if (!dialog.matches?.('[role="dialog"][aria-modal="true"]')) continue;
-      if (mutation.attributeName !== "aria-hidden" && mutation.attributeName !== "class") continue;
-
-      const visible = isVisibleDialog(dialog);
-      const oldValue = String(mutation.oldValue || "");
-      const oldHidden = mutation.attributeName === "class"
-        ? oldValue.split(/\s+/).includes("hidden")
-        : oldValue === "true";
-      const oldVisible = mutation.attributeName === "class"
-        ? !oldHidden && dialog.getAttribute("aria-hidden") !== "true"
-        : !oldHidden && !dialog.classList.contains("hidden");
-
-      if (visible && !oldVisible) {
-        rememberDialogTrigger(dialog);
-        activeDialog = dialog;
-        focusDialog(dialog);
-      } else if (!visible && oldVisible) {
-        restoreDialogFocus(dialog);
-        if (activeDialog === dialog) activeDialog = null;
-      }
-    }
+  let scheduled = false;
+  const observer = new MutationObserver(() => {
+    if (scheduled) return;
+    scheduled = true;
+    window.requestAnimationFrame(() => {
+      scheduled = false;
+      syncModalFocus();
+    });
   });
 
   observer.observe(document.body, {
     subtree: true,
+    childList: true,
     attributes: true,
-    attributeFilter: ["class", "aria-hidden"],
-    attributeOldValue: true
+    attributeFilter: ["class", "aria-hidden"]
   });
 
   document.addEventListener("keydown", handleModalFocusKeydown, true);
+  syncModalFocus();
 }
 
 function enhanceButton(button) {
