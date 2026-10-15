@@ -261,6 +261,7 @@ document.addEventListener("visibilitychange", () => {
 const reconnectButton = document.querySelector("#api-reconnect");
 if (reconnectButton) {
   reconnectButton.addEventListener("click", async () => {
+    window.clearTimeout(healthCheckTimer);
     const online = await checkServerApi();
     healthFailureDelay = online ? 30000 : 60000;
     scheduleHealthCheck(online ? 30000 : healthFailureDelay);
