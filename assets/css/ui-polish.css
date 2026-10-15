@@ -1239,7 +1239,7 @@ textarea:focus-visible {
    Visual/layout only. No API or application logic changes.
    ========================================================= */
 
-@media (max-width: 800px) {
+@media (max-width: 1100px) {
   html,
   body {
     width: 100%;
