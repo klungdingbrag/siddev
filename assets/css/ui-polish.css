@@ -2630,3 +2630,59 @@ textarea:focus-visible {
   }
 }
 
+
+
+/* =========================================================
+   SUPPLIER HUTANG — STATUS & NUMERIC READABILITY
+   ========================================================= */
+
+.supplier-hutang-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 24px;
+  margin-top: 7px;
+  padding: 3px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 11px !important;
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: .01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.supplier-hutang-status[data-state="current"] {
+  color: #067647;
+  background: #ecfdf3;
+  border-color: #abefc6;
+}
+
+.supplier-hutang-status[data-state="cache"] {
+  color: #93370d;
+  background: #fffaeb;
+  border-color: #fedf89;
+}
+
+.supplier-hutang-status[data-state="error"] {
+  color: #b42318;
+  background: #fef3f2;
+  border-color: #fecdca;
+}
+
+.supplier-hutang-status[data-state="idle"] {
+  color: var(--ui-text-muted, #667085);
+  background: #f2f4f7;
+  border-color: #eaecf0;
+}
+
+.supplier-hutang-summary strong,
+.supplier-detail-summary strong,
+.supplier-detail-table td:nth-child(4),
+.supplier-detail-table td:nth-child(5) {
+  font-variant-numeric: tabular-nums;
+}
+
+#supplier-hutang-status-detail {
+  line-height: 1.45;
+}
