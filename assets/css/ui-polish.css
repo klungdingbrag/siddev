@@ -1718,7 +1718,7 @@ textarea:focus-visible {
   display: none;
 }
 
-@media (max-width: 800px) {
+@media (max-width: 1100px) {
   .mobile-app-header {
     position: sticky;
     top: 0;
@@ -2691,4 +2691,63 @@ textarea:focus-visible {
 
 #supplier-hutang-status-detail {
   line-height: 1.45;
+}
+
+
+/* =========================================================
+   PIUTANG — TABLET LAYOUT
+   Give search and summary cards enough room beside tablet navigation.
+   ========================================================= */
+@media (min-width: 801px) and (max-width: 1100px) {
+  .page-content .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .summary-card {
+    min-width: 0;
+  }
+
+  .summary-card strong {
+    overflow-wrap: anywhere;
+    font-size: clamp(16px, 2vw, 21px);
+  }
+
+  .collection-priority-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #page-content .toolbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    align-items: end;
+  }
+
+  #page-content .toolbar .search-box {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+
+  #page-content .toolbar .piutang-filter {
+    width: 100%;
+    min-width: 0;
+    justify-content: space-between;
+  }
+
+  #page-content .toolbar .piutang-filter select {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  #page-content .toolbar .page-size {
+    min-width: 0;
+    justify-content: space-between;
+  }
+
+  #page-content .toolbar .page-size select {
+    min-width: 0;
+  }
 }
