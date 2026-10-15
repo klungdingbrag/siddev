@@ -92,12 +92,14 @@ async function loadSupplierHutang(mountId, force=false) {
 
   if(!force && cached) {
     applySupplierHutangData(cached.result, cached.savedAt);
+    updateDataStatus("refreshing", "Cache · diperbarui " + formatCacheAge(cached.ageMs) + " · memperbarui dari server");
     refreshSupplierHutangFromBackend(mountId, false);
     return;
   }
 
   if(force && state.loaded) {
     setRefreshButton(true);
+    updateDataStatus("refreshing", "Memperbarui data terbaru · saldo terakhir tetap ditampilkan");
     await refreshSupplierHutangFromBackend(mountId, true);
     return;
   }
@@ -233,7 +235,7 @@ function updateSummary(result, dataState="current", detail="") {
 function updateDataStatus(dataState, detail) {
   const status=document.querySelector("#supplier-hutang-status");
   const statusDetail=document.querySelector("#supplier-hutang-status-detail");
-  const labels={current:"Terkini",cache:"Cache",error:"Gagal",idle:"Siap"};
+  const labels={current:"Terkini",cache:"Cache",refreshing:"Memuat",error:"Gagal",idle:"Siap"};
   if(status) {
     status.textContent=labels[dataState]||"Status";
     status.dataset.state=dataState;
