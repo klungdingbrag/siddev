@@ -2658,6 +2658,12 @@ textarea:focus-visible {
   border-color: #abefc6;
 }
 
+.supplier-hutang-status[data-state="refreshing"] {
+  color: #1849a9;
+  background: #eff8ff;
+  border-color: #b2ddff;
+}
+
 .supplier-hutang-status[data-state="cache"] {
   color: #93370d;
   background: #fffaeb;
