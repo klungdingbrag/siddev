@@ -4941,10 +4941,6 @@ function stage6d2BuildReportHtml_(data) {
     const header = nota.header || {};
     const items = Array.isArray(nota.items) ? nota.items : [];
 
-    html += '<tr class="nota-brand-row"><td colspan="7">';
-    html += buildPiutangPdfCompanyHeaderHtml_(logoDataUri);
-    html += '</td></tr>';
-
     html += '<tr class="nota-row">';
     html += '<td class="nota-no">' + stage6d2EscapeHtml_(String(index + 1).padStart(2, '0')) + '</td>';
     html += '<td colspan="2">' + stage6d2EscapeHtml_(header.kode_transaksi || '') +
@@ -4978,14 +4974,14 @@ function stage6d2BuildReportHtml_(data) {
   html += '<tr><td class="summary-label">TOTAL SALDO HUTANG</td><td class="summary-value">' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(totalSaldoHutang)) + '</td></tr>';
   html += '</table>';
 
+  html += '<div class="footer-total">TOTAL SALDO HUTANG : ' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(totalSaldoHutang)) + '</div>';
+
   html += '<div class="payment">';
   html += '<div class="payment-title">Pembayaran dapat dilakukan melalui transfer:</div>';
   html += '<p><strong>BRI</strong></p>';
   html += '<p>a.n. Wasimun</p>';
   html += '<p>No. Rekening: 003201105050505</p>';
   html += '</div>';
-
-  html += '<div class="footer-total">TOTAL SALDO HUTANG : ' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(totalSaldoHutang)) + '</div>';
   html += '</div></div></body></html>';
 
   return {
