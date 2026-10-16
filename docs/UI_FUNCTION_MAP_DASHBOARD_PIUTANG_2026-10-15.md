@@ -12,7 +12,11 @@
 | `assets/js/pages/dashboard.js` | 530 | `ae436e3f308278501b4274b15b166c425736817a` |
 | `assets/js/pages/dashboard/calendar.js` | 98 | `6298fb757d00edc67c0fa6c4b3b025c0dcc136d8` |
 | `assets/js/pages/dashboard/charts.js` | 342 | `e672e0dfc131881ad196503838ffd09b8565e592` |
-| `assets/js/pages/piutang.js` | 1088 | `96bd1be2aea2fdc79da33a50a241ddf207f88d49` |
+| `assets/js/pages/piutang.js` | 1088 | `3ec49b5fd1f2437403ba0242c6dafe24aa86a574` |
+| `assets/js/app.js` | 272 | `8cdfbae59fe37edfe666475180b494950fade701` |
+| `assets/js/api/endpoints.js` | 62 | `30736aac1c86a25cb46b7780adc41d283c706d5f` |
+| `assets/js/api/client.js` | 171 | `1ae877026c046a52a5074a4782b8164526ca5bbd` |
+| `index.html` | 22 | `86c9941b7b69f4503ea273667bc04ca1e4903908` |
 | `assets/js/pages/piutang/list-renderers.js` | 17 | `ef1c469e1ecea7579617bb09c43986b5ac7be106` |
 
 Rentang baris merujuk pada source yang diambil dari branch `ui/ux-polish-v3` pada 16 Oktober 2026. Perubahan berikutnya dapat menggeser rentang.
@@ -145,6 +149,13 @@ Audit baca-saja menunjukkan alur detail menggabungkan request paralel, validasi 
 - Root cause belum dapat dipastikan hanya dari source; ekstraksi helper yang identik secara isi tetap dapat berinteraksi dengan aturan deployment/cache modul.
 - Pemeriksaan parse sintaks berhasil. Perlu pemeriksaan manual ulang untuk memastikan invoice, ringkasan, dan PDF detail kembali berfungsi.
 
-## 11. Batas keselamatan
+## 11. Status diagnosis respons API PDF
+
+- Pesan browser yang diberikan, `Response SID Retail bukan JSON valid.`, tidak ditemukan pada `client.js` branch saat ini. Client branch saat ini menambahkan 240 karakter awal dari body non-JSON ke pesan error.
+- Token cache diperbarui pada `index.html`, import halaman di `app.js`, import API di `piutang.js`, dan import client di `endpoints.js` agar browser memuat rangkaian source terbaru setelah hard reload.
+- Jika error berulang, potongan `Respons: ...` pada Console atau body tab Network → Response akan menunjukkan apakah SID Retail mengirim HTML/error page, respons kosong, JSON rusak, atau bentuk lain. Jangan membagikan URL penuh jika memuat kode pelanggan atau parameter sensitif.
+- Pemeriksaan parse sintaks untuk modul yang diubah berhasil; request langsung ke API tidak dijalankan dari sini.
+
+## 12. Batas keselamatan
 
 Pemetaan ini tidak mengusulkan perubahan pada endpoint/API, kontrak data, hitungan aging/prioritas, nilai piutang, sumber data, generator PDF, atau pesan WhatsApp. Tujuan tahap berikutnya adalah memindahkan kode dengan perilaku yang sama, bukan mengubah hasil atau alur pengguna.
