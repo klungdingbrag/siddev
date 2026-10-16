@@ -1,3 +1,4 @@
+import { renderPiutangRow, renderPiutangCard } from "./piutang/list-renderers.js?v=20261016-list-v1";
 import { api } from "../api/endpoints.js";
 
 const state = {
@@ -404,6 +405,8 @@ function collectionPriorityMeta(r) {
   };
 }
 
+const piutangListRenderHelpers = { collectionPriorityMeta, esc, formatMoney };
+
 function updatePrioritySummary(rows) {
   const counts = { urgent: 0, high: 0, monitor: 0, normal: 0 };
   rows.forEach(r => { counts[getCollectionPriority(r)]++; });
@@ -490,25 +493,13 @@ function renderTable() {
   const rows = state.filtered.slice(start, start + state.pageSize);
   const pages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
 
-  body.innerHTML = rows.map(rowHtml).join("");
-  cards.innerHTML = rows.map(cardHtml).join("");
+  body.innerHTML = rows.map((row) => renderPiutangRow(row, piutangListRenderHelpers)).join("");
+  cards.innerHTML = rows.map((row) => renderPiutangCard(row, piutangListRenderHelpers)).join("");
   pagination.classList.remove("hidden");
   document.querySelector("#piutang-page-info").textContent =
     "Halaman " + state.page + " / " + pages + " · " + number.format(state.filtered.length) + " pelanggan";
   document.querySelector("#piutang-prev").disabled = state.page <= 1;
   document.querySelector("#piutang-next").disabled = state.page >= pages;
-}
-
-function rowHtml(r) {
-  const meta = collectionPriorityMeta(r);
-  return '<tr><td><div class="customer-cell"><strong>' + esc(r.nm_pelanggan || r.kd_pelanggan) + '</strong><span>' + esc(r.kd_pelanggan) + '</span></div></td>' +
-    '<td>' + formatMoney(r.belum_jatuh_tempo) + '</td><td>' + formatMoney(r.aging_1_30) + '</td><td>' + formatMoney(r.aging_31_60) + '</td><td>' + formatMoney(r.aging_61_90) + '</td><td>' + formatMoney(r.aging_91_120) + '</td><td>' + formatMoney(r.aging_121_plus) + '</td><td><strong>' + formatMoney(r.total_piutang) + '</strong></td><td><div class="collection-priority-info"><span class="collection-priority-badge priority-badge-' + meta.priority + '">' + meta.label + '</span><span class="collection-priority-age">' + esc(meta.ageLabel) + '</span><span class="collection-priority-context">' + esc(meta.totalLabel + " · " + meta.notesLabel) + '</span></div></td><td><button class="icon-btn detail-trigger" data-code="' + esc(r.kd_pelanggan) + '">Detail</button></td></tr>';
-}
-
-function cardHtml(r) {
-  const meta = collectionPriorityMeta(r);
-  return '<article class="mobile-customer-card"><div class="mobile-customer-head"><div><strong>' + esc(r.nm_pelanggan || r.kd_pelanggan) + '</strong><span>' + esc(r.kd_pelanggan) + '</span></div><button class="icon-btn detail-trigger" data-code="' + esc(r.kd_pelanggan) + '">Detail</button></div><div class="mobile-collection-info"><span class="collection-priority-badge priority-badge-' + meta.priority + '">' + meta.label + '</span><strong>' + esc(meta.ageLabel) + '</strong><small>' + esc(meta.totalLabel + " · " + meta.notesLabel) + '</small></div><div class="mobile-customer-total"><span>Total Piutang</span><strong>' + formatMoney(r.total_piutang) + '</strong></div><div class="mobile-aging-grid">' +
-    '<span>Belum tempo <b>' + formatMoney(r.belum_jatuh_tempo) + '</b></span><span>1–30 <b>' + formatMoney(r.aging_1_30) + '</b></span><span>31–60 <b>' + formatMoney(r.aging_31_60) + '</b></span><span>61–90 <b>' + formatMoney(r.aging_61_90) + '</b></span><span>91–120 <b>' + formatMoney(r.aging_91_120) + '</b></span><span>≥121 <b>' + formatMoney(r.aging_121_plus) + '</b></span></div></article>';
 }
 
 function detailClick(e) {
