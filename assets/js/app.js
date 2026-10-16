@@ -4,6 +4,7 @@ import { renderPiutangPage } from "./pages/piutang.js?v=20261016-pdf-response-de
 import { renderDashboardPage } from "./pages/dashboard.js?v=20261006-dashboard-current-1";
 import { renderPelangganPage } from "./pages/pelanggan.js?v=20261016-customer-api-recovery-v1";
 import { renderSupplierHutangPage } from "./pages/supplier-hutang.js?v=20261015-supplier-uiux-v1";
+import { renderInvoicePage } from "./pages/invoice.js";
 
 const sidebar = document.querySelector("#sidebar");
 const content = document.querySelector("#page-content");
@@ -74,6 +75,7 @@ sidebar.innerHTML = `
     <a class="nav-item" href="#pelanggan">Pelanggan</a>
     <a class="nav-item" href="#piutang">Piutang</a>
     <a class="nav-item" href="#hutang-supplier">Hutang Supplier</a>
+    <a class="nav-item" href="#invoice">Invoice</a>
     <a class="nav-item" href="#barang">Data Barang</a>
     <a class="nav-item" href="#kalkulator">Kalkulator</a>
   </nav>
@@ -124,6 +126,10 @@ function route({ focusContent = false } = {}) {
     "#hutang-supplier": {
       title: "Hutang Supplier",
       render: () => renderSupplierHutangPage()
+    },
+    "#invoice": {
+      title: "Invoice",
+      render: () => renderInvoicePage()
     },
     "#barang": {
       title: "Data Barang",
