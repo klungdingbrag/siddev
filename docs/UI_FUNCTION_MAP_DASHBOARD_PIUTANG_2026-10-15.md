@@ -12,7 +12,7 @@
 | `assets/js/pages/dashboard.js` | 530 | `ae436e3f308278501b4274b15b166c425736817a` |
 | `assets/js/pages/dashboard/calendar.js` | 98 | `6298fb757d00edc67c0fa6c4b3b025c0dcc136d8` |
 | `assets/js/pages/dashboard/charts.js` | 342 | `e672e0dfc131881ad196503838ffd09b8565e592` |
-| `assets/js/pages/piutang.js` | 1091 | `a5ab0890e92ff07658246cc544156c06fe056326` |
+| `assets/js/pages/piutang.js` | 1088 | `96bd1be2aea2fdc79da33a50a241ddf207f88d49` |
 | `assets/js/pages/piutang/list-renderers.js` | 17 | `ef1c469e1ecea7579617bb09c43986b5ac7be106` |
 
 Rentang baris merujuk pada source yang diambil dari branch `ui/ux-polish-v3` pada 16 Oktober 2026. Perubahan berikutnya dapat menggeser rentang.
@@ -63,8 +63,8 @@ Rentang baris merujuk pada source yang diambil dari branch `ui/ux-polish-v3` pad
 | Modul terpisah | `piutang/list-renderers.js` | `renderPiutangRow()` dan `renderPiutangCard()` menghasilkan markup tabel/kartu dengan dependency eksplisit. |
 | 505–680 | Detail pelanggan | Buka detail dan request terkait, parsing tabungan/transaksi, markup detail/aging/nota. |
 | 681–916 | PDF | Memilih aksi, meminta invoice/ringkasan/detail 6D.2, validasi payload/byte, loading, dan download/open. |
-| 917–1071 | WhatsApp dan penutupan modal | Menyusun pesan pelanggan/nota, membuka WhatsApp, event modal, dan tutup detail. |
-| 1072–1091 | Status dan toast | Menampilkan status daftar serta toast global. |
+| 917–1068 | WhatsApp dan penutupan modal | Menyusun pesan pelanggan/nota, membuka WhatsApp melalui click-to-chat, event modal, dan tutup detail. |
+| 1069–1088 | Status dan toast | Menampilkan status daftar serta toast global. |
 
 ### Alur utama
 
@@ -86,7 +86,7 @@ Rentang baris merujuk pada source yang diambil dari branch `ui/ux-polish-v3` pad
 
 1. Ekstraksi renderer grafik dan kalender Dashboard telah selesai sebagai perubahan terpisah.
 2. Peta source diperbarui pada 16 Oktober 2026. Ekstraksi template daftar Piutang selesai; filter, state, prioritas, paging, dan DOM controller tetap di `piutang.js`.
-3. Langkah berikutnya: tinjau perubahan ini di front-end, lalu audit alur detail, PDF, dan WhatsApp secara terpisah sebelum memilih batas modulnya.
+3. Setelah URL WhatsApp baru diverifikasi lewat kolom pesan, lanjutkan audit batas modul detail dan PDF secara terpisah.
 4. Setiap ekstraksi dibuat sebagai perubahan terisolasi di GitHub dan ditinjau sebelum ekstraksi berikutnya.
 
 ## 4. Status implementasi: ekstraksi grafik Dashboard
@@ -115,6 +115,13 @@ Audit baca-saja branch `ui/ux-polish-v3` pada 16 Oktober 2026 memperbarui snapsh
 - `renderTable()`, filtering/sorting, pagination, prioritas, markup shell, dan event tetap di controller.
 - Pemeriksaan yang dilakukan: kedua source lolos parse sintaks JavaScript. Suite runtime/test tidak dijalankan.
 
-## 8. Batas keselamatan
+## 8. Status perbaikan tautan WhatsApp
+
+- Pemeriksaan source tidak menemukan literal HTML entity dalam builder pesan; builder pesan tidak diubah.
+- URL share dialihkan dari `api.whatsapp.com/send/` ke `https://wa.me/` dan parameter `text` disusun menggunakan `URL.searchParams`.
+- Ini mengikuti format click-to-chat WhatsApp dengan teks prefilled URL-encoded. Perlu verifikasi manual pada kolom pesan WhatsApp untuk memastikan entity tidak lagi muncul.
+- Pemeriksaan yang dilakukan: `piutang.js` lolos parse sintaks JavaScript. Tes langsung ke WhatsApp tidak dijalankan.
+
+## 9. Batas keselamatan
 
 Pemetaan ini tidak mengusulkan perubahan pada endpoint/API, kontrak data, hitungan aging/prioritas, nilai piutang, sumber data, generator PDF, atau pesan WhatsApp. Tujuan tahap berikutnya adalah memindahkan kode dengan perilaku yang sama, bukan mengubah hasil atau alur pengguna.
