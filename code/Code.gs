@@ -157,7 +157,8 @@ function sidRetailQuery(query) {
     const offsetMatch = parseMessage.match(/(?:position|offset)\s+(\d+)/i);
     const parseOffset = offsetMatch ? Number(offsetMatch[1]) : null;
     const trimmedResponse = responseText.trim();
-    const startsLikeJson = /^[{[]/.test(trimmedResponse);
+    const firstResponseChar = trimmedResponse.charAt(0);
+    const startsLikeJson = firstResponseChar === '{' || firstResponseChar === '[';
     const endsLikeJson = trimmedResponse.slice(-1) === '}' ||
       trimmedResponse.slice(-1) === ']';
     const containsHtml = /<!doctype|<html|<body|<br|<title/i.test(responseText);
