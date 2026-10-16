@@ -12,7 +12,8 @@
 | `assets/js/pages/dashboard.js` | 530 | `ae436e3f308278501b4274b15b166c425736817a` |
 | `assets/js/pages/dashboard/calendar.js` | 98 | `6298fb757d00edc67c0fa6c4b3b025c0dcc136d8` |
 | `assets/js/pages/dashboard/charts.js` | 342 | `e672e0dfc131881ad196503838ffd09b8565e592` |
-| `assets/js/pages/piutang.js` | 1100 | `0e0f79c763e21b223da09f47e532eb60dd318bde` |
+| `assets/js/pages/piutang.js` | 1091 | `a5ab0890e92ff07658246cc544156c06fe056326` |
+| `assets/js/pages/piutang/list-renderers.js` | 17 | `ef1c469e1ecea7579617bb09c43986b5ac7be106` |
 
 Rentang baris merujuk pada source yang diambil dari branch `ui/ux-polish-v3` pada 16 Oktober 2026. Perubahan berikutnya dapat menggeser rentang.
 
@@ -51,18 +52,19 @@ Rentang baris merujuk pada source yang diambil dari branch `ui/ux-polish-v3` pad
 
 | Baris | Fungsi/kelompok | Tanggung jawab |
 |---|---|---|
-| 1–60 | Import, state, format/cache constants, mount helper | API, state daftar/detail, formatter, escape, cache key/TTL, dan identifikasi mount halaman. |
-| 62–88 | `renderPiutangPage()` | Entry point; membuat seluruh shell daftar, modal, lalu mengikat event dan memulai pemuatan. |
-| 90–161 | `bindEvents()` | Event pencarian, filter, sort, ukuran halaman, paging, klik detail, PDF, WhatsApp, dan modal. |
-| 163–317 | `loadPiutang()`, refresh dan cache | Memuat/memperbarui data, menjaga mount, menerapkan data, cache, serta status refresh. |
-| 318–353 | Envelope dan ringkasan | Memilih array pelanggan dari bentuk respons yang didukung, menghitung saldo/current/overdue, dan memanggil ringkasan prioritas. |
-| 354–418 | Prioritas collection | Aturan bucket/umur, ranking, metadata label, jumlah per prioritas, dan active filter UI. |
-| 419–469 | Filter, sort, aging bucket | Pencarian, filter aging/prioritas, sortir dan pembatasan halaman aktif. |
-| 471–513 | `renderTable()`, `rowHtml()`, `cardHtml()` | Menyusun pagination dan DOM daftar desktop/mobile serta template baris/kartu. Kandidat ekstraksi berikutnya. |
-| 514–689 | Detail pelanggan | Buka detail dan request terkait, parsing tabungan/transaksi, markup detail/aging/nota. |
-| 690–925 | PDF | Memilih aksi, meminta invoice/ringkasan/detail 6D.2, validasi payload/byte, loading, dan download/open. |
-| 926–1080 | WhatsApp dan penutupan modal | Menyusun pesan pelanggan/nota, membuka WhatsApp, event modal, dan tutup detail. |
-| 1081–1100 | Status dan toast | Menampilkan status daftar serta toast global. |
+| 1–61 | Import, state, format/cache constants, mount helper | API dan renderer list, state daftar/detail, formatter, escape, cache key/TTL, serta identifikasi mount halaman. |
+| 63–89 | `renderPiutangPage()` | Entry point; membuat seluruh shell daftar, modal, lalu mengikat event dan memulai pemuatan. |
+| 91–162 | `bindEvents()` | Event pencarian, filter, sort, ukuran halaman, paging, klik detail, PDF, WhatsApp, dan modal. |
+| 164–318 | `loadPiutang()`, refresh dan cache | Memuat/memperbarui data, menjaga mount, menerapkan data, cache, serta status refresh. |
+| 319–354 | Envelope dan ringkasan | Memilih array pelanggan dari bentuk respons yang didukung, menghitung saldo/current/overdue, dan memanggil ringkasan prioritas. |
+| 355–420 | Prioritas collection | Aturan bucket/umur, ranking, metadata label, dependency markup list, jumlah per prioritas, dan active filter UI. |
+| 422–472 | Filter, sort, aging bucket | Pencarian, filter aging/prioritas, sortir dan pembatasan halaman aktif. |
+| 474–503 | `renderTable()` | Empty state, DOM daftar, paging, dan delegasi markup ke modul template. Tetap di controller. |
+| Modul terpisah | `piutang/list-renderers.js` | `renderPiutangRow()` dan `renderPiutangCard()` menghasilkan markup tabel/kartu dengan dependency eksplisit. |
+| 505–680 | Detail pelanggan | Buka detail dan request terkait, parsing tabungan/transaksi, markup detail/aging/nota. |
+| 681–916 | PDF | Memilih aksi, meminta invoice/ringkasan/detail 6D.2, validasi payload/byte, loading, dan download/open. |
+| 917–1071 | WhatsApp dan penutupan modal | Menyusun pesan pelanggan/nota, membuka WhatsApp, event modal, dan tutup detail. |
+| 1072–1091 | Status dan toast | Menampilkan status daftar serta toast global. |
 
 ### Alur utama
 
@@ -74,17 +76,17 @@ Rentang baris merujuk pada source yang diambil dari branch `ui/ux-polish-v3` pad
 ### Batas pemisahan yang disarankan
 
 - Pertahankan `renderPiutangPage()` sebagai entry point router.
-- Batas ekstraksi paling rendah risikonya adalah `rowHtml()` dan `cardHtml()` saja ke `assets/js/pages/piutang/list-renderers.js`. Keduanya menerima satu baris dan dependency object `{ collectionPriorityMeta, esc, formatMoney }`; fungsi metadata prioritas tetap dimiliki controller.
-- Pertahankan `renderTable()` di `piutang.js` karena ia mengelola empty state, DOM, paging, dan state. Pertahankan `filterAndRender()`, `highestAgingBucket()`, aturan prioritas, serta semua event di controller pada tahap pertama.
-- Ekstraksi markup harus menjaga string HTML, urutan kolom/kartu, class/ID, `data-code`, dan tombol detail sama persis; jangan ubah copy, angka, filter, sort, maupun paging.
+- `rowHtml()` dan `cardHtml()` telah dipindahkan ke `assets/js/pages/piutang/list-renderers.js` sebagai `renderPiutangRow()` dan `renderPiutangCard()`. Dependency `{ collectionPriorityMeta, esc, formatMoney }` dikirim dari controller.
+- `renderTable()` tetap di `piutang.js` karena ia mengelola empty state, DOM, paging, dan state. `filterAndRender()`, `highestAgingBucket()`, aturan prioritas, serta semua event tetap di controller.
+- Untuk pemeliharaan berikutnya, jaga string HTML, urutan kolom/kartu, class/ID, `data-code`, dan tombol detail tetap sama. Perubahan ini tidak mengubah copy, angka, filter, sort, maupun paging.
 - Detail, PDF, dan WhatsApp membentuk alur pengguna yang saling terhubung. Pertahankan di file saat ini sampai batas API/markup masing-masing dipetakan lebih lanjut; jangan pindahkan sekaligus dengan renderer daftar.
 - Jangan mengubah ID, class, `data-*` attributes, urutan event, format uang, fallback envelope API, dan urutan panggilan endpoint.
 
 ## 3. Urutan refactor yang aman
 
 1. Ekstraksi renderer grafik dan kalender Dashboard telah selesai sebagai perubahan terpisah.
-2. Peta source terbaru diperbarui pada 16 Oktober 2026. Tahap berikutnya yang diusulkan: ekstrak hanya template `rowHtml()` dan `cardHtml()`; jaga filter, state, prioritas, paging, dan DOM controller tetap utuh.
-3. Setelah daftar ditinjau, audit alur detail, PDF, dan WhatsApp secara terpisah sebelum memilih batas modul untuk bagian tersebut.
+2. Peta source diperbarui pada 16 Oktober 2026. Ekstraksi template daftar Piutang selesai; filter, state, prioritas, paging, dan DOM controller tetap di `piutang.js`.
+3. Langkah berikutnya: tinjau perubahan ini di front-end, lalu audit alur detail, PDF, dan WhatsApp secara terpisah sebelum memilih batas modulnya.
 4. Setiap ekstraksi dibuat sebagai perubahan terisolasi di GitHub dan ditinjau sebelum ekstraksi berikutnya.
 
 ## 4. Status implementasi: ekstraksi grafik Dashboard
@@ -106,6 +108,13 @@ Rentang baris merujuk pada source yang diambil dari branch `ui/ux-polish-v3` pad
 
 Audit baca-saja branch `ui/ux-polish-v3` pada 16 Oktober 2026 memperbarui snapshot dan rentang fungsi di atas. Untuk daftar Piutang, template tabel/kartu tidak menghitung prioritas sendiri; keduanya memanggil `collectionPriorityMeta()` dan memakai `esc()` serta `formatMoney()`. Karena itu dependency tersebut perlu disuntikkan, sedangkan pagination/empty-state tetap di controller.
 
-## 7. Batas keselamatan
+## 7. Status implementasi: ekstraksi template daftar Piutang
+
+- Ditambahkan `assets/js/pages/piutang/list-renderers.js` untuk template baris desktop dan kartu mobile.
+- `piutang.js` memberi formatter, escape, dan metadata prioritas sebagai dependency; tidak ada state baru.
+- `renderTable()`, filtering/sorting, pagination, prioritas, markup shell, dan event tetap di controller.
+- Pemeriksaan yang dilakukan: kedua source lolos parse sintaks JavaScript. Suite runtime/test tidak dijalankan.
+
+## 8. Batas keselamatan
 
 Pemetaan ini tidak mengusulkan perubahan pada endpoint/API, kontrak data, hitungan aging/prioritas, nilai piutang, sumber data, generator PDF, atau pesan WhatsApp. Tujuan tahap berikutnya adalah memindahkan kode dengan perilaku yang sama, bukan mengubah hasil atau alur pengguna.
