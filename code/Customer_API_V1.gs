@@ -24,26 +24,71 @@ function customerSqlQuoteV1(value) {
  * untuk audit dan rollback. Cursor pagination tetap kompatibel dengan frontend.
  */
 function getPelangganAktifFinansialSemuaV1() {
-  var query =
-    'SELECT p.kode,p.nama,p.alamat,p.telp,' +
-    'COALESCE(p.saldo_tabungan,0) AS saldo_tabungan,' +
-    'COALESCE(x.saldo_piutang,0) AS saldo_piutang,' +
-    'COALESCE(x.jumlah_nota_outstanding,0) AS jumlah_nota_outstanding ' +
-    'FROM pelanggan p ' +
-    'LEFT JOIN (' +
-      'SELECT pelanggan,' +
-      'SUM(CASE WHEN COALESCE(piutang,0) > 0 THEN piutang ELSE 0 END) AS saldo_piutang,' +
-      'COUNT(*) AS jumlah_nota_outstanding ' +
-      'FROM penjualan ' +
-      'WHERE COALESCE(piutang,0) > 0 ' +
-      'GROUP BY pelanggan' +
-    ') x ON x.pelanggan = p.kode ' +
-    'WHERE p.kode IS NOT NULL AND TRIM(p.kode) <> ' + customerSqlQuoteV1('') +
-    ' AND (COALESCE(p.saldo_tabungan,0) > 0 OR COALESCE(x.saldo_piutang,0) > 0)' +
-    ' ORDER BY p.kode ASC';
+  // SID Retail dapat memotong response JSON yang terlalu besar. Ambil data
+  // dalam halaman kecil agar setiap response tetap terbatas dan valid.
+  // Hanya fungsi daftar pelanggan aktif ini yang memakai pagination.
+  var pageSize = 50;
+  var maxPages = 100;
+  var cursor = '';
+  var rows = [];
+  var complete = false;
 
-  var result = sidRetailQuery(query);
-  var rows = result.data || result.rows || [];
+  for (var page = 1; page <= maxPages; page++) {
+    var query =
+      'SELECT p.kode,p.nama,p.alamat,p.telp,' +
+      'COALESCE(p.saldo_tabungan,0) AS saldo_tabungan,' +
+      'COALESCE(x.saldo_piutang,0) AS saldo_piutang,' +
+      'COALESCE(x.jumlah_nota_outstanding,0) AS jumlah_nota_outstanding ' +
+      'FROM pelanggan p ' +
+      'LEFT JOIN (' +
+        'SELECT pelanggan,' +
+        'SUM(CASE WHEN COALESCE(piutang,0) > 0 THEN piutang ELSE 0 END) AS saldo_piutang,' +
+        'COUNT(*) AS jumlah_nota_outstanding ' +
+        'FROM penjualan ' +
+        'WHERE COALESCE(piutang,0) > 0 ' +
+        'GROUP BY pelanggan' +
+      ') x ON x.pelanggan = p.kode ' +
+      'WHERE p.kode IS NOT NULL AND TRIM(p.kode) <> ' + customerSqlQuoteV1('') +
+      ' AND (COALESCE(p.saldo_tabungan,0) > 0 OR COALESCE(x.saldo_piutang,0) > 0)';
+
+    if (cursor) {
+      query += ' AND p.kode > ' + customerSqlQuoteV1(cursor);
+    }
+
+    query += ' ORDER BY p.kode ASC LIMIT ' + pageSize;
+
+    var result = sidRetailQuery(query);
+    if (!result || result.status !== 'success') {
+      throw new Error('Gagal mengambil halaman pelanggan aktif #' + page + '.');
+    }
+
+    var pageRows = Array.isArray(result.data)
+      ? result.data
+      : (Array.isArray(result.rows) ? result.rows : []);
+
+    Logger.log('PELANGGAN AKTIF PAGE ' + page + ': ' + pageRows.length + ' rows');
+    rows = rows.concat(pageRows);
+
+    if (pageRows.length < pageSize) {
+      complete = true;
+      break;
+    }
+
+    var nextCursor = String(pageRows[pageRows.length - 1].kode || '').trim();
+    if (!nextCursor || nextCursor === cursor) {
+      throw new Error(
+        'Pagination pelanggan aktif berhenti karena cursor kode tidak bergerak.'
+      );
+    }
+    cursor = nextCursor;
+  }
+
+  if (!complete) {
+    throw new Error(
+      'Pengambilan pelanggan aktif melewati batas ' + maxPages +
+      ' halaman. Data tidak dikembalikan agar hasil tidak terpotong diam-diam.'
+    );
+  }
 
   var data = rows.map(function(row) {
     return {
@@ -56,6 +101,8 @@ function getPelangganAktifFinansialSemuaV1() {
       jumlah_nota_outstanding: Number(row.jumlah_nota_outstanding || 0)
     };
   });
+
+  Logger.log('TOTAL PELANGGAN AKTIF TERAMBIL: ' + data.length);
 
   return {
     status: 'success',
@@ -73,7 +120,6 @@ function getPelangganAktifFinansialSemuaV1() {
     }
   };
 }
-
 function getPelangganDetailV1(kodePelanggan) {
   var kode = String(kodePelanggan || '').trim();
   if (!kode) throw new Error('Kode pelanggan wajib diisi.');
