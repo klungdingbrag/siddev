@@ -3,7 +3,7 @@
 **Branch:** `ui/ux-polish-v3`  
 **Tanggal pemetaan:** 15 Oktober 2026  
 **Tujuan:** Menentukan batas modul yang aman untuk perawatan bertahap.  
-**Ruang lingkup:** Audit baca-saja; belum ada fungsi aplikasi yang dipindahkan atau diubah.
+**Ruang lingkup:** Peta awal audit UI dan catatan ekstraksi renderer grafik Dashboard.
 
 ## Snapshot sumber
 
@@ -12,7 +12,7 @@
 | `assets/js/pages/dashboard.js` | 948 | `2961d3ce19b5ed3a13c1f260d211be2bd480b37d` |
 | `assets/js/pages/piutang.js` | 1100 | `0e0f79c763e21b223da09f47e532eb60dd318bde` |
 
-Rentang baris merujuk ke snapshot tersebut dan akan bergeser saat source berubah.
+Rentang baris di bawah merujuk ke snapshot awal sebelum ekstraksi; setelah source berubah, gunakan peta status implementasi sebagai acuan terbaru.
 
 ## 1. Dashboard
 
@@ -40,7 +40,7 @@ Rentang baris merujuk ke snapshot tersebut dan akan bergeser saat source berubah
 ### Batas pemisahan yang disarankan
 
 - Pertahankan `renderDashboardPage()` sebagai entry point yang diekspor dan `loadDashboard()` sebagai pengatur state/API.
-- Grafik merupakan kandidat pemisahan awal, tetapi renderer grafik juga memiliki interaksi DOM dan memakai formatter/escape. Saat dipindah, berikan dependency tersebut melalui parameter atau modul utilitas yang jelas.
+- Renderer grafik telah dipindahkan ke `assets/js/pages/dashboard/charts.js`; formatter, escape, dan helper teks tetap dimiliki controller dan diberikan sebagai dependency.
 - Kalender merupakan kandidat terpisah setelah dependensi format bulan dan bentuk data baris ditentukan.
 - Pertahankan key dan format cache, urutan request, penanganan error, ID/class DOM, serta nama endpoint.
 - Normalisasi data dan aturan rekonsiliasi tetap berada di batas data Dashboard; jangan menggabungkannya dengan renderer visual.
@@ -79,13 +79,20 @@ Rentang baris merujuk ke snapshot tersebut dan akan bergeser saat source berubah
 
 ## 3. Urutan refactor yang aman
 
-1. Simpan snapshot ini sebagai peta awal dan jangan ubah perilaku halaman dalam langkah dokumentasi.
-2. Mulai dengan ekstraksi renderer grafik Dashboard ke modul halaman khusus, sambil menjaga state, cache, endpoint, serta entry point di `dashboard.js`.
-3. Tinjau perubahan itu sebelum lanjut ke kalender Dashboard.
-4. Setelah Dashboard stabil, ekstrak renderer daftar Piutang (tabel/kartu) dengan parameter eksplisit. Jaga filter, sort, prioritas, pagination, dan state di controller.
-5. Audit alur detail, PDF, dan WhatsApp secara terpisah sebelum memilih batas modul untuk bagian tersebut.
-6. Setiap ekstraksi dibuat sebagai perubahan terisolasi di GitHub dan ditinjau sebelum ekstraksi berikutnya.
+1. Ekstraksi renderer grafik Dashboard telah selesai; cek file `dashboard.js` dan `dashboard/charts.js` pada branch untuk review.
+2. Tahap berikutnya adalah menilai pemisahan kalender Dashboard sebagai perubahan terisolasi, setelah hasil ekstraksi grafik ditinjau.
+3. Setelah Dashboard stabil, ekstrak renderer daftar Piutang (tabel/kartu) dengan parameter eksplisit. Jaga filter, sort, prioritas, pagination, dan state di controller.
+4. Audit alur detail, PDF, dan WhatsApp secara terpisah sebelum memilih batas modul untuk bagian tersebut.
+5. Setiap ekstraksi dibuat sebagai perubahan terisolasi di GitHub dan ditinjau sebelum ekstraksi berikutnya.
 
-## 4. Batas keselamatan
+## 4. Status implementasi: ekstraksi grafik Dashboard
+
+- Ditambahkan `assets/js/pages/dashboard/charts.js` untuk grafik omzet harian, laba bulanan, dan laba harian.
+- `dashboard.js` tetap menjadi pemilik state, cache, normalisasi data, API, kalender, kontrol periode, dan entry point router. Modul grafik mempertahankan tooltip serta tampilan rekonsiliasi laba harian seperti sebelumnya.
+- Renderer menerima formatter/escape dan helper teks melalui parameter; tidak dibuat salinan helper.
+- Nama endpoint, struktur cache, ID/class DOM, isi tooltip, dan urutan pemanggilan renderer dipertahankan.
+- Pemeriksaan yang dilakukan: kedua modul lolos parse sintaks JavaScript. Suite runtime/test tidak dijalankan.
+
+## 5. Batas keselamatan
 
 Pemetaan ini tidak mengusulkan perubahan pada endpoint/API, kontrak data, hitungan aging/prioritas, nilai piutang, sumber data, generator PDF, atau pesan WhatsApp. Tujuan tahap berikutnya adalah memindahkan kode dengan perilaku yang sama, bukan mengubah hasil atau alur pengguna.
