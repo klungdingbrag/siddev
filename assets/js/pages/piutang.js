@@ -1,5 +1,5 @@
 import { renderPiutangRow, renderPiutangCard } from "./piutang/list-renderers.js?v=20261016-list-v1";
-import { api } from "../api/endpoints.js";
+import { api } from "../api/endpoints.js?v=20261016-pdf-response-debug-v1";
 
 const state = {
   loaded: false,
