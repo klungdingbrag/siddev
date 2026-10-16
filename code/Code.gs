@@ -159,10 +159,26 @@ function sidRetailQuery(query) {
       .split(encodeURIComponent(String(apiKey))).join('[REDACTED]');
 
     Logger.log('INVALID JSON RESPONSE PREVIEW: ' + safePreview);
+
+    // Judul HTML aman ditampilkan ke caller agar diagnosa tidak bergantung
+    // pada Execution log. Isi body tidak dikirim ke browser.
+    const titleMatch = responseText.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i);
+    const htmlTitle = titleMatch
+      ? titleMatch[1]
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&nbsp;|&#160;/gi, ' ')
+          .replace(/&amp;/gi, '&')
+          .replace(/\\s+/g, ' ')
+          .trim()
+          .split(String(apiKey)).join('[REDACTED]')
+          .split(encodeURIComponent(String(apiKey))).join('[REDACTED]')
+          .substring(0, 160)
+      : '(title tidak tersedia)';
+
     throw new Error(
       'Response SID Retail bukan JSON valid. HTTP ' + httpCode +
       ' | Content-Type: ' + contentType +
-      ' | Periksa response preview di Execution log.'
+      ' | HTML title: ' + htmlTitle
     );
   }
 
