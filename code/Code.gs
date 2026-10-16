@@ -138,15 +138,14 @@ function sidRetailQuery(query) {
   // Periksa status HTTP sebelum parsing agar halaman error gateway/server
   // tidak salah dilaporkan hanya sebagai JSON tidak valid.
   if (httpCode < 200 || httpCode >= 300) {
-    const safePreview = responseText.substring(0, 240)
-      .split(String(apiKey)).join('[REDACTED]')
-      .split(encodeURIComponent(String(apiKey))).join('[REDACTED]');
-
-    Logger.log('HTTP ERROR RESPONSE PREVIEW: ' + safePreview);
+    const containsHtml = /<!doctype|<html|<body|<br|<title/i.test(responseText);
+    Logger.log('HTTP ERROR BODY LENGTH: ' + responseText.length);
+    Logger.log('HTTP ERROR HTML MARKUP PRESENT: ' + containsHtml);
     throw new Error(
       'SID Retail HTTP Error ' + httpCode +
       ' | Content-Type: ' + contentType +
-      ' | Periksa response preview di Execution log.'
+      ' | Body length: ' + responseText.length +
+      ' | HTML markup: ' + (containsHtml ? 'yes' : 'no')
     );
   }
 
@@ -154,31 +153,29 @@ function sidRetailQuery(query) {
   try {
     json = JSON.parse(responseText);
   } catch (e) {
-    const safePreview = responseText.substring(0, 240)
-      .split(String(apiKey)).join('[REDACTED]')
-      .split(encodeURIComponent(String(apiKey))).join('[REDACTED]');
+    const parseMessage = String(e && e.message ? e.message : '');
+    const offsetMatch = parseMessage.match(/(?:position|offset)\s+(\d+)/i);
+    const parseOffset = offsetMatch ? Number(offsetMatch[1]) : null;
+    const trimmedResponse = responseText.trim();
+    const startsLikeJson = /^[{[]/.test(trimmedResponse);
+    const endsLikeJson = trimmedResponse.slice(-1) === '}' ||
+      trimmedResponse.slice(-1) === ']';
+    const containsHtml = /<!doctype|<html|<body|<br|<title/i.test(responseText);
 
-    Logger.log('INVALID JSON RESPONSE PREVIEW: ' + safePreview);
-
-    // Judul HTML aman ditampilkan ke caller agar diagnosa tidak bergantung
-    // pada Execution log. Isi body tidak dikirim ke browser.
-    const titleMatch = responseText.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-    const htmlTitle = titleMatch
-      ? titleMatch[1]
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/&nbsp;|&#160;/gi, ' ')
-          .replace(/&amp;/gi, '&')
-          .replace(/\s+/g, ' ')
-          .trim()
-          .split(String(apiKey)).join('[REDACTED]')
-          .split(encodeURIComponent(String(apiKey))).join('[REDACTED]')
-          .substring(0, 160)
-      : '(title tidak tersedia)';
+    Logger.log('INVALID JSON RESPONSE BODY LENGTH: ' + responseText.length);
+    Logger.log('JSON PARSE OFFSET: ' + (parseOffset === null ? '(not reported)' : parseOffset));
+    Logger.log('RESPONSE STARTS LIKE JSON: ' + startsLikeJson);
+    Logger.log('RESPONSE ENDS LIKE JSON: ' + endsLikeJson);
+    Logger.log('HTML MARKUP PRESENT: ' + containsHtml);
 
     throw new Error(
       'Response SID Retail bukan JSON valid. HTTP ' + httpCode +
       ' | Content-Type: ' + contentType +
-      ' | HTML title: ' + htmlTitle
+      ' | Body length: ' + responseText.length +
+      ' | JSON parse offset: ' + (parseOffset === null ? 'unknown' : parseOffset) +
+      ' | Starts like JSON: ' + (startsLikeJson ? 'yes' : 'no') +
+      ' | Ends like JSON: ' + (endsLikeJson ? 'yes' : 'no') +
+      ' | HTML markup: ' + (containsHtml ? 'yes' : 'no')
     );
   }
 
