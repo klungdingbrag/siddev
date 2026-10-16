@@ -117,25 +117,56 @@ function sidRetailQuery(query) {
 
   const httpCode = response.getResponseCode();
   const responseText = response.getContentText();
+  const headers = response.getHeaders() || {};
+  const contentTypeKey = Object.keys(headers).find(function(key) {
+    return String(key).toLowerCase() === 'content-type';
+  });
+  const contentType = contentTypeKey
+    ? String(headers[contentTypeKey])
+    : '(tidak tersedia)';
 
   Logger.log('HTTP CODE: ' + httpCode);
+  Logger.log('CONTENT TYPE: ' + contentType);
 
-  if (!responseText) throw new Error('SID Retail tidak memberikan response.');
+  if (!responseText) {
+    throw new Error(
+      'SID Retail tidak memberikan response. HTTP ' + httpCode +
+      ' | Content-Type: ' + contentType
+    );
+  }
+
+  // Periksa status HTTP sebelum parsing agar halaman error gateway/server
+  // tidak salah dilaporkan hanya sebagai JSON tidak valid.
+  if (httpCode < 200 || httpCode >= 300) {
+    const safePreview = responseText.substring(0, 240)
+      .split(String(apiKey)).join('[REDACTED]')
+      .split(encodeURIComponent(String(apiKey))).join('[REDACTED]');
+
+    Logger.log('HTTP ERROR RESPONSE PREVIEW: ' + safePreview);
+    throw new Error(
+      'SID Retail HTTP Error ' + httpCode +
+      ' | Content-Type: ' + contentType +
+      ' | Periksa response preview di Execution log.'
+    );
+  }
 
   let json;
   try {
     json = JSON.parse(responseText);
   } catch (e) {
-    throw new Error('Response SID Retail bukan JSON valid.');
+    const safePreview = responseText.substring(0, 240)
+      .split(String(apiKey)).join('[REDACTED]')
+      .split(encodeURIComponent(String(apiKey))).join('[REDACTED]');
+
+    Logger.log('INVALID JSON RESPONSE PREVIEW: ' + safePreview);
+    throw new Error(
+      'Response SID Retail bukan JSON valid. HTTP ' + httpCode +
+      ' | Content-Type: ' + contentType +
+      ' | Periksa response preview di Execution log.'
+    );
   }
 
   Logger.log('API STATUS: ' + (json.status || '(tidak tersedia)'));
-
-  if (httpCode < 200 || httpCode >= 300) {
-    throw new Error(
-      'HTTP Error ' + httpCode + ': ' + responseText.substring(0, 500)
-    );
-  }
 
   /*
    * SID Retail dapat mengembalikan HTTP 200 tetapi status API = error.
