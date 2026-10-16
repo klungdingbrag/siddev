@@ -1,37 +1,37 @@
 # Pemetaan Fungsi Dashboard dan Piutang
 
 **Branch:** `ui/ux-polish-v3`  
-**Tanggal pemetaan:** 15 Oktober 2026  
+**Tanggal pemetaan terbaru:** 16 Oktober 2026  
 **Tujuan:** Menentukan batas modul yang aman untuk perawatan bertahap.  
 **Ruang lingkup:** Peta awal audit UI dan catatan ekstraksi renderer grafik Dashboard.
 
 ## Snapshot sumber
 
-| File | Baris | Blob SHA saat dipetakan |
+| File | Baris | Blob SHA snapshot terbaru |
 |---|---:|---|
-| `assets/js/pages/dashboard.js` | 948 | `2961d3ce19b5ed3a13c1f260d211be2bd480b37d` |
+| `assets/js/pages/dashboard.js` | 530 | `ae436e3f308278501b4274b15b166c425736817a` |
+| `assets/js/pages/dashboard/calendar.js` | 98 | `6298fb757d00edc67c0fa6c4b3b025c0dcc136d8` |
+| `assets/js/pages/dashboard/charts.js` | 342 | `e672e0dfc131881ad196503838ffd09b8565e592` |
 | `assets/js/pages/piutang.js` | 1100 | `0e0f79c763e21b223da09f47e532eb60dd318bde` |
 
-Rentang baris di bawah merujuk ke snapshot awal sebelum ekstraksi; setelah source berubah, gunakan peta status implementasi sebagai acuan terbaru.
+Rentang baris merujuk pada source yang diambil dari branch `ui/ux-polish-v3` pada 16 Oktober 2026. Perubahan berikutnya dapat menggeser rentang.
 
 ## 1. Dashboard
 
 ### Peta tanggung jawab
 
-| Baris | Fungsi | Tanggung jawab |
+| Baris | Fungsi/kelompok | Tanggung jawab |
 |---|---|---|
-| 1–18 | Import, konstanta, `dashboardState` | Mengimpor endpoint API dan menyimpan periode, data, loading, dan error. |
-| 20–61 | Rentang tanggal dan formatter | Membentuk rentang bulan/tahun serta memformat nilai rupiah. |
-| 62–107 | Cache Dashboard | Membaca, menulis, dan memulihkan snapshot melalui `sessionStorage`. |
-| 108–179 | Normalisasi dan format data | Escape HTML, label bulan, normalisasi omzet/laba, dan mengambil total piutang dari envelope API. |
-| 180–303 | `buildDashboardShell()` | Membuat markup halaman, KPI, panel grafik, kalender, serta kontrol periode. |
-| 304–391 | `renderDashboardCalendar()` | Menyusun kalender aktivitas dari data transaksi. |
-| 392–596 | `renderLineChart()`, `renderProfitChart()` | Merender grafik omzet dan laba beserta tooltip/interaksi pointer. |
-| 597–734 | Normalisasi dan grafik laba harian | Menormalkan data laba harian lalu membuat grafik dan interaksi tooltip/crosshair. |
-| 735–792 | Kontrol dan helper UI | Mengisi kontrol periode, indikator loading, pemeriksaan mount, dan pengisian teks elemen. |
-| 793–862 | `renderDashboardData()` | Mengubah state Dashboard menjadi KPI dan visual yang tampil. |
-| 863–931 | `loadDashboard()` | Mengatur pemuatan/cache dan request data dari API. |
-| 932–948 | `renderDashboardPage()` | Entry point yang dipanggil router; membangun halaman, mengikat kontrol, dan memulai pemuatan. |
+| 1–20 | Import, konstanta, `dashboardState` | Import endpoint dan renderer; konfigurasi periode/cache serta state Dashboard. |
+| 22–63 | Rentang tanggal dan formatter | Membentuk rentang bulan/tahun dan format rupiah. |
+| 64–108 | Cache Dashboard | Membaca, menulis, memulihkan state melalui `sessionStorage`. |
+| 110–180 | Escape, normalisasi, dan total piutang | Escape HTML, label bulan, normalisasi data omzet/laba, dan membaca total piutang dari respons API. |
+| 182–304 | `buildDashboardShell()` | Markup halaman, KPI, panel grafik/kalender, dan kontrol periode. |
+| 306–363 | Kontrol dan helper UI | Kontrol periode, loading, mount check, set teks, dan dependency object untuk renderer. |
+| 364–443 | `renderDashboardData()` | Membentuk KPI, menormalisasi data untuk renderer, dan mengirim periode/helper ke modul tampilan. |
+| 445–512 | `loadDashboard()` | Cache, request API, state, error, dan KPI piutang. |
+| 514–530 | `renderDashboardPage()` | Entry point router; membuat shell, mengikat periode, memulihkan cache/memuat data. |
+| Modul terpisah | `dashboard/calendar.js`, `dashboard/charts.js` | Kalender beserta interaksi klik; grafik omzet/laba beserta tooltip dan rekonsiliasi laba harian. |
 
 ### Alur data
 
@@ -41,9 +41,9 @@ Rentang baris di bawah merujuk ke snapshot awal sebelum ekstraksi; setelah sourc
 
 - Pertahankan `renderDashboardPage()` sebagai entry point yang diekspor dan `loadDashboard()` sebagai pengatur state/API.
 - Renderer grafik telah dipindahkan ke `assets/js/pages/dashboard/charts.js`; formatter, escape, dan helper teks tetap dimiliki controller dan diberikan sebagai dependency.
-- Kalender merupakan kandidat terpisah setelah dependensi format bulan dan bentuk data baris ditentukan.
+- Renderer kalender sudah dipindahkan ke `assets/js/pages/dashboard/calendar.js`; periode dan helper dikirim oleh controller.
 - Pertahankan key dan format cache, urutan request, penanganan error, ID/class DOM, serta nama endpoint.
-- Normalisasi data dan aturan rekonsiliasi tetap berada di batas data Dashboard; jangan menggabungkannya dengan renderer visual.
+- Tetap jaga sumber state/cache dan request pada controller. Perubahan lanjutan di modul grafis/kalender harus mempertahankan format data dan hasil yang tampil.
 
 ## 2. Piutang
 
@@ -51,16 +51,18 @@ Rentang baris di bawah merujuk ke snapshot awal sebelum ekstraksi; setelah sourc
 
 | Baris | Fungsi/kelompok | Tanggung jawab |
 |---|---|---|
-| 1–57 | Import, state, formatter | Endpoint API, paging/search/filter state, format rupiah/angka, dan escape HTML. |
-| 58–89 | `renderPiutangPage()` | Entry point; membuat heading, ringkasan, prioritas, toolbar, tabel/kartu, modal, lalu memasang event. |
-| 90–162 | `bindEvents()` | Mengikat refresh, pencarian, filter, sort, pagination, detail, PDF, WhatsApp, dan modal. |
-| 163–317 | Pemuatan dan cache | `loadPiutang()`, refresh backend, apply/read/write cache, dan status refresh. |
-| 318–418 | Normalisasi dan ringkasan | Membaca envelope respons, memperbarui total, menghitung prioritas collection dan ringkasannya. |
-| 419–513 | Filter, sort, paging, list rendering | `filterAndRender()`, aging bucket, `renderTable()`, markup baris desktop dan kartu. |
-| 514–689 | Detail pelanggan | Membuka detail, mengambil/memetakan tabungan dan transaksi, menampilkan detail serta aging/nota. |
-| 690–925 | Pembuatan dan unduhan PDF | Aksi PDF, 6D.2, ekstraksi payload, konversi/validasi byte PDF, loading, dan download. |
-| 926–1080 | WhatsApp dan action modal | Memilih kontak, menyusun pesan/laporan, membuka WhatsApp, dan menutup/menangani modal. |
-| 1081–1100 | Status UI | State loading/error/empty dan toast. |
+| 1–60 | Import, state, format/cache constants, mount helper | API, state daftar/detail, formatter, escape, cache key/TTL, dan identifikasi mount halaman. |
+| 62–88 | `renderPiutangPage()` | Entry point; membuat seluruh shell daftar, modal, lalu mengikat event dan memulai pemuatan. |
+| 90–161 | `bindEvents()` | Event pencarian, filter, sort, ukuran halaman, paging, klik detail, PDF, WhatsApp, dan modal. |
+| 163–317 | `loadPiutang()`, refresh dan cache | Memuat/memperbarui data, menjaga mount, menerapkan data, cache, serta status refresh. |
+| 318–353 | Envelope dan ringkasan | Memilih array pelanggan dari bentuk respons yang didukung, menghitung saldo/current/overdue, dan memanggil ringkasan prioritas. |
+| 354–418 | Prioritas collection | Aturan bucket/umur, ranking, metadata label, jumlah per prioritas, dan active filter UI. |
+| 419–469 | Filter, sort, aging bucket | Pencarian, filter aging/prioritas, sortir dan pembatasan halaman aktif. |
+| 471–513 | `renderTable()`, `rowHtml()`, `cardHtml()` | Menyusun pagination dan DOM daftar desktop/mobile serta template baris/kartu. Kandidat ekstraksi berikutnya. |
+| 514–689 | Detail pelanggan | Buka detail dan request terkait, parsing tabungan/transaksi, markup detail/aging/nota. |
+| 690–925 | PDF | Memilih aksi, meminta invoice/ringkasan/detail 6D.2, validasi payload/byte, loading, dan download/open. |
+| 926–1080 | WhatsApp dan penutupan modal | Menyusun pesan pelanggan/nota, membuka WhatsApp, event modal, dan tutup detail. |
+| 1081–1100 | Status dan toast | Menampilkan status daftar serta toast global. |
 
 ### Alur utama
 
@@ -72,16 +74,17 @@ Rentang baris di bawah merujuk ke snapshot awal sebelum ekstraksi; setelah sourc
 ### Batas pemisahan yang disarankan
 
 - Pertahankan `renderPiutangPage()` sebagai entry point router.
-- List rendering adalah kandidat ekstraksi paling aman setelah state yang dibutuhkan dibuat eksplisit. `rowHtml()` dan `cardHtml()` bergantung pada metadata prioritas, formatter, dan escape; dependensi itu harus dinyatakan jelas.
-- Pemfilteran/sortir masih memakai `state`; pada tahap awal tetap di controller atau terima state sebagai argumen. Jangan membuat state global kedua.
+- Batas ekstraksi paling rendah risikonya adalah `rowHtml()` dan `cardHtml()` saja ke `assets/js/pages/piutang/list-renderers.js`. Keduanya menerima satu baris dan dependency object `{ collectionPriorityMeta, esc, formatMoney }`; fungsi metadata prioritas tetap dimiliki controller.
+- Pertahankan `renderTable()` di `piutang.js` karena ia mengelola empty state, DOM, paging, dan state. Pertahankan `filterAndRender()`, `highestAgingBucket()`, aturan prioritas, serta semua event di controller pada tahap pertama.
+- Ekstraksi markup harus menjaga string HTML, urutan kolom/kartu, class/ID, `data-code`, dan tombol detail sama persis; jangan ubah copy, angka, filter, sort, maupun paging.
 - Detail, PDF, dan WhatsApp membentuk alur pengguna yang saling terhubung. Pertahankan di file saat ini sampai batas API/markup masing-masing dipetakan lebih lanjut; jangan pindahkan sekaligus dengan renderer daftar.
 - Jangan mengubah ID, class, `data-*` attributes, urutan event, format uang, fallback envelope API, dan urutan panggilan endpoint.
 
 ## 3. Urutan refactor yang aman
 
 1. Ekstraksi renderer grafik dan kalender Dashboard telah selesai sebagai perubahan terpisah.
-2. Langkah berikutnya adalah memetakan ulang batas fungsi Dashboard dan Piutang pada source terbaru, lalu mengusulkan ekstraksi renderer daftar Piutang yang tetap menerima state/dependency secara eksplisit.
-3. Setelah daftar stabil, audit alur detail, PDF, dan WhatsApp secara terpisah sebelum memilih batas modul untuk bagian tersebut.
+2. Peta source terbaru diperbarui pada 16 Oktober 2026. Tahap berikutnya yang diusulkan: ekstrak hanya template `rowHtml()` dan `cardHtml()`; jaga filter, state, prioritas, paging, dan DOM controller tetap utuh.
+3. Setelah daftar ditinjau, audit alur detail, PDF, dan WhatsApp secara terpisah sebelum memilih batas modul untuk bagian tersebut.
 4. Setiap ekstraksi dibuat sebagai perubahan terisolasi di GitHub dan ditinjau sebelum ekstraksi berikutnya.
 
 ## 4. Status implementasi: ekstraksi grafik Dashboard
@@ -99,6 +102,10 @@ Rentang baris di bawah merujuk ke snapshot awal sebelum ekstraksi; setelah sourc
 - Struktur markup, ID/class, event klik, label tanggal, pencarian baris transaksi, dan isi detail kalender dipertahankan.
 - Pemeriksaan yang dilakukan: modul kalender dan controller lolos parse sintaks JavaScript. Suite runtime/test tidak dijalankan.
 
-## 6. Batas keselamatan
+## 6. Status pemetaan ulang source
+
+Audit baca-saja branch `ui/ux-polish-v3` pada 16 Oktober 2026 memperbarui snapshot dan rentang fungsi di atas. Untuk daftar Piutang, template tabel/kartu tidak menghitung prioritas sendiri; keduanya memanggil `collectionPriorityMeta()` dan memakai `esc()` serta `formatMoney()`. Karena itu dependency tersebut perlu disuntikkan, sedangkan pagination/empty-state tetap di controller.
+
+## 7. Batas keselamatan
 
 Pemetaan ini tidak mengusulkan perubahan pada endpoint/API, kontrak data, hitungan aging/prioritas, nilai piutang, sumber data, generator PDF, atau pesan WhatsApp. Tujuan tahap berikutnya adalah memindahkan kode dengan perilaku yang sama, bukan mengubah hasil atau alur pengguna.
