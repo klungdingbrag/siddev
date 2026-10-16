@@ -1038,12 +1038,9 @@ function formatWhatsAppReportDate(date = new Date()) {
 }
 
 function openWhatsApp(phone, message) {
-  const base = phone
-    ? "https://wa.me/" + phone
-    : "https://api.whatsapp.com/send/";
-  const separator = base.includes("?") ? "&" : "?";
-  const url = base + separator + "text=" + encodeURIComponent(message);
-  window.open(url, "_blank", "noopener,noreferrer");
+  const url = new URL(phone ? "https://wa.me/" + phone : "https://wa.me/");
+  url.searchParams.set("text", message);
+  window.open(url.toString(), "_blank", "noopener,noreferrer");
 }
 
 function actionModalClick(e) {
