@@ -1,4 +1,4 @@
-import { api } from "../api/endpoints.js";
+import { api } from "../api/endpoints.js?v=20261016-customer-api-recovery-v1";
 
 const CUSTOMER_CACHE_KEY = "sidretail:customer:v1";
 const CUSTOMER_CACHE_TTL_MS = 2 * 60 * 1000;
