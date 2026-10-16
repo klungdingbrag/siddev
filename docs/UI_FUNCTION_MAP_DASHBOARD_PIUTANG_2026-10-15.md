@@ -79,11 +79,10 @@ Rentang baris di bawah merujuk ke snapshot awal sebelum ekstraksi; setelah sourc
 
 ## 3. Urutan refactor yang aman
 
-1. Ekstraksi renderer grafik Dashboard telah selesai; cek file `dashboard.js` dan `dashboard/charts.js` pada branch untuk review.
-2. Tahap berikutnya adalah menilai pemisahan kalender Dashboard sebagai perubahan terisolasi, setelah hasil ekstraksi grafik ditinjau.
-3. Setelah Dashboard stabil, ekstrak renderer daftar Piutang (tabel/kartu) dengan parameter eksplisit. Jaga filter, sort, prioritas, pagination, dan state di controller.
-4. Audit alur detail, PDF, dan WhatsApp secara terpisah sebelum memilih batas modul untuk bagian tersebut.
-5. Setiap ekstraksi dibuat sebagai perubahan terisolasi di GitHub dan ditinjau sebelum ekstraksi berikutnya.
+1. Ekstraksi renderer grafik dan kalender Dashboard telah selesai sebagai perubahan terpisah.
+2. Langkah berikutnya adalah memetakan ulang batas fungsi Dashboard dan Piutang pada source terbaru, lalu mengusulkan ekstraksi renderer daftar Piutang yang tetap menerima state/dependency secara eksplisit.
+3. Setelah daftar stabil, audit alur detail, PDF, dan WhatsApp secara terpisah sebelum memilih batas modul untuk bagian tersebut.
+4. Setiap ekstraksi dibuat sebagai perubahan terisolasi di GitHub dan ditinjau sebelum ekstraksi berikutnya.
 
 ## 4. Status implementasi: ekstraksi grafik Dashboard
 
@@ -93,6 +92,13 @@ Rentang baris di bawah merujuk ke snapshot awal sebelum ekstraksi; setelah sourc
 - Nama endpoint, struktur cache, ID/class DOM, isi tooltip, dan urutan pemanggilan renderer dipertahankan.
 - Pemeriksaan yang dilakukan: kedua modul lolos parse sintaks JavaScript. Suite runtime/test tidak dijalankan.
 
-## 5. Batas keselamatan
+## 5. Status implementasi: ekstraksi kalender Dashboard
+
+- Ditambahkan `assets/js/pages/dashboard/calendar.js` untuk renderer kalender.
+- `dashboard.js` mengirim periode terpilih dan helper format sebagai parameter; tidak ada state global kedua.
+- Struktur markup, ID/class, event klik, label tanggal, pencarian baris transaksi, dan isi detail kalender dipertahankan.
+- Pemeriksaan yang dilakukan: modul kalender dan controller lolos parse sintaks JavaScript. Suite runtime/test tidak dijalankan.
+
+## 6. Batas keselamatan
 
 Pemetaan ini tidak mengusulkan perubahan pada endpoint/API, kontrak data, hitungan aging/prioritas, nilai piutang, sumber data, generator PDF, atau pesan WhatsApp. Tujuan tahap berikutnya adalah memindahkan kode dengan perilaku yang sama, bukan mengubah hasil atau alur pengguna.
