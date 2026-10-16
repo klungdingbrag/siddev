@@ -12,8 +12,7 @@
 | `assets/js/pages/dashboard.js` | 530 | `ae436e3f308278501b4274b15b166c425736817a` |
 | `assets/js/pages/dashboard/calendar.js` | 98 | `6298fb757d00edc67c0fa6c4b3b025c0dcc136d8` |
 | `assets/js/pages/dashboard/charts.js` | 342 | `e672e0dfc131881ad196503838ffd09b8565e592` |
-| `assets/js/pages/piutang.js` | 1014 | `593d07cb9589bfe26a6a1420062fc8617fbacf5c` |
-| `assets/js/pages/piutang/pdf-utils.js` | 78 | `489321bbffcd89cb4419929fc81967fc86e1df0f` |
+| `assets/js/pages/piutang.js` | 1088 | `96bd1be2aea2fdc79da33a50a241ddf207f88d49` |
 | `assets/js/pages/piutang/list-renderers.js` | 17 | `ef1c469e1ecea7579617bb09c43986b5ac7be106` |
 
 Rentang baris merujuk pada source yang diambil dari branch `ui/ux-polish-v3` pada 16 Oktober 2026. Perubahan berikutnya dapat menggeser rentang.
@@ -53,21 +52,19 @@ Rentang baris merujuk pada source yang diambil dari branch `ui/ux-polish-v3` pad
 
 | Baris | Fungsi/kelompok | Tanggung jawab |
 |---|---|---|
-| 1–62 | Import, state, format/cache constants, mount helper | API dan renderer list/PDF, state daftar/detail, formatter, escape, cache key/TTL, serta identifikasi mount halaman. |
-| 64–90 | `renderPiutangPage()` | Entry point; membuat seluruh shell daftar, modal, lalu mengikat event dan memulai pemuatan. |
-| 92–163 | `bindEvents()` | Event pencarian, filter, sort, ukuran halaman, paging, klik detail, PDF, WhatsApp, dan modal. |
-| 165–319 | `loadPiutang()`, refresh dan cache | Memuat/memperbarui data, menjaga mount, menerapkan data, cache, serta status refresh. |
-| 320–355 | Envelope dan ringkasan | Memilih array pelanggan dari bentuk respons yang didukung, menghitung saldo/current/overdue, dan memanggil ringkasan prioritas. |
-| 356–421 | Prioritas collection | Aturan bucket/umur, ranking, metadata label, dependency markup list, jumlah per prioritas, dan active filter UI. |
-| 423–474 | Filter, sort, aging bucket | Pencarian, filter aging/prioritas, sortir dan pembatasan halaman aktif. |
-| 475–504 | `renderTable()` | Empty state, DOM daftar, paging, dan delegasi markup ke modul template. Tetap di controller. |
+| 1–61 | Import, state, format/cache constants, mount helper | API dan renderer list, state daftar/detail, formatter, escape, cache key/TTL, serta identifikasi mount halaman. |
+| 63–89 | `renderPiutangPage()` | Entry point; membuat seluruh shell daftar, modal, lalu mengikat event dan memulai pemuatan. |
+| 91–162 | `bindEvents()` | Event pencarian, filter, sort, ukuran halaman, paging, klik detail, PDF, WhatsApp, dan modal. |
+| 164–318 | `loadPiutang()`, refresh dan cache | Memuat/memperbarui data, menjaga mount, menerapkan data, cache, serta status refresh. |
+| 319–354 | Envelope dan ringkasan | Memilih array pelanggan dari bentuk respons yang didukung, menghitung saldo/current/overdue, dan memanggil ringkasan prioritas. |
+| 355–420 | Prioritas collection | Aturan bucket/umur, ranking, metadata label, dependency markup list, jumlah per prioritas, dan active filter UI. |
+| 422–472 | Filter, sort, aging bucket | Pencarian, filter aging/prioritas, sortir dan pembatasan halaman aktif. |
+| 474–503 | `renderTable()` | Empty state, DOM daftar, paging, dan delegasi markup ke modul template. Tetap di controller. |
 | Modul terpisah | `piutang/list-renderers.js` | `renderPiutangRow()` dan `renderPiutangCard()` menghasilkan markup tabel/kartu dengan dependency eksplisit. |
-| 506–681 | Detail pelanggan | Buka detail dan request terkait, parsing tabungan/transaksi, markup detail/aging/nota. |
-| 682–789 | PDF actions | Memilih aksi dan menjalankan request invoice/ringkasan/detail 6D.2, lalu menampilkan hasil/errors. |
-| Modul terpisah | `piutang/pdf-utils.js` | Extract payload, decode/convert base64, dan validasi byte PDF; tanpa state atau DOM. |
-| 790–842 | Efek UI PDF | Overlay loading, open/download file, dan revoke object URL. |
-| 843–994 | WhatsApp dan modal | Menyusun pesan pelanggan/nota, membuka click-to-chat, event modal, dan tutup detail. |
-| 995–1014 | Status dan toast | Menampilkan status daftar serta toast global. |
+| 505–680 | Detail pelanggan | Buka detail dan request terkait, parsing tabungan/transaksi, markup detail/aging/nota. |
+| 681–925 | PDF | Memilih aksi, request invoice/ringkasan/detail 6D.2, payload/base64, validasi PDF, loading, dan download/open. |
+| 926–1080 | WhatsApp dan modal | Menyusun pesan pelanggan/nota, membuka click-to-chat, event modal, dan tutup detail. |
+| 1081–1100 | Status dan toast | Menampilkan status daftar serta toast global. |
 
 ### Alur utama
 
@@ -83,11 +80,10 @@ Rentang baris merujuk pada source yang diambil dari branch `ui/ux-polish-v3` pad
 | Detail data | `openDetail()`, `extractTabungan()`, `extractTransactions()`, `customerValue()` | `state`, endpoint `customerPiutangDetail`/`tabungan`, request id, fallback envelope | Request dan mutasi state tetap di `piutang.js`; normalisasi jangan diubah tanpa audit kontrak respons. |
 | Detail UI | `renderDetail()`, `agingCard()`, `invoiceRowHtml()` | state tabungan/kode, formatter/escape, detail DOM, event tutup, aksi `data-pdf-action`/`data-wa-action` | Tetap satu alur controller untuk sekarang; markup membentuk target event untuk PDF/WhatsApp. |
 | PDF action | `handlePdfAction()`, `generatePdf6D2()`, `generatePdf()` | endpoint PDF, overlay loading, toast, browser window/download | Tetap di controller agar alur API dan efek browser tidak terpecah. |
-| Utilitas PDF | `extractPdfPayload()`, `base64ToBytes()`, `base64ToBlob()`, `containsAscii()`, `validatePdfBytes()` | envelope respons, base64, Web APIs `atob`, `Blob`, `TextEncoder` | Sudah dipindahkan ke `piutang/pdf-utils.js`; fungsi ini tidak membaca state atau DOM. |
+| Utilitas PDF | `extractPdfPayload()`, `base64ToBytes()`, `base64ToBlob()`, `containsAscii()`, `validatePdfBytes()` | envelope respons, base64, Web APIs `atob`, `Blob`, `TextEncoder` | Tetap di `piutang.js`; ekstraksi modul terpisah dibatalkan setelah laporan PDF gagal. |
 | PDF UI | `setPdfLoading()`, `downloadBlob()` | `document`, `URL`, DOM overlay, browser download | Tetap di controller karena punya efek samping UI/browser. |
 | WhatsApp | `buildWhatsAppMessage()`, `formatWhatsAppReportDate()`, `openWhatsAppPicker()` | state detail/tabungan, `extractTransactions()`, `customerValue()`, format rupiah | Tetap di controller; jangan pindahkan teks atau hitungan bersamaan dengan ekstraksi utilitas lain. |
 | Link WhatsApp | `openWhatsApp()` | URL click-to-chat dan browser `window.open` | Perubahan endpoint `wa.me` sudah terisolasi; jangan gabungkan dengan perubahan isi pesan. |
-| WhatsApp dan modal | `openWhatsAppPicker()`, `buildWhatsAppMessage()`, `formatWhatsAppReportDate()`, `openWhatsApp()`, modal handlers | state detail, transaksi, format uang, URL, `window.open`, dan modal | Pertahankan konten dan hitungan; URL `wa.me` sudah terverifikasi pengguna. |
 
 ### Batas pemisahan yang disarankan
 
@@ -95,7 +91,7 @@ Rentang baris merujuk pada source yang diambil dari branch `ui/ux-polish-v3` pad
 - `rowHtml()` dan `cardHtml()` telah dipindahkan ke `assets/js/pages/piutang/list-renderers.js` sebagai `renderPiutangRow()` dan `renderPiutangCard()`. Dependency `{ collectionPriorityMeta, esc, formatMoney }` dikirim dari controller.
 - `renderTable()` tetap di `piutang.js` karena ia mengelola empty state, DOM, paging, dan state. `filterAndRender()`, `highestAgingBucket()`, aturan prioritas, serta semua event tetap di controller.
 - Untuk pemeliharaan berikutnya, jaga string HTML, urutan kolom/kartu, class/ID, `data-code`, dan tombol detail tetap sama. Perubahan ini tidak mengubah copy, angka, filter, sort, maupun paging.
-- Detail dan WhatsApp tetap di controller karena bergantung pada state detail dan saling membentuk target aksi. PDF juga tetap di controller pada sisi request/loading/download; kandidat berikutnya hanya utilitas pemrosesan payload dan validasi byte.
+- Detail, PDF, dan WhatsApp tetap di controller untuk saat ini. Jangan ulangi ekstraksi PDF sampai alur dipastikan pulih dan pesan error penyebab kegagalan diketahui.
 - Jangan mengubah ID, class, `data-*` attributes, urutan event, format uang, fallback envelope API, dan urutan panggilan endpoint.
 
 ## 3. Urutan refactor yang aman
@@ -140,14 +136,14 @@ Audit baca-saja branch `ui/ux-polish-v3` pada 16 Oktober 2026 memperbarui snapsh
 
 ## 9. Status audit detail, PDF, dan WhatsApp
 
-Audit baca-saja menunjukkan alur detail menggabungkan request paralel, validasi request id, state, markup modal, dan event action. Builder WhatsApp memakai state detail dan parser transaksi. Karena itu kedua alur tetap di controller. Utilitas PDF dipisahkan sendiri; pemanggilan endpoint, overlay, download, dan toast tetap di controller.
+Audit baca-saja menunjukkan alur detail menggabungkan request paralel, validasi request id, state, markup modal, dan event action. Builder WhatsApp memakai state detail dan parser transaksi. Karena itu kedua alur tetap di controller. Utilitas PDF sempat dipisahkan, tetapi ekstraksi tersebut dipulihkan setelah pengguna melaporkan seluruh PDF gagal.
 
-## 10. Status implementasi: utilitas PDF
+## 10. Status koreksi regresi PDF
 
-- Ditambahkan `assets/js/pages/piutang/pdf-utils.js` untuk ekstraksi payload, dekode base64, konversi Blob, dan validasi marker PDF.
-- `piutang.js` tetap mengatur endpoint PDF, validasi alur 6D.2, overlay loading, pembukaan/unduhan dokumen, dan notifikasi.
-- Perubahan ini hanya pemindahan fungsi; kontrak data dan output PDF tidak diubah.
-- Pemeriksaan yang dilakukan: kedua source lolos parse sintaks JavaScript. PDF tidak diuji langsung pada aplikasi.
+- Setelah laporan bahwa semua PDF gagal, fungsi payload/base64/validasi dipulihkan ke `piutang.js` dan file `piutang/pdf-utils.js` dihapus.
+- Pemanggil endpoint, proses loading, dan pembukaan/unduhan PDF dikembalikan ke susunan satu file sebelum ekstraksi.
+- Root cause belum dapat dipastikan hanya dari source; ekstraksi helper yang identik secara isi tetap dapat berinteraksi dengan aturan deployment/cache modul.
+- Pemeriksaan parse sintaks berhasil. Perlu pemeriksaan manual ulang untuk memastikan invoice, ringkasan, dan PDF detail kembali berfungsi.
 
 ## 11. Batas keselamatan
 
