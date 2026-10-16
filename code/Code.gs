@@ -162,13 +162,13 @@ function sidRetailQuery(query) {
 
     // Judul HTML aman ditampilkan ke caller agar diagnosa tidak bergantung
     // pada Execution log. Isi body tidak dikirim ke browser.
-    const titleMatch = responseText.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i);
+    const titleMatch = responseText.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     const htmlTitle = titleMatch
       ? titleMatch[1]
           .replace(/<[^>]+>/g, ' ')
           .replace(/&nbsp;|&#160;/gi, ' ')
           .replace(/&amp;/gi, '&')
-          .replace(/\\s+/g, ' ')
+          .replace(/\s+/g, ' ')
           .trim()
           .split(String(apiKey)).join('[REDACTED]')
           .split(encodeURIComponent(String(apiKey))).join('[REDACTED]')
