@@ -73,20 +73,32 @@ Rentang baris merujuk pada source yang diambil dari branch `ui/ux-polish-v3` pad
 - **PDF:** aksi detail → endpoint PDF → validasi byte → unduh.
 - **WhatsApp:** aksi → pemilih kontak → susun pesan → buka WhatsApp.
 
+### Batas dependency: detail, PDF, dan WhatsApp
+
+| Area | Fungsi | Dependency utama | Batas yang aman |
+|---|---|---|---|
+| Detail data | `openDetail()`, `extractTabungan()`, `extractTransactions()`, `customerValue()` | `state`, endpoint `customerPiutangDetail`/`tabungan`, request id, fallback envelope | Request dan mutasi state tetap di `piutang.js`; normalisasi jangan diubah tanpa audit kontrak respons. |
+| Detail UI | `renderDetail()`, `agingCard()`, `invoiceRowHtml()` | state tabungan/kode, formatter/escape, detail DOM, event tutup, aksi `data-pdf-action`/`data-wa-action` | Tetap satu alur controller untuk sekarang; markup membentuk target event untuk PDF/WhatsApp. |
+| PDF action | `handlePdfAction()`, `generatePdf6D2()`, `generatePdf()` | endpoint PDF, overlay loading, toast, browser window/download | Tetap di controller agar alur API dan efek browser tidak terpecah. |
+| Utilitas PDF | `extractPdfPayload()`, `base64ToBytes()`, `base64ToBlob()`, `containsAscii()`, `validatePdfBytes()` | envelope respons, base64, Web APIs `atob`, `Blob`, `TextEncoder` | Kandidat ekstraksi rendah risiko ke `piutang/pdf-utils.js`; fungsi ini tidak membaca state atau DOM. |
+| PDF UI | `setPdfLoading()`, `downloadBlob()` | `document`, `URL`, DOM overlay, browser download | Tetap di controller karena punya efek samping UI/browser. |
+| WhatsApp | `buildWhatsAppMessage()`, `formatWhatsAppReportDate()`, `openWhatsAppPicker()` | state detail/tabungan, `extractTransactions()`, `customerValue()`, format rupiah | Tetap di controller; jangan pindahkan teks atau hitungan bersamaan dengan ekstraksi utilitas lain. |
+| Link WhatsApp | `openWhatsApp()` | URL click-to-chat dan browser `window.open` | Perubahan endpoint `wa.me` sudah terisolasi; jangan gabungkan dengan perubahan isi pesan. |
+
 ### Batas pemisahan yang disarankan
 
 - Pertahankan `renderPiutangPage()` sebagai entry point router.
 - `rowHtml()` dan `cardHtml()` telah dipindahkan ke `assets/js/pages/piutang/list-renderers.js` sebagai `renderPiutangRow()` dan `renderPiutangCard()`. Dependency `{ collectionPriorityMeta, esc, formatMoney }` dikirim dari controller.
 - `renderTable()` tetap di `piutang.js` karena ia mengelola empty state, DOM, paging, dan state. `filterAndRender()`, `highestAgingBucket()`, aturan prioritas, serta semua event tetap di controller.
 - Untuk pemeliharaan berikutnya, jaga string HTML, urutan kolom/kartu, class/ID, `data-code`, dan tombol detail tetap sama. Perubahan ini tidak mengubah copy, angka, filter, sort, maupun paging.
-- Detail, PDF, dan WhatsApp membentuk alur pengguna yang saling terhubung. Pertahankan di file saat ini sampai batas API/markup masing-masing dipetakan lebih lanjut; jangan pindahkan sekaligus dengan renderer daftar.
+- Detail dan WhatsApp tetap di controller karena bergantung pada state detail dan saling membentuk target aksi. PDF juga tetap di controller pada sisi request/loading/download; kandidat berikutnya hanya utilitas pemrosesan payload dan validasi byte.
 - Jangan mengubah ID, class, `data-*` attributes, urutan event, format uang, fallback envelope API, dan urutan panggilan endpoint.
 
 ## 3. Urutan refactor yang aman
 
 1. Ekstraksi renderer grafik dan kalender Dashboard telah selesai sebagai perubahan terpisah.
 2. Peta source diperbarui pada 16 Oktober 2026. Ekstraksi template daftar Piutang selesai; filter, state, prioritas, paging, dan DOM controller tetap di `piutang.js`.
-3. Setelah URL WhatsApp baru diverifikasi lewat kolom pesan, lanjutkan audit batas modul detail dan PDF secara terpisah.
+3. Audit batas detail/PDF/WhatsApp selesai. Kandidat perubahan berikutnya adalah ekstraksi murni utilitas PDF (`extractPdfPayload`, konversi base64, dan validasi byte) ke modul terpisah; request dan efek UI tetap di controller.
 4. Setiap ekstraksi dibuat sebagai perubahan terisolasi di GitHub dan ditinjau sebelum ekstraksi berikutnya.
 
 ## 4. Status implementasi: ekstraksi grafik Dashboard
@@ -122,6 +134,10 @@ Audit baca-saja branch `ui/ux-polish-v3` pada 16 Oktober 2026 memperbarui snapsh
 - Ini mengikuti format click-to-chat WhatsApp dengan teks prefilled URL-encoded. Perlu verifikasi manual pada kolom pesan WhatsApp untuk memastikan entity tidak lagi muncul.
 - Pemeriksaan yang dilakukan: `piutang.js` lolos parse sintaks JavaScript. Tes langsung ke WhatsApp tidak dijalankan.
 
-## 9. Batas keselamatan
+## 9. Status audit detail, PDF, dan WhatsApp
+
+Audit baca-saja pada source terbaru menunjukkan alur detail menggabungkan request paralel, validasi request id, state, markup modal, dan event action. Builder WhatsApp memakai state detail dan parser transaksi. Karena itu kedua alur tidak dipisahkan sekaligus. Sisi PDF punya kandidat murni yang terisolasi: ekstraksi payload dan pemeriksaan byte PDF; pemanggilan endpoint, overlay, download, dan toast tetap di controller.
+
+## 10. Batas keselamatan
 
 Pemetaan ini tidak mengusulkan perubahan pada endpoint/API, kontrak data, hitungan aging/prioritas, nilai piutang, sumber data, generator PDF, atau pesan WhatsApp. Tujuan tahap berikutnya adalah memindahkan kode dengan perilaku yang sama, bukan mengubah hasil atau alur pengguna.
