@@ -5,3 +5,21 @@
 @media print{@page{size:A4;margin:12mm}html,body,#app,.app-shell{width:100%!important;min-width:0!important;margin:0!important;padding:0!important;background:white!important}.sidebar,.app-footer,.mobile-app-header,.invoice-heading,.invoice-editor,.invoice-preview-bar,.invoice-help,.invoice-wa{display:none!important}.app-shell{display:block!important}#page-content{padding:0!important}.invoice-layout{display:block!important}.invoice-preview{position:static!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;overflow:visible!important}.invoice-paper{width:100%!important;max-width:none!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important}.invoice-brand,.invoice-recipient,.invoice-totals,.invoice-footer,.invoice-table tbody tr{break-inside:avoid;page-break-inside:avoid}.invoice-table thead{display:table-header-group}.invoice-table th{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 
 .invoice-storage-status{flex:1;color:#475467;font-size:10px;font-weight:600;text-align:center}.invoice-actions{flex-wrap:wrap;justify-content:flex-end}.invoice-actions .btn{white-space:nowrap}@media screen and (max-width:760px){.invoice-actions .btn{flex:1 1 130px}.invoice-preview-bar{flex-wrap:wrap;gap:8px}.invoice-storage-status{order:3;flex-basis:100%;text-align:left}}
+
+@media print{
+ .invoice-brand>div{font-size:9pt!important;line-height:1.4}
+ .invoice-brand strong{font-size:10pt!important}
+ .invoice-brand b{font-size:13pt!important}
+ .invoice-brand h1{font-size:22pt!important}
+ .invoice-recipient small{font-size:8.5pt!important}
+ .invoice-recipient strong{font-size:10pt!important}
+ .invoice-recipient span{font-size:9pt!important}
+ .invoice-table{font-size:9pt!important}
+ .invoice-table th{font-size:8pt!important}
+ .invoice-table td{font-size:9pt!important}
+ .invoice-total-qty,.invoice-total-lines>div{font-size:9pt!important}
+ .invoice-total-lines .payable span{font-size:8pt!important}
+ .invoice-total-lines .payable b{font-size:12pt!important}
+ .invoice-footer>div:first-child,.invoice-sign{font-size:9pt!important}
+ .invoice-sign small{font-size:8pt!important}
+}
