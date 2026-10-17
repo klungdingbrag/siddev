@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+</head>
+<body>
+<script>
+(function () {
+  "use strict";
+  const CHANNEL = "sid-invoice-bridge-v1";
+  const ALLOWED_PARENT_ORIGIN = <?!= JSON.stringify(allowedOrigin) ?>;
+  const NONCE = <?!= JSON.stringify(bridgeNonce) ?>;
+
+  function respond(id, ok, result, error) {
+    window.parent.postMessage({
+      channel: CHANNEL,
+      nonce: NONCE,
+      type: "response",
+      id: id,
+      ok: ok,
+      result: result === undefined ? null : result,
+      error: error || ""
+    }, ALLOWED_PARENT_ORIGIN);
+  }
+
+  window.addEventListener("message", function (event) {
+    if (event.origin !== ALLOWED_PARENT_ORIGIN ||
+        event.source !== window.parent ||
+        !event.data ||
+        event.data.channel !== CHANNEL ||
+        event.data.nonce !== NONCE) return;
+
+    const message = event.data;
+    if (message.type === "ping") {
+      window.parent.postMessage({
+        channel: CHANNEL, nonce: NONCE, type: "ready"
+      }, ALLOWED_PARENT_ORIGIN);
+      return;
+    }
+
+    const runner = google.script.run
+      .withSuccessHandler(function (result) {
+        respond(message.id, true, result, "");
+      })
+      .withFailureHandler(function (error) {
+        respond(message.id, false, null, error && error.message ? error.message : "Permintaan gagal.");
+      });
+
+    try {
+      if (message.action === "saveInvoice") {
+        runner.saveInvoice(message.payload);
+      } else if (message.action === "getInvoice") {
+        runner.getInvoice(String(message.payload && message.payload.invoiceId || ""));
+      } else if (message.action === "listInvoices") {
+        const payload = message.payload || {};
+        runner.listInvoices(String(payload.searchText || ""), Number(payload.limit) || 50);
+      } else {
+        respond(message.id, false, null, "Aksi tidak dikenal.");
+      }
+    } catch (error) {
+      respond(message.id, false, null, error && error.message ? error.message : "Permintaan gagal.");
+    }
+  });
+
+  window.parent.postMessage({
+    channel: CHANNEL, nonce: NONCE, type: "ready"
+  }, ALLOWED_PARENT_ORIGIN);
+})();
+</script>
+</body>
+</html>
