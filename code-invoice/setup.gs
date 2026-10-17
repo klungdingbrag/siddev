@@ -78,7 +78,9 @@ function setupInvoiceSpreadsheet() {
   const invoiceSheet = spreadsheet.getSheetByName("Invoices");
   invoiceSheet.getRange("C:C").setNumberFormat("@");
   invoiceSheet.getRange("H:H").setNumberFormat("#,##0.###");
-  invoiceSheet.getRange("I:O").setNumberFormat("#,##0");
+  invoiceSheet.getRange("I:K").setNumberFormat("#,##0");
+  invoiceSheet.getRange("M:M").setNumberFormat("0.0%");
+  invoiceSheet.getRange("N:O").setNumberFormat("#,##0");
   invoiceSheet.getRange("U:V").setNumberFormat("yyyy-mm-dd hh:mm:ss");
 
   const itemSheet = spreadsheet.getSheetByName("InvoiceItems");
