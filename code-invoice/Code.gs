@@ -15,6 +15,7 @@ const INV_SPREADSHEET_PROPERTY = "INVOICE_SPREADSHEET_ID";
 const INV_PPH_RATE = 0.015;
 const INV_VAT_INCLUDED_RATE = 0.11;
 const INV_ALLOWED_PARENT_ORIGIN = "https://admin.tbnusantara.com";
+const INV_BUILD_TAG = "2026-10-17-bridge-diagnostic-v1";
 
 /** Read-only web-app health check. Does not expose invoice data or write operations. */
 function doGet(e) {
@@ -33,6 +34,7 @@ function doGet(e) {
 
   let storageReady = false;
   let bridgeTemplateReady = false;
+  let bridgeUsesTopMessaging = false;
   try {
     invoiceGetSheets_();
     storageReady = true;
@@ -43,6 +45,8 @@ function doGet(e) {
     const template = HtmlService.createTemplateFromFile("Bridge");
     template.allowedOrigin = INV_ALLOWED_PARENT_ORIGIN;
     template.bridgeNonce = "healthchecknonce123456";
+    const rawBridge = template.getRawContent();
+    bridgeUsesTopMessaging = rawBridge.indexOf("window.top.postMessage") >= 0;
     template.evaluate();
     bridgeTemplateReady = true;
   } catch (error) {
@@ -53,8 +57,11 @@ function doGet(e) {
     status: "ok",
     service: "invoice-storage",
     version: "v1",
+    build: INV_BUILD_TAG,
+    allowedParentOrigin: INV_ALLOWED_PARENT_ORIGIN,
     storageReady: storageReady,
     bridgeTemplateReady: bridgeTemplateReady,
+    bridgeUsesTopMessaging: bridgeUsesTopMessaging,
     message: "Health check tidak membaca isi invoice dan tidak mengubah data."
   };
   return ContentService.createTextOutput(JSON.stringify(response))
