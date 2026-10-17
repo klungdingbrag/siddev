@@ -14,9 +14,23 @@
 const INV_SPREADSHEET_PROPERTY = "INVOICE_SPREADSHEET_ID";
 const INV_PPH_RATE = 0.015;
 const INV_VAT_INCLUDED_RATE = 0.11;
+const INV_ALLOWED_PARENT_ORIGIN = "https://admin.tbnusatara.com";
 
 /** Read-only web-app health check. Does not expose invoice data or write operations. */
-function doGet() {
+function doGet(e) {
+  if (e && e.parameter && e.parameter.mode === "bridge") {
+    const nonce = String(e.parameter.nonce || "");
+    if (!/^[A-Za-z0-9_-]{16,80}$/.test(nonce)) {
+      throw new Error("Nonce bridge tidak valid.");
+    }
+    const template = HtmlService.createTemplateFromFile("Bridge");
+    template.allowedOrigin = INV_ALLOWED_PARENT_ORIGIN;
+    template.bridgeNonce = nonce;
+    return template.evaluate()
+      .setTitle("Invoice Storage Bridge")
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
   const response = {
     status: "ok",
     service: "invoice-storage",
@@ -123,9 +137,10 @@ function invoiceBuildPayload_(payload) {
     if (!name) throw new Error("Nama barang baris " + (index + 1) + " wajib diisi.");
     const qty = invoiceNumber_(rawQty, "Qty baris " + (index + 1), 0.000001);
     const price = invoiceNumber_(rawPrice, "Harga baris " + (index + 1), 0);
-    const amount = Math.round(qty * price);
+    const normalizedPrice = Math.round(price);
+    const amount = Math.round(qty * normalizedPrice);
     if (!Number.isSafeInteger(amount)) throw new Error("Jumlah barang terlalu besar.");
-    return { name: name, qty: qty, unit: unit, price: Math.round(price), amount: amount };
+    return { name: name, qty: qty, unit: unit, price: normalizedPrice, amount: amount };
   }).filter(function (item) { return item !== null; });
 
   if (!items.length) throw new Error("Tambahkan minimal satu barang yang valid.");
@@ -172,6 +187,10 @@ function invoiceHeaderValues_(data, invoiceId, createdAt, updatedAt) {
   ];
 }
 
+function invoiceDateTimeIso_(value) {
+  return value instanceof Date ? value.toISOString() : String(value || "");
+}
+
 function invoiceObjectFromRow_(row, map) {
   const get = function (key) { return row[map[key]]; };
   return {
@@ -195,8 +214,8 @@ function invoiceObjectFromRow_(row, map) {
     accountNumber: String(get("account_number") || ""),
     signerName: String(get("signer_name") || ""),
     status: String(get("status") || ""),
-    createdAt: get("created_at"),
-    updatedAt: get("updated_at")
+    createdAt: invoiceDateTimeIso_(get("created_at")),
+    updatedAt: invoiceDateTimeIso_(get("updated_at"))
   };
 }
 
@@ -276,7 +295,7 @@ function saveInvoice(payload) {
         pphDeduction: data.pphDeduction,
         totalPayable: data.totalPayable
       },
-      updatedAt: now
+      updatedAt: now.toISOString()
     };
   });
 }
