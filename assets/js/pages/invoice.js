@@ -37,7 +37,7 @@ export function renderInvoicePage(){
  window.__invoiceBridgeAbort?.abort();
  const bridgeAbort=new AbortController();
  window.__invoiceBridgeAbort=bridgeAbort;
- const bridgeReadyTimeout=window.setTimeout(()=>{if(storageStatus)storageStatus.textContent="GAS belum terhubung. Periksa deployment dan izin akses.";},20000);
+ const bridgeReadyTimeout=window.setTimeout(()=>{if(storageStatus)storageStatus.textContent="GAS belum terhubung. Periksa deployment dan izin akses.";resolveBridgeReady(false);},20000);
  window.addEventListener("message",event=>{
   if(event.source!==bridgeFrame.contentWindow||!event.data||event.data.channel!==INVOICE_BRIDGE_CHANNEL||event.data.nonce!==bridgeNonce)return;
   if(event.data.type==="ready"){window.clearTimeout(bridgeReadyTimeout);if(storageStatus)storageStatus.textContent="Penyimpanan invoice siap";resolveBridgeReady(true);return}
