@@ -1,4 +1,4 @@
-const BRAND={company:"CV NUSANTARA BUILDING MATERIAL",store:"TB NUSANTARA",address:"Jalan Lintas Selatan, Dk. Gudang RT 001/RW 001, Ds. Surorejan, Kec. Puring, Kab. Kebumen, Jawa Tengah 54383",phone:"0823-4250-9336",wa:"0812-3456-3843",email:"cvnbmgroup@gmail.com",site:"tbnusatara.com",logo:"assets/img/CV.%20NUSANTARA%20BUILDING%20MATERIAL%20LOGO.png"};
+const BRAND={company:"CV NUSANTARA BUILDING MATERIAL",store:"TB NUSANTARA",address:"Jalan Lintas Selatan, Dk. Gudang RT 001/RW 001, Ds. Surorejan, Kec. Puring, Kab. Kebumen, Jawa Tengah 54383",phone:"0823-4250-9336",wa:"0812-3456-3843",email:"cvnbmgroup@gmail.com",site:"tbnusantara.com",logo:"assets/img/CV.%20NUSANTARA%20BUILDING%20MATERIAL%20LOGO.png"};
 const BANK={bank:"BRI",name:"Wasimun",number:"003201105050505"};
 const INVOICE_GAS_URL="https://script.google.com/macros/s/AKfycbyaUscsruoi7X_uWF1P1-CIbZ27QFsSajqeFDHwcCAK578WJ32MI30Uujxtj9FYnqFf/exec";
 
