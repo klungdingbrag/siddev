@@ -22,9 +22,11 @@ Source GAS untuk penyimpanan halaman Invoice, terpisah dari proyek GAS SID Retai
 3. Bila proyek GAS standalone, set Script Property `INVOICE_SPREADSHEET_ID` ke ID Spreadsheet. Bila project terikat langsung ke Spreadsheet Invoice, properti itu boleh dikosongkan.
 4. Jalankan `setupInvoiceSpreadsheet()` dari editor Apps Script dan beri izin Spreadsheet saat diminta.
 5. Pastikan tab dan header berhasil dibuat sebelum menghubungkan halaman Invoice.
+6. Setelah menambahkan atau mengubah file GAS, buat deployment versi baru atau edit deployment agar memakai versi terbaru. Membuka URL `/exec` seharusnya menampilkan JSON health check; endpoint ini belum menyediakan operasi simpan/buka untuk halaman HTML statis.
 
 ## Fungsi backend
 
+- `doGet()`: health check JSON baca-saja untuk memastikan deployment aktif; tidak membaca atau mengubah data invoice.
 - `saveInvoice(payload)`: membuat draft baru atau memperbarui draft menggunakan `invoiceId`.
 - `getInvoice(invoiceId)`: memuat header beserta item.
 - `listInvoices(searchText, limit)`: mencari berdasarkan nomor invoice, nomor nota, nama, atau telepon.
