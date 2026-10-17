@@ -23,7 +23,7 @@ Source GAS untuk penyimpanan halaman Invoice, terpisah dari proyek GAS SID Retai
 3. Bila proyek GAS standalone, set Script Property `INVOICE_SPREADSHEET_ID` ke ID Spreadsheet. Bila project terikat langsung ke Spreadsheet Invoice, properti itu boleh dikosongkan.
 4. Jalankan `setupInvoiceSpreadsheet()` dari editor Apps Script dan beri izin Spreadsheet saat diminta.
 5. Pastikan tab dan header berhasil dibuat sebelum menghubungkan halaman Invoice.
-6. Setelah file GAS disalin, buat deployment versi baru atau edit deployment agar memakai versi terbaru. URL `/exec` menampilkan JSON health check; parameter `?mode=bridge` melayani iframe bridge.
+6. Setelah file GAS disalin, buat deployment versi baru atau edit deployment agar memakai versi terbaru. URL `/exec` menampilkan JSON health check baca-saja, termasuk build, origin yang diizinkan, dan apakah template Bridge memakai pengiriman pesan ke `window.top`; parameter `?mode=bridge` melayani iframe bridge.
 7. Set deployment untuk berjalan sebagai pemilik script dan batasi akses ke akun pemilik saja. Jangan pilih akses publik/anonim karena GAS berjalan dengan izin Spreadsheet Anda. Bridge hanya menerima pesan dari origin `https://admin.tbnusantara.com`.
 
 ## Fungsi backend
