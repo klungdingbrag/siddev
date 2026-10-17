@@ -48,3 +48,25 @@
  .invoice-brand-address{font-size:8.5pt!important;line-height:1.35}
  .invoice-brand-contact{font-size:8pt!important;line-height:1.35}
 }
+/* Invoice print alignment and payment details */
+.invoice-doc-title{margin:8px 0 6px}
+.invoice-parties{padding:6px 0 10px}
+.invoice-meta{padding-top:0}
+.invoice-total-summary{display:grid;align-content:start;gap:10px}
+.invoice-payment{display:grid;gap:5px;margin-top:0;padding:9px 10px;border:1px solid #e4e8ed;border-radius:8px;font-size:9px}
+.invoice-payment>strong{color:#0b3f88}
+.invoice-payment-row{display:grid;grid-template-columns:105px 10px minmax(0,1fr);gap:3px;align-items:start;line-height:1.4}
+.invoice-payment-row>span:nth-child(2){text-align:center}
+.invoice-payment-row>b{font-weight:650;overflow-wrap:anywhere}
+.invoice-footer{display:block;margin-top:18px}
+.invoice-sign{width:100%;grid-template-columns:1fr 1fr}
+@media screen and (max-width:760px){.invoice-payment-row{grid-template-columns:105px 10px minmax(0,1fr)}}
+@media print{
+ .invoice-doc-title{margin:6pt 0 8pt!important}
+ .invoice-parties{padding:6pt 0 9pt}
+ .invoice-meta{padding-top:0}
+ .invoice-payment{gap:4pt;padding:7pt 8pt;font-size:8.5pt}
+ .invoice-payment-row{grid-template-columns:78pt 8pt minmax(0,1fr);gap:2pt;line-height:1.35}
+ .invoice-total-summary{gap:7pt}
+ .invoice-footer{margin-top:16pt}
+}
