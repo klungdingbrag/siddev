@@ -92,9 +92,11 @@ function invoiceBuildPayload_(payload) {
   }
 
   const invoiceDate = invoiceText_(payload.invoiceDate, 10, "Tanggal invoice", true);
+  const parsedInvoiceDate = new Date(invoiceDate + "T00:00:00Z");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(invoiceDate) ||
-      isNaN(new Date(invoiceDate + "T00:00:00").getTime())) {
-    throw new Error("Tanggal invoice harus menggunakan format YYYY-MM-DD.");
+      isNaN(parsedInvoiceDate.getTime()) ||
+      parsedInvoiceDate.toISOString().slice(0, 10) !== invoiceDate) {
+    throw new Error("Tanggal invoice harus berupa tanggal valid dengan format YYYY-MM-DD.");
   }
 
   const rawItems = Array.isArray(payload.items) ? payload.items : [];
