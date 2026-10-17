@@ -1,21 +1,20 @@
 /**
  * Invoice storage backend for a dedicated Apps Script project.
  *
- * Public callable functions:
- *   saveInvoice(payload)
- *   getInvoice(invoiceId)
- *   listInvoices(searchText, limit)
+ * Public web-app API:
+ *   GET  ?action=health|listInvoices|getInvoice
+ *   POST {"action":"saveInvoice", ...payload}
  *
- * Keep this project separate from the SID Retail Apps Script. The CRUD functions are
- * intended to be called from an authorized Apps Script HTML Service page via
- * google.script.run. Do not expose an unauthenticated public doPost endpoint.
+ * Keep this project separate from the SID Retail Apps Script. The static frontend
+ * uses direct fetch; deployment access and data authorization must be reviewed
+ * before exposing the web app to users.
  */
 
 const INV_SPREADSHEET_PROPERTY = "INVOICE_SPREADSHEET_ID";
 const INV_PPH_RATE = 0.015;
 const INV_VAT_INCLUDED_RATE = 0.11;
 const INV_ALLOWED_PARENT_ORIGIN = "https://admin.tbnusantara.com";
-const INV_BUILD_TAG = "2026-10-17-bridge-diagnostic-v1";
+const INV_BUILD_TAG = "2026-10-17-fetch-api-v1";
 
 /** JSON API for the standalone Invoice frontend. GET is read-only; POST saves drafts. */
 function doGet(e) {
@@ -106,7 +105,7 @@ function invoiceHealthResponse_() {
     status: "ok",
     service: "invoice-storage",
     version: "v1",
-    build: "2026-10-17-fetch-api-v1",
+    build: INV_BUILD_TAG,
     allowedParentOrigin: INV_ALLOWED_PARENT_ORIGIN,
     storageReady: storageReady,
     bridgeTemplateReady: bridgeTemplateReady,
