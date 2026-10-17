@@ -17,8 +17,9 @@ const INV_VAT_INCLUDED_RATE = 0.11;
 const INV_ALLOWED_PARENT_ORIGIN = "https://admin.tbnusantara.com";
 const INV_BUILD_TAG = "2026-10-17-bridge-diagnostic-v1";
 
-/** Read-only web-app health check. Does not expose invoice data or write operations. */
+/** JSON API for the standalone Invoice frontend. GET is read-only; POST saves drafts. */
 function doGet(e) {
+  // Keep the old HTML bridge route temporarily available for rollback.
   if (e && e.parameter && e.parameter.mode === "bridge") {
     const nonce = String(e.parameter.nonce || "");
     if (!/^[A-Za-z0-9_-]{16,80}$/.test(nonce)) {
@@ -32,6 +33,54 @@ function doGet(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
+  const params = e && e.parameter ? e.parameter : {};
+  const action = String(params.action || "health");
+  if (action === "health") return invoiceHealthResponse_();
+
+  try {
+    if (action === "listInvoices") {
+      return invoiceApiSuccess_(listInvoices(params.searchText || "", params.limit));
+    }
+    if (action === "getInvoice") {
+      return invoiceApiSuccess_(getInvoice(params.invoiceId || ""));
+    }
+    throw new Error("Action GET tidak dikenal: " + action);
+  } catch (error) {
+    return invoiceApiError_(error);
+  }
+}
+
+/** Accept the WiFi repo's simple text/plain JSON POST pattern. */
+function doPost(e) {
+  try {
+    const body = JSON.parse(e && e.postData && e.postData.contents || "{}");
+    const action = String(body.action || "");
+    if (action !== "saveInvoice") {
+      throw new Error("Action POST tidak dikenal: " + action);
+    }
+    return invoiceApiSuccess_(saveInvoice(body));
+  } catch (error) {
+    return invoiceApiError_(error);
+  }
+}
+
+function invoiceJsonResponse_(payload) {
+  return ContentService.createTextOutput(JSON.stringify(payload))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function invoiceApiSuccess_(data) {
+  return invoiceJsonResponse_({ success: true, data: data });
+}
+
+function invoiceApiError_(error) {
+  return invoiceJsonResponse_({
+    success: false,
+    message: error && error.message ? error.message : String(error)
+  });
+}
+
+function invoiceHealthResponse_() {
   let storageReady = false;
   let bridgeTemplateReady = false;
   let bridgeUsesTopMessaging = false;
@@ -53,19 +102,21 @@ function doGet(e) {
     bridgeTemplateReady = false;
   }
 
-  const response = {
+  return invoiceJsonResponse_({
     status: "ok",
     service: "invoice-storage",
     version: "v1",
-    build: INV_BUILD_TAG,
+    build: "2026-10-17-fetch-api-v1",
     allowedParentOrigin: INV_ALLOWED_PARENT_ORIGIN,
     storageReady: storageReady,
     bridgeTemplateReady: bridgeTemplateReady,
     bridgeUsesTopMessaging: bridgeUsesTopMessaging,
+    api: {
+      get: ["health", "listInvoices", "getInvoice"],
+      post: ["saveInvoice"]
+    },
     message: "Health check tidak membaca isi invoice dan tidak mengubah data."
-  };
-  return ContentService.createTextOutput(JSON.stringify(response))
-    .setMimeType(ContentService.MimeType.JSON);
+  });
 }
 
 function invoiceGetSpreadsheet_() {
