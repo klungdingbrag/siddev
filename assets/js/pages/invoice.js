@@ -1,5 +1,7 @@
 const BRAND={company:"CV NUSANTARA BUILDING MATERIAL",store:"TB NUSANTARA",address:"Jalan Lintas Selatan, Dk. Gudang RT 001/RW 001, Ds. Surorejan, Kec. Puring, Kab. Kebumen, Jawa Tengah 54383",phone:"0823-4250-9336",wa:"0812-3456-3843",email:"cvnbmgroup@gmail.com",site:"tbnusatara.com",logo:"assets/img/CV.%20NUSANTARA%20BUILDING%20MATERIAL%20LOGO.png"};
 const BANK={bank:"BRI",name:"Wasimun",number:"003201105050505"};
+const INVOICE_GAS_URL="https://script.google.com/macros/s/AKfycbz_KzeKoUnjHqsQuZRUJdLxXilkKQ_fGWPSsGSI6GUB0_OHSv7tbiFbNr1NGfg8hGGE/exec";
+const INVOICE_BRIDGE_CHANNEL="sid-invoice-bridge-v1";
 let lineId=0;
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function num(v){let s=String(v??"").trim().replace(/[^0-9,.-]/g,"");if(s.includes(","))s=s.replace(/\./g,"").replace(",",".");else if(/^-?\d{1,3}(\.\d{3})+$/.test(s))s=s.replace(/\./g,"");const n=Number(s);return Number.isFinite(n)?n:0}
@@ -14,8 +16,8 @@ export function renderInvoicePage(){
  const root=document.querySelector("#page-content");if(!root)return;
  let lines=[newLine(),newLine()];
  root.innerHTML=`
- <section class="page-heading invoice-heading"><div><p class="eyebrow">Dokumen penjualan</p><h2>Invoice</h2><p class="page-description">Buat invoice, periksa hitungannya, lalu simpan sebagai PDF.</p></div><div class="invoice-actions"><button class="btn btn-light" id="inv-reset" type="button">Invoice baru</button><button class="btn btn-primary" id="inv-print-top" type="button">Cetak / Simpan PDF</button></div></section>
- <div class="invoice-layout"><section class="invoice-editor" aria-label="Form invoice">
+ <section class="page-heading invoice-heading"><div><p class="eyebrow">Dokumen penjualan</p><h2>Invoice</h2><p class="page-description">Buat invoice, periksa hitungannya, lalu simpan sebagai PDF.</p></div><div class="invoice-actions"><button class="btn btn-light" id="inv-save" type="button">Simpan Draft</button><button class="btn btn-light" id="inv-open" type="button">Buka Draft</button><button class="btn btn-light" id="inv-reset" type="button">Invoice baru</button><button class="btn btn-primary" id="inv-print-top" type="button">Cetak / Simpan PDF</button></div></section>
+ <iframe id="inv-gas-bridge" class="invoice-bridge-frame" title="Koneksi penyimpanan invoice" aria-hidden="true" tabindex="-1"></iframe><div class="invoice-layout"><section class="invoice-editor" aria-label="Form invoice">
  <div class="invoice-card"><h3>01 · Informasi invoice</h3><p>Identitas dokumen dan penerima.</p><div class="invoice-fields">
  ${field("Tanggal dibuat","inv-date",today(),"date","required")}${field("No. Invoice","inv-number",invNo(),"text","required")}${field("No. Nota","inv-note","")}${field("No. HP penerima","inv-phone","","tel")}${field("Kepada Yth.","inv-to","","text","required")}<label class="invoice-field"><span>Alamat penerima</span><textarea id="inv-address" rows="3"></textarea></label></div></div>
  <div class="invoice-card"><h3>02 · Rincian barang</h3><p>Harga satuan yang diinput sudah termasuk PPN.</p><div id="inv-lines"></div><button class="invoice-add" id="inv-add" type="button">＋ Tambah barang</button>
@@ -23,8 +25,40 @@ export function renderInvoicePage(){
  <div class="invoice-card"><h3>03 · Informasi pembayaran</h3><p>Rekening tujuan dan penutup invoice.</p><div class="invoice-fields">
  ${field("Bank","inv-bank",BANK.bank)}${field("Nama rekening","inv-bank-name",BANK.name)}${field("Nomor rekening","inv-bank-number",BANK.number)}${field("Nama penanda tangan","inv-signer","TB Nusantara")}</div></div>
  </section>
- <section class="invoice-preview"><div class="invoice-preview-bar"><span>● Pratinjau langsung</span><button class="btn btn-primary" id="inv-print" type="button">Cetak / Simpan PDF</button></div><article class="invoice-paper" id="inv-paper"></article><p class="invoice-help">Simpan PDF terlebih dahulu, lalu lampirkan saat mengirim melalui WhatsApp.</p><button class="invoice-wa" id="inv-wa" type="button">Bagikan teks invoice via WhatsApp</button></section></div>`;
+ <section class="invoice-preview"><div class="invoice-preview-bar"><span>● Pratinjau langsung</span><span id="inv-storage-status" class="invoice-storage-status" role="status" aria-live="polite">Menghubungkan ke penyimpanan...</span><button class="btn btn-primary" id="inv-print" type="button">Cetak / Simpan PDF</button></div><article class="invoice-paper" id="inv-paper"></article><p class="invoice-help">Simpan PDF terlebih dahulu, lalu lampirkan saat mengirim melalui WhatsApp.</p><button class="invoice-wa" id="inv-wa" type="button">Bagikan teks invoice via WhatsApp</button></section></div>`;
  const host=root.querySelector("#inv-lines"),paper=root.querySelector("#inv-paper"),val=id=>root.querySelector("#"+id)?.value?.trim()||"";
+ let currentInvoiceId="";
+ const bridgeNonce="inv"+Date.now().toString(36)+Math.random().toString(36).slice(2);
+ const bridgeFrame=root.querySelector("#inv-gas-bridge");
+ const storageStatus=root.querySelector("#inv-storage-status");
+ const bridgePending=new Map();
+ let resolveBridgeReady;
+ const bridgeReady=new Promise(resolve=>{resolveBridgeReady=resolve});
+ window.__invoiceBridgeAbort?.abort();
+ const bridgeAbort=new AbortController();
+ window.__invoiceBridgeAbort=bridgeAbort;
+ const bridgeReadyTimeout=window.setTimeout(()=>{if(storageStatus)storageStatus.textContent="GAS belum terhubung. Periksa deployment dan izin akses.";},20000);
+ window.addEventListener("message",event=>{
+  if(event.source!==bridgeFrame.contentWindow||!event.data||event.data.channel!==INVOICE_BRIDGE_CHANNEL||event.data.nonce!==bridgeNonce)return;
+  if(event.data.type==="ready"){window.clearTimeout(bridgeReadyTimeout);if(storageStatus)storageStatus.textContent="Penyimpanan invoice siap";resolveBridgeReady(true);return}
+  if(event.data.type!=="response")return;
+  const pending=bridgePending.get(event.data.id);if(!pending)return;
+  window.clearTimeout(pending.timeout);bridgePending.delete(event.data.id);
+  if(event.data.ok)pending.resolve(event.data.result);else pending.reject(new Error(event.data.error||"Permintaan penyimpanan gagal."));
+ },{signal:bridgeAbort.signal});
+ bridgeFrame.src=INVOICE_GAS_URL+"?mode=bridge&nonce="+encodeURIComponent(bridgeNonce);
+ bridgeFrame.addEventListener("load",()=>{bridgeFrame.contentWindow?.postMessage({channel:INVOICE_BRIDGE_CHANNEL,nonce:bridgeNonce,type:"ping"},"*")});
+ function storageRequest(action,payload={}){
+  return bridgeReady.then(ready=>{
+   if(!ready)throw new Error("Koneksi GAS Invoice belum siap.");
+   return new Promise((resolve,reject)=>{
+    const id=bridgeNonce+"-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2);
+    const timeout=window.setTimeout(()=>{bridgePending.delete(id);reject(new Error("GAS tidak merespons. Periksa izin deployment."))},30000);
+    bridgePending.set(id,{resolve,reject,timeout});
+    bridgeFrame.contentWindow.postMessage({channel:INVOICE_BRIDGE_CHANNEL,nonce:bridgeNonce,type:"request",id,action,payload},"*");
+   });
+  });
+ }
  function renderRows(){host.innerHTML=lines.map((x,n)=>'<div class="invoice-row" data-id="'+x.id+'"><span class="invoice-row-no">'+(n+1)+'</span><label>Nama barang<input data-key="name" value="'+esc(x.name)+'" placeholder="Nama item"></label><label>Qty<input data-key="qty" inputmode="decimal" value="'+esc(x.qty)+'"></label><label>Satuan<input data-key="unit" value="'+esc(x.unit)+'"></label><label>Harga incl. pajak<input data-key="price" inputmode="decimal" value="'+esc(x.price)+'" placeholder="0"></label><strong class="invoice-row-total">'+money(num(x.qty)*num(x.price))+'</strong><button type="button" data-del="'+x.id+'" aria-label="Hapus barang">×</button></div>').join("");paint()}
  function paint(){
   const t=calc(lines,root.querySelector("#inv-pph").checked),date=val("inv-date"),dateText=date?new Intl.DateTimeFormat("id-ID",{dateStyle:"long"}).format(new Date(date+"T00:00:00")):"—";
@@ -45,5 +79,65 @@ export function renderInvoicePage(){
  root.querySelector("#inv-print").addEventListener("click",printInvoice);root.querySelector("#inv-print-top").addEventListener("click",printInvoice);
  root.querySelector("#inv-wa").addEventListener("click",()=>{const t=calc(lines,root.querySelector("#inv-pph").checked),message=["Invoice "+val("inv-number"),"Kepada: "+val("inv-to"),"No. Nota: "+val("inv-note"),"Total barang: "+qtyFmt(t.qty),"Jumlah yang harus dibayar: "+money(t.pay),"TB Nusantara","Silakan lampirkan PDF invoice yang telah disimpan."].filter(Boolean).join("\n");window.open("https://wa.me/?text="+encodeURIComponent(message),"_blank","noopener,noreferrer")});
  root.querySelector("#inv-reset").addEventListener("click",()=>{if(confirm("Mulai invoice baru? Isian saat ini akan dihapus."))renderInvoicePage()});
+ async function saveDraft(){
+  const requiredIds=["inv-date","inv-number","inv-to"];
+  for(const id of requiredIds){const input=root.querySelector("#"+id);if(!input.checkValidity()){input.reportValidity();return}}
+  const entered=lines.filter(item=>item.name.trim()||String(item.price).trim());
+  if(!entered.length||entered.some(item=>!item.name.trim()||num(item.qty)<=0||num(item.price)<=0)){
+   alert("Lengkapi nama, qty, dan harga pada setiap baris barang yang diisi.");return;
+  }
+  const payload={
+   invoiceId:currentInvoiceId,
+   invoiceNumber:val("inv-number"),
+   invoiceDate:val("inv-date"),
+   noteNumber:val("inv-note"),
+   recipientName:val("inv-to"),
+   recipientAddress:val("inv-address"),
+   recipientPhone:val("inv-phone"),
+   items:entered.map(item=>({name:item.name.trim(),qty:num(item.qty),unit:item.unit.trim(),price:num(item.price)})),
+   pphEnabled:root.querySelector("#inv-pph").checked,
+   bank:val("inv-bank"),
+   accountName:val("inv-bank-name"),
+   accountNumber:val("inv-bank-number"),
+   signerName:val("inv-signer")
+  };
+  const button=root.querySelector("#inv-save");button.disabled=true;
+  if(storageStatus)storageStatus.textContent="Menyimpan draft...";
+  try{
+   const result=await storageRequest("saveInvoice",payload);
+   currentInvoiceId=result.invoiceId;
+   button.textContent="Perbarui Draft";
+   if(storageStatus)storageStatus.textContent="Draft "+result.invoiceNumber+" tersimpan";
+  }catch(error){if(storageStatus)storageStatus.textContent="Gagal menyimpan draft";alert(error.message)}
+  finally{button.disabled=false}
+ }
+ async function openDraft(){
+  const query=prompt("Cari nomor invoice, nomor nota, nama, atau telepon. Kosongkan untuk melihat invoice terbaru.","");
+  if(query===null)return;
+  const button=root.querySelector("#inv-open");button.disabled=true;
+  if(storageStatus)storageStatus.textContent="Mencari draft...";
+  try{
+   const results=await storageRequest("listInvoices",{searchText:query,limit:20});
+   if(!results.length){alert("Draft invoice tidak ditemukan.");if(storageStatus)storageStatus.textContent="Tidak ada draft yang cocok";return}
+   const choices=results.map((item,index)=>(index+1)+". "+item.invoiceNumber+" · "+item.recipientName+" · "+money(item.totalPayable)).join("\n");
+   const selection=prompt("Pilih nomor draft yang akan dibuka:\n"+choices,"1");
+   if(selection===null)return;
+   const selected=results[Number(selection)-1];
+   if(!selected){alert("Pilihan tidak valid.");return}
+   const invoice=await storageRequest("getInvoice",{invoiceId:selected.invoiceId});
+   if(!invoice)throw new Error("Draft tidak ditemukan.");
+   currentInvoiceId=invoice.invoiceId;
+   [["inv-date",invoice.invoiceDate],["inv-number",invoice.invoiceNumber],["inv-note",invoice.noteNumber],["inv-phone",invoice.recipientPhone],["inv-to",invoice.recipientName],["inv-address",invoice.recipientAddress],["inv-bank",invoice.bank],["inv-bank-name",invoice.accountName],["inv-bank-number",invoice.accountNumber],["inv-signer",invoice.signerName]].forEach(([id,value])=>{root.querySelector("#"+id).value=value||""});
+   root.querySelector("#inv-pph").checked=invoice.pphEnabled===true;
+   lines=(invoice.items||[]).map(item=>({id:++lineId,name:item.name||"",qty:String(item.qty??1),unit:item.unit||"pcs",price:String(item.price??"")}));
+   if(!lines.length)lines.push(newLine());
+   root.querySelector("#inv-save").textContent="Perbarui Draft";
+   renderRows();
+   if(storageStatus)storageStatus.textContent="Draft "+invoice.invoiceNumber+" dibuka";
+  }catch(error){if(storageStatus)storageStatus.textContent="Gagal membuka draft";alert(error.message)}
+  finally{button.disabled=false}
+ }
+ root.querySelector("#inv-save").addEventListener("click",saveDraft);
+ root.querySelector("#inv-open").addEventListener("click",openDraft);
  renderRows();
 }
