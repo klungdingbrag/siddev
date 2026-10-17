@@ -31,11 +31,31 @@ function doGet(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
+  let storageReady = false;
+  let bridgeTemplateReady = false;
+  try {
+    invoiceGetSheets_();
+    storageReady = true;
+  } catch (error) {
+    storageReady = false;
+  }
+  try {
+    const template = HtmlService.createTemplateFromFile("Bridge");
+    template.allowedOrigin = INV_ALLOWED_PARENT_ORIGIN;
+    template.bridgeNonce = "healthchecknonce123456";
+    template.evaluate();
+    bridgeTemplateReady = true;
+  } catch (error) {
+    bridgeTemplateReady = false;
+  }
+
   const response = {
     status: "ok",
     service: "invoice-storage",
     version: "v1",
-    message: "GAS Invoice aktif. URL ini hanya menampilkan status layanan."
+    storageReady: storageReady,
+    bridgeTemplateReady: bridgeTemplateReady,
+    message: "Health check tidak membaca isi invoice dan tidak mengubah data."
   };
   return ContentService.createTextOutput(JSON.stringify(response))
     .setMimeType(ContentService.MimeType.JSON);
