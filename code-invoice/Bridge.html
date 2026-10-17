@@ -12,8 +12,15 @@
   const ALLOWED_PARENT_ORIGIN = <?!= JSON.stringify(allowedOrigin) ?>;
   const NONCE = <?!= JSON.stringify(bridgeNonce) ?>;
 
+  function postToApp(message) {
+    // Apps Script adds a Google-origin frame between this document and the
+    // embedding app. Use the top-level app window, not window.parent.
+    if (window.top === window.self) return;
+    window.top.postMessage(message, ALLOWED_PARENT_ORIGIN);
+  }
+
   function respond(id, ok, result, error) {
-    window.parent.postMessage({
+    postToApp({
       channel: CHANNEL,
       nonce: NONCE,
       type: "response",
@@ -21,21 +28,21 @@
       ok: ok,
       result: result === undefined ? null : result,
       error: error || ""
-    }, ALLOWED_PARENT_ORIGIN);
+    });
   }
 
   window.addEventListener("message", function (event) {
     if (event.origin !== ALLOWED_PARENT_ORIGIN ||
-        event.source !== window.parent ||
+        event.source !== window.top ||
         !event.data ||
         event.data.channel !== CHANNEL ||
         event.data.nonce !== NONCE) return;
 
     const message = event.data;
     if (message.type === "ping") {
-      window.parent.postMessage({
+      postToApp({
         channel: CHANNEL, nonce: NONCE, type: "ready"
-      }, ALLOWED_PARENT_ORIGIN);
+      });
       return;
     }
 
@@ -63,9 +70,9 @@
     }
   });
 
-  window.parent.postMessage({
+  postToApp({
     channel: CHANNEL, nonce: NONCE, type: "ready"
-  }, ALLOWED_PARENT_ORIGIN);
+  });
 })();
 </script>
 </body>
