@@ -15,6 +15,18 @@ const INV_SPREADSHEET_PROPERTY = "INVOICE_SPREADSHEET_ID";
 const INV_PPH_RATE = 0.015;
 const INV_VAT_INCLUDED_RATE = 0.11;
 
+/** Read-only web-app health check. Does not expose invoice data or write operations. */
+function doGet() {
+  const response = {
+    status: "ok",
+    service: "invoice-storage",
+    version: "v1",
+    message: "GAS Invoice aktif. URL ini hanya menampilkan status layanan."
+  };
+  return ContentService.createTextOutput(JSON.stringify(response))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 function invoiceGetSpreadsheet_() {
   const id = PropertiesService.getScriptProperties().getProperty(INV_SPREADSHEET_PROPERTY);
   if (id) return SpreadsheetApp.openById(id);
