@@ -23,3 +23,28 @@
  .invoice-footer>div:first-child,.invoice-sign{font-size:9pt!important}
  .invoice-sign small{font-size:8pt!important}
 }
+.invoice-doc-title{margin:14px 0 10px;text-align:center;color:#0b3f88;font-size:20px;font-weight:800;letter-spacing:.04em}
+.invoice-parties{display:grid;grid-template-columns:1fr 1.1fr;gap:18px;align-items:start;padding:13px 0 17px}
+.invoice-meta{display:grid;gap:8px;align-content:start;padding:3px 8px 0 0}
+.invoice-meta-row{display:grid;grid-template-columns:92px 10px minmax(0,1fr);gap:3px;align-items:start;font-size:10px;line-height:1.45}
+.invoice-meta-row>b{font-weight:750;white-space:nowrap}
+.invoice-meta-row>span:nth-child(2){text-align:center}
+.invoice-meta-row>span:last-child{overflow-wrap:anywhere}
+.invoice-recipient{grid-template-columns:1fr;gap:4px;padding:0 0 0 16px;border-left:1px solid #e4e8ed}
+.invoice-brand>div{min-width:0}
+.invoice-brand>div>strong{line-height:1.35}
+.invoice-brand-address{line-height:1.4}
+.invoice-brand-contact{font-size:8px;line-height:1.4;overflow-wrap:anywhere}
+@media screen and (max-width:760px){
+ .invoice-parties{grid-template-columns:1fr;gap:12px}
+ .invoice-recipient{padding:0;border:0}
+}
+@media print{
+ .invoice-doc-title{margin:10pt 0 12pt!important;font-size:16pt!important}
+ .invoice-parties{grid-template-columns:1fr 1.1fr;gap:16pt;padding:10pt 0 13pt}
+ .invoice-meta-row{grid-template-columns:72pt 8pt minmax(0,1fr);gap:2pt;font-size:9pt;line-height:1.4}
+ .invoice-recipient{grid-template-columns:1fr;gap:4pt;padding-left:12pt;border-left:1px solid #e4e8ed}
+ .invoice-brand>div>strong{font-size:10pt!important}
+ .invoice-brand-address{font-size:8.5pt!important;line-height:1.35}
+ .invoice-brand-contact{font-size:8pt!important;line-height:1.35}
+}
