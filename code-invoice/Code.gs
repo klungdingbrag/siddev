@@ -14,7 +14,7 @@
 const INV_SPREADSHEET_PROPERTY = "INVOICE_SPREADSHEET_ID";
 const INV_PPH_RATE = 0.015;
 const INV_VAT_INCLUDED_RATE = 0.11;
-const INV_ALLOWED_PARENT_ORIGIN = "https://admin.tbnusatara.com";
+const INV_ALLOWED_PARENT_ORIGIN = "https://admin.tbnusantara.com";
 
 /** Read-only web-app health check. Does not expose invoice data or write operations. */
 function doGet(e) {
