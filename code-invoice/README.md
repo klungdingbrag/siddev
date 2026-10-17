@@ -6,6 +6,7 @@ Source GAS untuk penyimpanan halaman Invoice, terpisah dari proyek GAS SID Retai
 
 - `setup.gs`: membuat sheet `Invoices`, `InvoiceItems`, dan `Config` tanpa menimpa sheet/header yang sudah terisi.
 - `Code.gs`: validasi, hitung ulang nilai pajak di server, simpan draft, buka invoice, dan daftar invoice.
+- `Bridge.html`: jembatan `postMessage` tervalidasi origin ke `google.script.run` untuk halaman SID Retail.
 
 ## Struktur data
 
@@ -18,15 +19,16 @@ Source GAS untuk penyimpanan halaman Invoice, terpisah dari proyek GAS SID Retai
 ## Penyiapan awal
 
 1. Buat Spreadsheet dan proyek Apps Script khusus Invoice.
-2. Tambahkan isi `setup.gs` dan `Code.gs` ke proyek GAS tersebut.
+2. Tambahkan isi `setup.gs` dan `Code.gs` ke proyek GAS tersebut, lalu buat file HTML bernama `Bridge` dan salin isi `Bridge.html` dari folder ini.
 3. Bila proyek GAS standalone, set Script Property `INVOICE_SPREADSHEET_ID` ke ID Spreadsheet. Bila project terikat langsung ke Spreadsheet Invoice, properti itu boleh dikosongkan.
 4. Jalankan `setupInvoiceSpreadsheet()` dari editor Apps Script dan beri izin Spreadsheet saat diminta.
 5. Pastikan tab dan header berhasil dibuat sebelum menghubungkan halaman Invoice.
-6. Setelah menambahkan atau mengubah file GAS, buat deployment versi baru atau edit deployment agar memakai versi terbaru. Membuka URL `/exec` seharusnya menampilkan JSON health check; endpoint ini belum menyediakan operasi simpan/buka untuk halaman HTML statis.
+6. Setelah file GAS disalin, buat deployment versi baru atau edit deployment agar memakai versi terbaru. URL `/exec` menampilkan JSON health check; parameter `?mode=bridge` melayani iframe bridge.
+7. Set deployment untuk berjalan sebagai pemilik script dan batasi akses ke akun pemilik saja. Jangan pilih akses publik/anonim karena GAS berjalan dengan izin Spreadsheet Anda. Bridge hanya menerima pesan dari origin `https://admin.tbnusatara.com`.
 
 ## Fungsi backend
 
-- `doGet()`: health check JSON baca-saja untuk memastikan deployment aktif; tidak membaca atau mengubah data invoice.
+- `doGet()`: health check JSON baca-saja, atau HTML bridge ketika dipanggil dengan `?mode=bridge&nonce=...`.
 - `saveInvoice(payload)`: membuat draft baru atau memperbarui draft menggunakan `invoiceId`.
 - `getInvoice(invoiceId)`: memuat header beserta item.
 - `listInvoices(searchText, limit)`: mencari berdasarkan nomor invoice, nomor nota, nama, atau telepon.
@@ -35,6 +37,6 @@ Kontrak payload `saveInvoice` mengikuti field halaman sekarang: `invoiceNumber`,
 
 ## Akses dan deployment
 
-Fungsi CRUD ditujukan untuk pemanggilan dari halaman Apps Script HTML Service melalui `google.script.run`, yang memberi pemisahan server/client Apps Script. Halaman SID Retail saat ini adalah HTML statis, sehingga tidak dapat langsung memanggil `google.script.run`. Jangan menambahkan API tulis publik `doPost` atau menanam token rahasia di JavaScript browser. Pilihan jembatan yang aman untuk menyatukan UI statis dengan GAS perlu ditentukan sebelum deployment; source backend dan skema Spreadsheet ini belum mengubah halaman atau deployment SID Retail.
+Fungsi CRUD ditujukan untuk pemanggilan dari halaman Apps Script HTML Service melalui `google.script.run`, yang memberi pemisahan server/client Apps Script. Halaman SID Retail adalah HTML statis dan tidak dapat langsung memanggil `google.script.run`. `Bridge.html` menyediakan iframe tersembunyi; halaman utama memanggilnya dengan `postMessage`, lalu bridge yang berjalan pada origin Google memanggil fungsi server. Kode hanya menerima pesan dari `https://admin.tbnusatara.com`, dan keamanan data bergantung pada deployment GAS yang dibatasi ke akun pemilik. Jangan mengubah akses menjadi publik/anonim atau menaruh token rahasia di JavaScript browser.
 
 Tidak ada fungsi yang membaca atau menulis ke API SID Retail. Tidak ada fungsi untuk menghapus draft. Semua invoice yang disimpan berstatus `DRAFT` sampai alur finalisasi ditentukan.
