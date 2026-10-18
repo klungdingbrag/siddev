@@ -127,3 +127,6 @@
  .invoice-draft-detail-head .btn{padding:8px;font-size:11px;white-space:nowrap}
  .invoice-draft-facts{grid-template-columns:1fr 1fr}
 }
+
+.invoice-signer-name{font-size:10px;font-weight:700}
+@media print{.invoice-signer-name{font-size:9pt!important}}
