@@ -128,7 +128,7 @@ export function renderInvoicePage(){
   if(storageStatus)storageStatus.textContent="Draft "+invoice.invoiceNumber+" dibuka";
  }
  const draftsDialog=root.querySelector("#inv-drafts-dialog"),draftsList=root.querySelector("#inv-drafts-list"),draftsDetail=root.querySelector("#inv-drafts-detail"),draftsSearch=root.querySelector("#inv-drafts-search");
- let draftResults=[],selectedDraft=null,searchTimer=null,searchSequence=0;
+ let draftResults=[],selectedDraft=null,searchTimer=null,searchSequence=0,draftSelectionSequence=0;
  function renderDraftList(){
   if(!draftResults.length){draftsList.innerHTML='<p class="invoice-drafts-empty">Belum ada draft yang cocok.</p>';return}
   draftsList.innerHTML=draftResults.map((item,index)=>'<button type="button" class="invoice-draft-card'+(selectedDraft?.invoiceId===item.invoiceId?' is-selected':'')+'" data-draft-index="'+index+'" role="option" aria-selected="'+(selectedDraft?.invoiceId===item.invoiceId)+'"><strong>'+esc(item.invoiceNumber||"Invoice tanpa nomor")+'</strong><span>'+esc(item.recipientName||"Tanpa nama penerima")+'</span><small>'+esc(item.noteNumber||"Tanpa nomor nota")+' · '+esc(item.invoiceDate||item.updatedAt||"")+'</small><b>'+money(item.totalPayable)+'</b></button>').join("");
@@ -138,20 +138,23 @@ export function renderInvoicePage(){
   const items=invoice.items||[];
   draftsDetail.innerHTML='<div class="invoice-draft-detail-head"><div><small>PRATINJAU INVOICE</small><h3>'+esc(invoice.invoiceNumber||"Invoice")+'</h3></div><button class="btn btn-primary" type="button" id="inv-draft-edit">Edit invoice</button></div><dl class="invoice-draft-facts"><div><dt>Tanggal</dt><dd>'+esc(invoice.invoiceDate||"—")+'</dd></div><div><dt>Kepada</dt><dd>'+esc(invoice.recipientName||"—")+'</dd></div><div><dt>No. Nota</dt><dd>'+esc(invoice.noteNumber||"—")+'</dd></div><div><dt>No. HP</dt><dd>'+esc(invoice.recipientPhone||"—")+'</dd></div><div><dt>Alamat</dt><dd>'+esc(invoice.recipientAddress||"—")+'</dd></div></dl><div class="invoice-draft-items"><strong>Rincian ('+items.length+' item)</strong>'+ (items.length?'<ul>'+items.map(item=>'<li><span>'+esc(item.name||"—")+' · '+qtyFmt(item.qty)+' '+esc(item.unit||"")+'</span><b>'+money(num(item.qty)*num(item.price))+'</b></li>').join("")+'</ul>':'<p>Belum ada rincian barang.</p>')+'</div><div class="invoice-draft-total"><span>Jumlah Yang Harus Dibayar</span><b>'+money(invoice.totalPayable??calc(items.map((item,index)=>({...item,id:index})),invoice.pphEnabled).pay)+'</b></div>';
   renderDraftList();
-  draftsDetail.querySelector("#inv-draft-edit").addEventListener("click",()=>{loadInvoice(invoice);draftsDialog.close();root.querySelector("#inv-number").focus({preventScroll:true});root.querySelector("#inv-editor")?.scrollIntoView({behavior:"smooth",block:"start"})});
+  draftsDetail.querySelector("#inv-draft-edit").addEventListener("click",()=>{loadInvoice(invoice);draftsDialog.close();root.querySelector("#inv-number").focus({preventScroll:true});root.querySelector(".invoice-editor")?.scrollIntoView({behavior:"smooth",block:"start"})});
  }
  async function selectDraft(item){
+  const selectionSequence=++draftSelectionSequence;
   selectedDraft=item;
   renderDraftList();
   draftsDetail.innerHTML='<p class="invoice-drafts-empty">Memuat rincian invoice...</p>';
   try{
    const invoice=await storageRequest("getInvoice",{invoiceId:item.invoiceId});
+   if(selectionSequence!==draftSelectionSequence)return;
    if(!invoice)throw new Error("Detail invoice tidak ditemukan.");
    renderDraftDetail(invoice);
-  }catch(error){draftsDetail.innerHTML='<p class="invoice-drafts-error">'+esc(error.message||"Gagal memuat invoice.")+'</p>'}
+  }catch(error){if(selectionSequence!==draftSelectionSequence)return;draftsDetail.innerHTML='<p class="invoice-drafts-error">'+esc(error.message||"Gagal memuat invoice.")+'</p>'}
  }
  async function loadDraftList(query=""){
   const sequence=++searchSequence;
+  draftSelectionSequence++;
   draftsList.innerHTML='<p class="invoice-drafts-empty">Memuat daftar invoice...</p>';
   try{
    const results=await storageRequest("listInvoices",{searchText:query,limit:50});
