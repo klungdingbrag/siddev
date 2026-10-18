@@ -24,6 +24,7 @@ function customerSqlQuoteV1(value) {
  * untuk audit dan rollback. Cursor pagination tetap kompatibel dengan frontend.
  */
 function getPelangganAktifFinansialSemuaV1() {
+  Logger.log('CUSTOMER API LIST VERSION: paginated-v1-2026-10-18 | pageSize=50 | maxPages=100');
   // SID Retail dapat memotong response JSON yang terlalu besar. Ambil data
   // dalam halaman kecil agar setiap response tetap terbatas dan valid.
   // Hanya fungsi daftar pelanggan aktif ini yang memakai pagination.
