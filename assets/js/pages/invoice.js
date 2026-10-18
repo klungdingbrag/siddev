@@ -44,7 +44,8 @@ export function renderInvoicePage(){
  <div class="invoice-card"><h3>03 · Informasi pembayaran</h3><p>Rekening tujuan dan penutup invoice.</p><div class="invoice-fields">
  ${field("Bank","inv-bank",BANK.bank)}${field("Nama rekening","inv-bank-name",BANK.name)}${field("Nomor rekening","inv-bank-number",BANK.number)}${field("Nama penanda tangan","inv-signer","TB Nusantara")}</div></div>
  </section>
- <section class="invoice-preview"><div class="invoice-preview-bar"><span>● Pratinjau langsung</span><span id="inv-storage-status" class="invoice-storage-status" role="status" aria-live="polite">Menghubungkan ke penyimpanan...</span><button class="btn btn-primary" id="inv-print" type="button">Cetak / Simpan PDF</button></div><article class="invoice-paper" id="inv-paper"></article><p class="invoice-help">Simpan PDF terlebih dahulu, lalu lampirkan saat mengirim melalui WhatsApp.</p><button class="invoice-wa" id="inv-wa" type="button">Bagikan teks invoice via WhatsApp</button></section></div>`;
+ <section class="invoice-preview"><div class="invoice-preview-bar"><span>● Pratinjau langsung</span><span id="inv-storage-status" class="invoice-storage-status" role="status" aria-live="polite">Menghubungkan ke penyimpanan...</span><button class="btn btn-primary" id="inv-print" type="button">Cetak / Simpan PDF</button></div><article class="invoice-paper" id="inv-paper"></article><p class="invoice-help">Simpan PDF terlebih dahulu, lalu lampirkan saat mengirim melalui WhatsApp.</p><button class="invoice-wa" id="inv-wa" type="button">Bagikan teks invoice via WhatsApp</button></section></div>
+ <dialog class="invoice-drafts-dialog" id="inv-drafts-dialog" aria-labelledby="inv-drafts-title"><div class="invoice-drafts-shell"><header class="invoice-drafts-header"><div><p class="eyebrow">Penyimpanan Spreadsheet</p><h2 id="inv-drafts-title">Draft Invoice</h2><p>Pilih invoice untuk melihat rincian, lalu pilih Edit untuk melanjutkan.</p></div><button type="button" class="invoice-drafts-close" id="inv-drafts-close" aria-label="Tutup">×</button></header><label class="invoice-drafts-search"><span>Cari invoice</span><input id="inv-drafts-search" type="search" placeholder="Nomor invoice, nota, nama penerima, atau telepon"></label><div class="invoice-drafts-content"><div class="invoice-drafts-list" id="inv-drafts-list" role="listbox" aria-label="Daftar invoice"></div><section class="invoice-drafts-detail" id="inv-drafts-detail" aria-live="polite"><p class="invoice-drafts-empty">Pilih invoice untuk melihat detailnya.</p></section></div></div></dialog>`;
  const host=root.querySelector("#inv-lines"),paper=root.querySelector("#inv-paper"),val=id=>root.querySelector("#"+id)?.value?.trim()||"";
  let currentInvoiceId="";
  const storageStatus=root.querySelector("#inv-storage-status");
@@ -116,32 +117,64 @@ export function renderInvoicePage(){
   }catch(error){if(storageStatus)storageStatus.textContent="Gagal menyimpan draft";alert(error.message)}
   finally{button.disabled=false}
  }
- async function openDraft(){
-  const query=prompt("Cari nomor invoice, nomor nota, nama, atau telepon. Kosongkan untuk melihat invoice terbaru.","");
-  if(query===null)return;
-  const button=root.querySelector("#inv-open");button.disabled=true;
-  if(storageStatus)storageStatus.textContent="Mencari draft...";
-  try{
-   const results=await storageRequest("listInvoices",{searchText:query,limit:20});
-   if(!results.length){alert("Draft invoice tidak ditemukan.");if(storageStatus)storageStatus.textContent="Tidak ada draft yang cocok";return}
-   const choices=results.map((item,index)=>(index+1)+". "+item.invoiceNumber+" · "+item.recipientName+" · "+money(item.totalPayable)).join("\n");
-   const selection=prompt("Pilih nomor draft yang akan dibuka:\n"+choices,"1");
-   if(selection===null)return;
-   const selected=results[Number(selection)-1];
-   if(!selected){alert("Pilihan tidak valid.");return}
-   const invoice=await storageRequest("getInvoice",{invoiceId:selected.invoiceId});
-   if(!invoice)throw new Error("Draft tidak ditemukan.");
-   currentInvoiceId=invoice.invoiceId;
-   [["inv-date",invoice.invoiceDate],["inv-number",invoice.invoiceNumber],["inv-note",invoice.noteNumber],["inv-phone",invoice.recipientPhone],["inv-to",invoice.recipientName],["inv-address",invoice.recipientAddress],["inv-bank",invoice.bank],["inv-bank-name",invoice.accountName],["inv-bank-number",invoice.accountNumber],["inv-signer",invoice.signerName]].forEach(([id,value])=>{root.querySelector("#"+id).value=value||""});
-   root.querySelector("#inv-pph").checked=invoice.pphEnabled===true;
-   lines=(invoice.items||[]).map(item=>({id:++lineId,name:item.name||"",qty:String(item.qty??1),unit:item.unit||"pcs",price:String(item.price??"")}));
-   if(!lines.length)lines.push(newLine());
-   root.querySelector("#inv-save").textContent="Perbarui Draft";
-   renderRows();
-   if(storageStatus)storageStatus.textContent="Draft "+invoice.invoiceNumber+" dibuka";
-  }catch(error){if(storageStatus)storageStatus.textContent="Gagal membuka draft";alert(error.message)}
-  finally{button.disabled=false}
+ function loadInvoice(invoice){
+  currentInvoiceId=invoice.invoiceId;
+  [["inv-date",invoice.invoiceDate],["inv-number",invoice.invoiceNumber],["inv-note",invoice.noteNumber],["inv-phone",invoice.recipientPhone],["inv-to",invoice.recipientName],["inv-address",invoice.recipientAddress],["inv-bank",invoice.bank],["inv-bank-name",invoice.accountName],["inv-bank-number",invoice.accountNumber],["inv-signer",invoice.signerName]].forEach(([id,value])=>{root.querySelector("#"+id).value=value||""});
+  root.querySelector("#inv-pph").checked=invoice.pphEnabled===true;
+  lines=(invoice.items||[]).map(item=>({id:++lineId,name:item.name||"",qty:String(item.qty??1),unit:item.unit||"pcs",price:String(item.price??"")}));
+  if(!lines.length)lines.push(newLine());
+  root.querySelector("#inv-save").textContent="Perbarui Draft";
+  renderRows();
+  if(storageStatus)storageStatus.textContent="Draft "+invoice.invoiceNumber+" dibuka";
  }
+ const draftsDialog=root.querySelector("#inv-drafts-dialog"),draftsList=root.querySelector("#inv-drafts-list"),draftsDetail=root.querySelector("#inv-drafts-detail"),draftsSearch=root.querySelector("#inv-drafts-search");
+ let draftResults=[],selectedDraft=null,searchTimer=null,searchSequence=0;
+ function renderDraftList(){
+  if(!draftResults.length){draftsList.innerHTML='<p class="invoice-drafts-empty">Belum ada draft yang cocok.</p>';return}
+  draftsList.innerHTML=draftResults.map((item,index)=>'<button type="button" class="invoice-draft-card'+(selectedDraft?.invoiceId===item.invoiceId?' is-selected':'')+'" data-draft-index="'+index+'" role="option" aria-selected="'+(selectedDraft?.invoiceId===item.invoiceId)+'"><strong>'+esc(item.invoiceNumber||"Invoice tanpa nomor")+'</strong><span>'+esc(item.recipientName||"Tanpa nama penerima")+'</span><small>'+esc(item.noteNumber||"Tanpa nomor nota")+' · '+esc(item.invoiceDate||item.updatedAt||"")+'</small><b>'+money(item.totalPayable)+'</b></button>').join("");
+ }
+ function renderDraftDetail(invoice){
+  selectedDraft=invoice;
+  const items=invoice.items||[];
+  draftsDetail.innerHTML='<div class="invoice-draft-detail-head"><div><small>PRATINJAU INVOICE</small><h3>'+esc(invoice.invoiceNumber||"Invoice")+'</h3></div><button class="btn btn-primary" type="button" id="inv-draft-edit">Edit invoice</button></div><dl class="invoice-draft-facts"><div><dt>Tanggal</dt><dd>'+esc(invoice.invoiceDate||"—")+'</dd></div><div><dt>Kepada</dt><dd>'+esc(invoice.recipientName||"—")+'</dd></div><div><dt>No. Nota</dt><dd>'+esc(invoice.noteNumber||"—")+'</dd></div><div><dt>No. HP</dt><dd>'+esc(invoice.recipientPhone||"—")+'</dd></div><div><dt>Alamat</dt><dd>'+esc(invoice.recipientAddress||"—")+'</dd></div></dl><div class="invoice-draft-items"><strong>Rincian ('+items.length+' item)</strong>'+ (items.length?'<ul>'+items.map(item=>'<li><span>'+esc(item.name||"—")+' · '+qtyFmt(item.qty)+' '+esc(item.unit||"")+'</span><b>'+money(num(item.qty)*num(item.price))+'</b></li>').join("")+'</ul>':'<p>Belum ada rincian barang.</p>')+'</div><div class="invoice-draft-total"><span>Jumlah Yang Harus Dibayar</span><b>'+money(invoice.totalPayable??calc(items.map((item,index)=>({...item,id:index})),invoice.pphEnabled).pay)+'</b></div>';
+  renderDraftList();
+  draftsDetail.querySelector("#inv-draft-edit").addEventListener("click",()=>{loadInvoice(invoice);draftsDialog.close();root.querySelector("#inv-number").focus({preventScroll:true});root.querySelector("#inv-editor")?.scrollIntoView({behavior:"smooth",block:"start"})});
+ }
+ async function selectDraft(item){
+  selectedDraft=item;
+  renderDraftList();
+  draftsDetail.innerHTML='<p class="invoice-drafts-empty">Memuat rincian invoice...</p>';
+  try{
+   const invoice=await storageRequest("getInvoice",{invoiceId:item.invoiceId});
+   if(!invoice)throw new Error("Detail invoice tidak ditemukan.");
+   renderDraftDetail(invoice);
+  }catch(error){draftsDetail.innerHTML='<p class="invoice-drafts-error">'+esc(error.message||"Gagal memuat invoice.")+'</p>'}
+ }
+ async function loadDraftList(query=""){
+  const sequence=++searchSequence;
+  draftsList.innerHTML='<p class="invoice-drafts-empty">Memuat daftar invoice...</p>';
+  try{
+   const results=await storageRequest("listInvoices",{searchText:query,limit:50});
+   if(sequence!==searchSequence)return;
+   draftResults=Array.isArray(results)?results:[];
+   renderDraftList();
+   if(draftResults.length)await selectDraft(draftResults[0]);
+   else{selectedDraft=null;draftsDetail.innerHTML='<p class="invoice-drafts-empty">Pilih invoice untuk melihat detailnya.</p>'}
+  }catch(error){
+   if(sequence!==searchSequence)return;
+   draftResults=[];selectedDraft=null;renderDraftList();draftsDetail.innerHTML='<p class="invoice-drafts-error">'+esc(error.message||"Gagal memuat daftar invoice.")+'</p>';
+  }
+ }
+ async function openDraft(){
+  draftsSearch.value="";
+  draftsDialog.showModal();
+  await loadDraftList("");
+  draftsSearch.focus();
+ }
+ draftsList.addEventListener("click",event=>{const button=event.target.closest("[data-draft-index]");if(button){const item=draftResults[Number(button.dataset.draftIndex)];if(item)selectDraft(item)}});
+ draftsSearch.addEventListener("input",()=>{window.clearTimeout(searchTimer);searchTimer=window.setTimeout(()=>loadDraftList(draftsSearch.value.trim()),250)});
+ root.querySelector("#inv-drafts-close").addEventListener("click",()=>draftsDialog.close());
+ draftsDialog.addEventListener("click",event=>{if(event.target===draftsDialog)draftsDialog.close()});
  root.querySelector("#inv-save").addEventListener("click",saveDraft);
  root.querySelector("#inv-open").addEventListener("click",openDraft);
  renderRows();
