@@ -23,8 +23,22 @@ function customerSqlQuoteV1(value) {
  * Dipisahkan dari getPelangganLaporanV1() agar fungsi lama tetap tersedia
  * untuk audit dan rollback. Cursor pagination tetap kompatibel dengan frontend.
  */
+function decodeCustomerHexTextV1_(value) {
+  var hex = String(value || '').trim();
+  if (!hex || hex.length % 2 !== 0 || !/^[0-9a-f]+$/i.test(hex)) return '';
+
+  var bytes = [];
+  for (var i = 0; i < hex.length; i += 2) {
+    var byte = parseInt(hex.substring(i, i + 2), 16);
+    // Apps Script Blob accepts signed byte values.
+    bytes.push(byte > 127 ? byte - 256 : byte);
+  }
+
+  return Utilities.newBlob(bytes).getDataAsString('UTF-8');
+}
+
 function getPelangganAktifFinansialSemuaV1() {
-  Logger.log('CUSTOMER API LIST VERSION: paginated-retry-v2-2026-10-18 | pageSize=50 | maxPages=100');
+  Logger.log('CUSTOMER API LIST VERSION: paginated-hex-address-v3-2026-10-18 | pageSize=50 | maxPages=100');
   // SID Retail dapat memotong response JSON yang terlalu besar. Ambil data
   // dalam halaman kecil agar setiap response tetap terbatas dan valid.
   // Hanya fungsi daftar pelanggan aktif ini yang memakai pagination.
@@ -36,7 +50,7 @@ function getPelangganAktifFinansialSemuaV1() {
 
   for (var page = 1; page <= maxPages; page++) {
     var query =
-      'SELECT p.kode,p.nama,p.alamat,p.telp,' +
+      'SELECT p.kode,p.nama,HEX(p.alamat) AS alamat_hex,p.telp,' +
       'COALESCE(p.saldo_tabungan,0) AS saldo_tabungan,' +
       'COALESCE(x.saldo_piutang,0) AS saldo_piutang,' +
       'COALESCE(x.jumlah_nota_outstanding,0) AS jumlah_nota_outstanding ' +
@@ -133,7 +147,7 @@ function getPelangganAktifFinansialSemuaV1() {
     return {
       kode_pelanggan: String(row.kode || '').trim(),
       nama: String(row.nama || '').trim() || String(row.kode || '').trim(),
-      alamat: String(row.alamat || '').trim(),
+      alamat: decodeCustomerHexTextV1_(row.alamat_hex).trim(),
       telp: String(row.telp || '').trim(),
       saldo_tabungan: Number(row.saldo_tabungan || 0),
       saldo_piutang: Number(row.saldo_piutang || 0),
