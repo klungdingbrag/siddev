@@ -164,10 +164,9 @@ function sidRetailQuery(query) {
     const containsHtml = /<!doctype|<html|<body|<br|<title/i.test(responseText);
     // Log JSON structure without exposing customer values in Execution logs.
     const safePreview = responseText.substring(0, 320)
-      .replace(/("(?:\\.|[^"\\])*"\\s*:\\s*)"(?:\\.|[^"\\])*(?:"|$)/g, '$1"[REDACTED]"')
-      .replace(/("(?:\\.|[^"\\])*"\\s*:\\s*)(-?\\d+(?:\\.\\d+)?)/g, '$1[NUMBER]');
+      .replace(/("(?:\\.|[^"\\])*"\s*:\s*)"(?:\\.|[^"\\])*(?:"|$)/g, '$1"[REDACTED]"')
+      .replace(/("(?:\\.|[^"\\])*"\s*:\s*)(-?\d+(?:\.\d+)?)/g, '$1[NUMBER]');
 
-    Logger.log('INVALID JSON RESPONSE BODY LENGTH: ' + responseText.length);
     Logger.log('INVALID JSON SAFE PREVIEW: ' + safePreview);
     Logger.log('JSON PARSE OFFSET: ' + (parseOffset === null ? '(not reported)' : parseOffset));
     Logger.log('RESPONSE STARTS LIKE JSON: ' + startsLikeJson);
