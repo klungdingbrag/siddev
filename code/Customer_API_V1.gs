@@ -24,7 +24,7 @@ function customerSqlQuoteV1(value) {
  * untuk audit dan rollback. Cursor pagination tetap kompatibel dengan frontend.
  */
 function getPelangganAktifFinansialSemuaV1() {
-  Logger.log('CUSTOMER API LIST VERSION: paginated-v1-2026-10-18 | pageSize=50 | maxPages=100');
+  Logger.log('CUSTOMER API LIST VERSION: paginated-retry-v2-2026-10-18 | pageSize=50 | maxPages=100');
   // SID Retail dapat memotong response JSON yang terlalu besar. Ambil data
   // dalam halaman kecil agar setiap response tetap terbatas dan valid.
   // Hanya fungsi daftar pelanggan aktif ini yang memakai pagination.
@@ -58,7 +58,45 @@ function getPelangganAktifFinansialSemuaV1() {
 
     query += ' ORDER BY p.kode ASC LIMIT ' + pageSize;
 
-    var result = sidRetailQuery(query);
+    var result = null;
+    var lastPageError = null;
+
+    // Request pelanggan hanya SELECT. Retry terbatas untuk respons JSON
+    // malformed yang dapat terjadi sesekali pada gateway SID Retail.
+    // sidRetailQuery membuat kode_trx baru pada setiap percobaan.
+    for (var attempt = 1; attempt <= 3; attempt++) {
+      try {
+        result = sidRetailQuery(query);
+        lastPageError = null;
+        break;
+      } catch (pageError) {
+        lastPageError = pageError;
+        var pageErrorMessage = String(
+          pageError && pageError.message ? pageError.message : pageError
+        );
+
+        if (pageErrorMessage.indexOf('Response SID Retail bukan JSON valid') === -1) {
+          break;
+        }
+
+        if (attempt < 3) {
+          Logger.log(
+            'PELANGGAN AKTIF PAGE ' + page +
+            ' | MALFORMED JSON RETRY ' + (attempt + 1) + '/3'
+          );
+          Utilities.sleep(attempt * 500);
+        }
+      }
+    }
+
+    if (lastPageError) {
+      throw new Error(
+        'Gagal mengambil halaman pelanggan aktif #' + page +
+        ' setelah percobaan terbatas: ' +
+        String(lastPageError.message || lastPageError)
+      );
+    }
+
     if (!result || result.status !== 'success') {
       throw new Error('Gagal mengambil halaman pelanggan aktif #' + page + '.');
     }
