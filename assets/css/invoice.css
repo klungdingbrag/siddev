@@ -70,3 +70,13 @@
  .invoice-total-summary{gap:7pt}
  .invoice-footer{margin-top:16pt}
 }
+
+/* Invoice wording and print emphasis */
+.invoice-total-lines .payable span{font-size:9px}
+.invoice-total-lines .payable b{font-size:14px}
+.invoice-sign i{height:54px}
+@media print{
+ .invoice-total-lines .payable span{font-size:9pt!important;line-height:1.25}
+ .invoice-total-lines .payable b{font-size:14pt!important;line-height:1.2}
+ .invoice-sign i{height:54pt}
+}
