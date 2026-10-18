@@ -113,3 +113,14 @@
  .invoice-draft-card>b{font-size:11px}
  .invoice-draft-card>em{font-size:10px}
 }
+
+/* Balance payment emphasis and align signature rules */
+.invoice-total-lines .payable b{font-size:12px}
+.invoice-sign{align-items:start}
+.invoice-sign section{align-content:start;grid-template-rows:auto 54px auto}
+.invoice-sign i{height:54px}
+@media print{
+ .invoice-total-lines .payable b{font-size:12pt!important;line-height:1.2}
+ .invoice-sign section{grid-template-rows:auto 54pt auto}
+ .invoice-sign i{height:54pt}
+}
