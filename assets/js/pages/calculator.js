@@ -57,7 +57,8 @@ export function renderCalculatorPage() {
             '<div class="calculator-core-tax"><dt id="calculator-core-dpp-label">DPP Nilai Lain Coretax</dt><dd id="calculator-core-dpp">—</dd></div>' +
             '<div><dt>PPN <span id="calculator-tax-rate-label"></span></dt><dd id="calculator-vat">—</dd></div>' +
             '<div><dt>Total invoice</dt><dd id="calculator-gross-total">—</dd></div>' +
-            '<div class="calculator-pph-line"><dt>Potongan PPh <span id="calculator-pph-rate-label"></span></dt><dd id="calculator-pph">—</dd></div>' +
+            '<div class="calculator-pph-line"><dt>Potongan PPh <span id="calculator-pph-rate-label"></span></dt><dd id="calculator-pph">—</dd></div>
+            <div class="calculator-net-line"><dt>Total setelah dipotong PPh</dt><dd id="calculator-net-breakdown">—</dd></div>' +
           '</dl>' +
           '<p id="calculator-formula-note" class="calculator-formula-note">Rincian pajak akan tampil setelah nominal dimasukkan.</p>' +
         '</section>' +
@@ -101,6 +102,7 @@ export function renderCalculatorPage() {
     root.querySelector("#calculator-gross-total").textContent = totalInvoice === null ? "—" : formatRupiah(totalInvoice);
     root.querySelector("#calculator-pph").textContent = pph === null ? "—" : formatRupiah(pph);
     root.querySelector("#calculator-net-payable").textContent = net === null ? "—" : formatRupiah(net);
+    root.querySelector("#calculator-net-breakdown").textContent = net === null ? "—" : formatRupiah(net);
     root.querySelector("#calculator-tax-rate-label").textContent = hasPpn ? "(" + (mode.taxRate * 100).toLocaleString("id-ID") + "%)" : "(0%)";
     root.querySelector("#calculator-pph-rate-label").textContent = pphEnabled.checked ? "(" + rate.toLocaleString("id-ID") + "%)" : "(nonaktif)";
     root.querySelector("#calculator-net-caption").textContent = amount === null
