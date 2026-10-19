@@ -286,6 +286,20 @@
   color: #a33b36;
 }
 
+.calculator-breakdown .calculator-net-line {
+  margin-top: 3px;
+  padding-top: 13px;
+  border-top: 1px solid #d7e2ee;
+  border-bottom: 0;
+}
+
+.calculator-breakdown .calculator-net-line dt,
+.calculator-breakdown .calculator-net-line dd {
+  color: #173e70;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .calculator-formula-note {
   margin: 15px 0 0;
   padding: 11px 12px;
