@@ -5,7 +5,7 @@ import { renderDashboardPage } from "./pages/dashboard.js?v=20261006-dashboard-c
 import { renderPelangganPage } from "./pages/pelanggan.js?v=20261016-customer-api-recovery-v1";
 import { renderSupplierHutangPage } from "./pages/supplier-hutang.js?v=20261015-supplier-uiux-v1";
 import { renderInvoicePage } from "./pages/invoice.js?v=20261018-invoice-signature-balance-v1";
-import { renderCalculatorPage } from "./pages/calculator.js?v=20261019-invoice-tax-calculator-v2";
+import { renderCalculatorPage } from "./pages/calculator.js?v=20261019-invoice-tax-calculator-v3";
 
 const sidebar = document.querySelector("#sidebar");
 const content = document.querySelector("#page-content");
