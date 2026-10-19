@@ -54,7 +54,7 @@ export function renderCalculatorPage() {
           '<dl class="calculator-breakdown">' +
             '<div><dt>Nominal invoice</dt><dd id="calculator-input-total">—</dd></div>' +
             '<div><dt>DPP sebelum PPN</dt><dd id="calculator-base">—</dd></div>' +
-            '<div class="calculator-core-tax"><dt>DPP Nilai Lain Coretax</dt><dd id="calculator-core-dpp">—</dd></div>' +
+            '<div class="calculator-core-tax"><dt id="calculator-core-dpp-label">DPP Nilai Lain Coretax</dt><dd id="calculator-core-dpp">—</dd></div>' +
             '<div><dt>PPN <span id="calculator-tax-rate-label"></span></dt><dd id="calculator-vat">—</dd></div>' +
             '<div><dt>Total invoice</dt><dd id="calculator-gross-total">—</dd></div>' +
             '<div class="calculator-pph-line"><dt>Potongan PPh <span id="calculator-pph-rate-label"></span></dt><dd id="calculator-pph">—</dd></div>' +
@@ -95,6 +95,7 @@ export function renderCalculatorPage() {
 
     root.querySelector("#calculator-input-total").textContent = amount === null ? "—" : formatRupiah(amount);
     root.querySelector("#calculator-base").textContent = dpp === null ? "—" : formatRupiah(dpp);
+    root.querySelector("#calculator-core-dpp-label").textContent = taxMode.value === "nonluxury" ? "DPP Nilai Lain Coretax" : (taxMode.value === "full" ? "DPP yang digunakan" : "DPP PPN");
     root.querySelector("#calculator-core-dpp").textContent = amount === null ? "—" : (dppNilaiLain === null ? "Tidak digunakan" : formatRupiah(dppNilaiLain));
     root.querySelector("#calculator-vat").textContent = amount === null ? "—" : (ppn === null ? "Rp0" : formatRupiah(ppn));
     root.querySelector("#calculator-gross-total").textContent = totalInvoice === null ? "—" : formatRupiah(totalInvoice);
