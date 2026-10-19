@@ -58,12 +58,12 @@ export function renderCalculatorPage() {
             '<div><dt>PPN <span id="calculator-tax-rate-label"></span></dt><dd id="calculator-vat">—</dd></div>' +
             '<div><dt>Total invoice</dt><dd id="calculator-gross-total">—</dd></div>' +
             '<div class="calculator-pph-line"><dt>Potongan PPh <span id="calculator-pph-rate-label"></span></dt><dd id="calculator-pph">—</dd></div>' +
-            '<div class="calculator-net-line"><dt>Total setelah dipotong PPh</dt><dd id="calculator-net-breakdown">—</dd></div>' +
+            '<div class="calculator-net-line"><dt>Total setelah dikurangi PPN dan PPh</dt><dd id="calculator-net-breakdown">—</dd></div>' +
           '</dl>' +
           '<p id="calculator-formula-note" class="calculator-formula-note">Rincian pajak akan tampil setelah nominal dimasukkan.</p>' +
         '</section>' +
       '</div>' +
-      '<aside class="calculator-note"><strong>Catatan penggunaan</strong><p>PPN pada harga include ditampilkan sebagai komponen dari nominal invoice, bukan dipotong lagi dari jumlah tagihan. PPh, jika diaktifkan, mengurangi jumlah transfer bersih. Pastikan jenis DPP, tarif, dan kewajiban pemotongan sesuai transaksi.</p></aside>' +
+      '<aside class="calculator-note"><strong>Catatan penggunaan</strong><p>Baris setelah PPN dan PPh menunjukkan nilai setelah kedua komponen pajak dikeluarkan. Jumlah bersih dibayar di atas menunjukkan nilai transfer setelah potongan PPh. Pastikan jenis DPP, tarif, dan kewajiban pemotongan sesuai transaksi.</p></aside>' +
     '</section>';
 
   const amountInput = root.querySelector("#calculator-amount");
@@ -102,7 +102,8 @@ export function renderCalculatorPage() {
     root.querySelector("#calculator-gross-total").textContent = totalInvoice === null ? "—" : formatRupiah(totalInvoice);
     root.querySelector("#calculator-pph").textContent = pph === null ? "—" : formatRupiah(pph);
     root.querySelector("#calculator-net-payable").textContent = net === null ? "—" : formatRupiah(net);
-    root.querySelector("#calculator-net-breakdown").textContent = net === null ? "—" : formatRupiah(net);
+    const totalAfterVatAndPph = totalInvoice === null ? null : Math.max(0, totalInvoice - (ppn || 0) - (pph || 0));
+    root.querySelector("#calculator-net-breakdown").textContent = totalAfterVatAndPph === null ? "—" : formatRupiah(totalAfterVatAndPph);
     root.querySelector("#calculator-tax-rate-label").textContent = hasPpn ? "(" + (mode.taxRate * 100).toLocaleString("id-ID") + "%)" : "(0%)";
     root.querySelector("#calculator-pph-rate-label").textContent = pphEnabled.checked ? "(" + rate.toLocaleString("id-ID") + "%)" : "(nonaktif)";
     root.querySelector("#calculator-net-caption").textContent = amount === null
