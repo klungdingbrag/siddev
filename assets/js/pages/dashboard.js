@@ -16,7 +16,9 @@ let dashboardState = {
   profit: null,
   profitDaily: null,
   piutang: null,
-  error: null
+  error: null,
+  cacheSavedAt: 0,
+  dataPeriodKey: null
 };
 
 function pad2(value) {
@@ -79,10 +81,14 @@ function readDashboardCache() {
 }
 
 function writeDashboardCache() {
+  const savedAt = Date.now();
+  dashboardState.cacheSavedAt = savedAt;
+  dashboardState.dataPeriodKey = dashboardCacheKey();
+
   try {
     sessionStorage.setItem(dashboardCacheKey(), JSON.stringify({
       version: 1,
-      savedAt: Date.now(),
+      savedAt,
       state: {
         year: dashboardState.year,
         month: dashboardState.month,
@@ -93,7 +99,9 @@ function writeDashboardCache() {
       }
     }));
   } catch (error) {
-    console.warn("[Dashboard] cache write gagal:", error);
+    // The in-memory snapshot still serves same-tab navigation if browser
+    // storage is unavailable or full.
+    console.warn("[Dashboard] cache write gagal; menggunakan cache memori:", error);
   }
 }
 
@@ -103,6 +111,8 @@ function restoreDashboardCache(cached) {
   dashboardState.profit = cached.state.profit || null;
   dashboardState.profitDaily = cached.state.profitDaily || null;
   dashboardState.piutang = cached.state.piutang || null;
+  dashboardState.cacheSavedAt = cached.savedAt || 0;
+  dashboardState.dataPeriodKey = dashboardCacheKey();
   renderDashboardData();
   return true;
 }
@@ -474,6 +484,7 @@ async function loadDashboard({ force = false, background = false } = {}) {
     dashboardState.sales = salesResult;
     dashboardState.profit = profitResult;
     dashboardState.profitDaily = profitDailyResult;
+    dashboardState.dataPeriodKey = dashboardCacheKey();
 
     if (!dashboardIsMounted()) return;
 
@@ -526,7 +537,25 @@ export function renderDashboardPage() {
     if (cache.ageMs >= DASHBOARD_CACHE_TTL_MS) {
       loadDashboard({ force: true, background: true });
     }
-  } else {
-    loadDashboard();
+    return;
   }
+
+  // Fall back to the module snapshot for same-tab navigation when storage
+  // is unavailable, cleared, or over quota.
+  const hasMemorySnapshot =
+    dashboardState.dataPeriodKey === dashboardCacheKey() &&
+    dashboardState.sales &&
+    dashboardState.profit &&
+    dashboardState.profitDaily;
+
+  if (hasMemorySnapshot) {
+    const ageMs = Math.max(0, Date.now() - dashboardState.cacheSavedAt);
+    renderDashboardData();
+    if (ageMs >= DASHBOARD_CACHE_TTL_MS) {
+      loadDashboard({ force: true, background: true });
+    }
+    return;
+  }
+
+  loadDashboard();
 }
