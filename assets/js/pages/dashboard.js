@@ -334,16 +334,19 @@ function populatePeriodControls() {
   document.querySelector("#dashboard-refresh")?.addEventListener("click", () => loadDashboard({ force: true }));
 }
 
-function setDashboardLoading(isLoading) {
+function setDashboardLoading(isLoading, { background = false } = {}) {
   dashboardState.loading = isLoading;
   const refresh = document.querySelector("#dashboard-refresh");
   if (refresh) {
     refresh.disabled = isLoading;
     refresh.setAttribute("aria-busy", isLoading ? "true" : "false");
     refresh.innerHTML = isLoading
-      ? '<span class="dashboard-refresh-content"><span class="dashboard-refresh-spinner" aria-hidden="true"></span><span>Memuat…</span></span>'
+      ? `<span class="dashboard-refresh-content">${background ? "Memperbarui…" : '<span class="dashboard-refresh-spinner" aria-hidden="true"></span><span>Memuat…</span>'}</span>`
       : '<span class="dashboard-refresh-content">Refresh</span>';
   }
+
+  // Keep cached dashboard content visible while a background refresh runs.
+  if (background) return;
 
   const state = document.querySelector("#dashboard-state");
   if (state) {
@@ -442,7 +445,7 @@ function renderDashboardData() {
   );
 }
 
-async function loadDashboard({ force = false } = {}) {
+async function loadDashboard({ force = false, background = false } = {}) {
   if (dashboardState.loading) return;
 
   if (!force) {
@@ -455,7 +458,7 @@ async function loadDashboard({ force = false } = {}) {
   }
 
   if (!dashboardIsMounted()) return;
-  setDashboardLoading(true);
+  setDashboardLoading(true, { background });
   dashboardState.error = null;
 
   const selectedRange = monthRange(dashboardState.year, dashboardState.month);
@@ -500,14 +503,14 @@ async function loadDashboard({ force = false } = {}) {
     if (state) {
       state.className = "dashboard-state is-error";
       state.innerHTML = `
-        <strong>Dashboard belum dapat dimuat.</strong>
-        <span>${escapeHtml(error?.message || String(error))}</span>
+        <strong>${background ? "Data tersimpan tetap ditampilkan." : "Dashboard belum dapat dimuat."}</strong>
+        <span>${background ? "Pembaruan otomatis gagal. " : ""}${escapeHtml(error?.message || String(error))}</span>
         <button class="btn btn-light" id="dashboard-retry" type="button">Coba lagi</button>
       `;
       document.querySelector("#dashboard-retry")?.addEventListener("click", () => loadDashboard({ force: true }));
     }
   } finally {
-    setDashboardLoading(false);
+    setDashboardLoading(false, { background });
   }
 }
 
@@ -521,7 +524,7 @@ export function renderDashboardPage() {
   if (cache) {
     restoreDashboardCache(cache);
     if (cache.ageMs >= DASHBOARD_CACHE_TTL_MS) {
-      loadDashboard({ force: true });
+      loadDashboard({ force: true, background: true });
     }
   } else {
     loadDashboard();
