@@ -4,7 +4,7 @@ import { renderPiutangPage } from "./pages/piutang.js?v=20261016-pdf-response-de
 import { renderDashboardPage } from "./pages/dashboard.js?v=20261020-dashboard-swr-v2";
 import { renderPelangganPage } from "./pages/pelanggan.js?v=20261016-customer-api-recovery-v1";
 import { renderSupplierHutangPage } from "./pages/supplier-hutang.js?v=20261015-supplier-uiux-v1";
-import { renderInvoicePage } from "./pages/invoice.js?v=20261018-invoice-signature-balance-v1";
+import { renderInvoicePage } from "./pages/invoice.js?v=20261022-invoice-logo-hd-v1";
 import { renderCalculatorPage } from "./pages/calculator.js?v=20261019-invoice-tax-calculator-v3";
 
 const sidebar = document.querySelector("#sidebar");
