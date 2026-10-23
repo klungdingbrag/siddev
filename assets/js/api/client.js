@@ -25,29 +25,29 @@ async function fetchJson(url, timeoutMs) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  let response;
   try {
-    response = await fetch(url, {
+    const response = await fetch(url, {
       method: "GET",
       mode: "cors",
       redirect: "follow",
       cache: "no-store",
       signal: controller.signal
     });
+
+    // Keep the request deadline active while the response body is being read.
+    const text = await response.text();
+
+    let result = null;
+    try {
+      result = text ? JSON.parse(text) : null;
+    } catch {
+      result = null;
+    }
+
+    return { response, text, result };
   } finally {
     clearTimeout(timeout);
   }
-
-  const text = await response.text();
-
-  let result = null;
-  try {
-    result = text ? JSON.parse(text) : null;
-  } catch {
-    result = null;
-  }
-
-  return { response, text, result };
 }
 
 const API_TIMEOUTS = Object.freeze({

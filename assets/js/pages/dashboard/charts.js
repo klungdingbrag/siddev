@@ -237,7 +237,7 @@ export function renderProfitDailyChart(container, rows, salesRows, monthlyTotal,
   const path = points.map((point, index) => (index ? "L" : "M") + " " + point.x.toFixed(2) + " " + point.y.toFixed(2)).join(" ");
   const yTicks = [0, .25, .5, .75, 1].map((ratio) => ({
     y: pad.top + plotH - ratio * plotH,
-    value: min + ratio * (max - min)
+    value: max - ratio * (max - min)
   }));
 
   const xLabels = points.filter((_, index) => {
