@@ -169,7 +169,7 @@ function normalizeProfitRows(rows) {
   });
 }
 
-function normalizeProfitDailyRows(rows) {
+export function normalizeProfitDailyRows(rows) {
   return (Array.isArray(rows) ? rows : [])
     .map((row) => {
       const rawDate = String(row?.tanggal || "").trim();
