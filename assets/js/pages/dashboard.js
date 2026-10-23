@@ -507,24 +507,61 @@ async function loadDashboard({ force = false, background = false } = {}) {
 
   const selectedRange = monthRange(dashboardState.year, dashboardState.month);
   const profitRange = yearRange(dashboardState.year, dashboardState.month);
+  const requestedPeriodKey = dashboardCacheKey();
 
   try {
-    const [salesResult, profitResult, profitDailyResult] = await Promise.all([
+    const results = await Promise.allSettled([
       api.dashboardSalesDaily(selectedRange.start, selectedRange.end),
       api.dashboardProfitMonthly(profitRange.start, profitRange.end),
       api.dashboardProfitDaily(selectedRange.start, selectedRange.end)
     ]);
+    const hasCurrentPeriodSnapshot = dashboardState.dataPeriodKey === requestedPeriodKey;
+    const panelNames = ["Omzet harian", "Laba bulanan", "Laba harian"];
+    const failures = [];
 
-    dashboardState.sales = salesResult;
-    dashboardState.profit = profitResult;
-    dashboardState.profitDaily = profitDailyResult;
-    dashboardState.dataPeriodKey = dashboardCacheKey();
+    if (!hasCurrentPeriodSnapshot) {
+      dashboardState.sales = null;
+      dashboardState.profit = null;
+      dashboardState.profitDaily = null;
+    }
+
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled") {
+        if (index === 0) dashboardState.sales = result.value;
+        if (index === 1) dashboardState.profit = result.value;
+        if (index === 2) dashboardState.profitDaily = result.value;
+      } else {
+        failures.push({
+          panel: panelNames[index],
+          message: result.reason?.message || String(result.reason || "Gagal dimuat")
+        });
+      }
+    });
+
+    if (failures.length === results.length) {
+      throw new Error(failures.map((item) => item.panel + ": " + item.message).join(" · "));
+    }
+
+    dashboardState.dataPeriodKey = requestedPeriodKey;
 
     if (!dashboardIsMounted()) return;
 
     renderDashboardData();
     writeDashboardCache();
     setDashboardLoading(false);
+
+    if (failures.length) {
+      const state = document.querySelector("#dashboard-state");
+      if (state) {
+        state.className = "dashboard-state is-error";
+        state.innerHTML = `
+          <strong>Beberapa data Dashboard belum diperbarui.</strong>
+          <span>${escapeHtml(failures.map((item) => item.panel).join(", "))} gagal dimuat. Data terakhir pada periode ini tetap ditampilkan bila tersedia.</span>
+          <button class="btn btn-light" id="dashboard-retry" type="button">Coba lagi</button>
+        `;
+        document.querySelector("#dashboard-retry")?.addEventListener("click", () => loadDashboard({ force: true }));
+      }
+    }
 
     const cachedPiutang = dashboardState.piutang;
     if (cachedPiutang) return;
