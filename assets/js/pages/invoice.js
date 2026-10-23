@@ -1,4 +1,4 @@
-import { openDeliveryNote } from "./delivery-note.js?v=20261023-surat-jalan-a4-two-up-v1";
+import { openDeliveryNote } from "./delivery-note.js?v=20261023-surat-jalan-a4-two-up-v2";
 const BRAND={company:"CV NUSANTARA BUILDING MATERIAL",store:"TB NUSANTARA",addressLines:["Jalan Lintas Selatan, Dk. Gudang RT 001/RW 001,","Ds. Surorejan, Kec. Puring, Kab. Kebumen, Jawa Tengah 54383"],phone:"0823-4250-9336",wa:"0812-3456-3843",email:"cvnbmgroup@gmail.com",site:"tbnusantara.com",logo:"assets/img/cvnbm-stempel-hd.png"};
 const BANK={bank:"Bank Jateng",name:"NUSANTARA BUILDING MATERIAL",number:"1100001507"};
 const INVOICE_GAS_URL="https://script.google.com/macros/s/AKfycbyaUscsruoi7X_uWF1P1-CIbZ27QFsSajqeFDHwcCAK578WJ32MI30Uujxtj9FYnqFf/exec";
