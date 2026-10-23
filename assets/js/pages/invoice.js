@@ -1,3 +1,4 @@
+import { openDeliveryNote } from "./delivery-note.js?v=20261023-surat-jalan-prs-v1";
 const BRAND={company:"CV NUSANTARA BUILDING MATERIAL",store:"TB NUSANTARA",addressLines:["Jalan Lintas Selatan, Dk. Gudang RT 001/RW 001,","Ds. Surorejan, Kec. Puring, Kab. Kebumen, Jawa Tengah 54383"],phone:"0823-4250-9336",wa:"0812-3456-3843",email:"cvnbmgroup@gmail.com",site:"tbnusantara.com",logo:"assets/img/cvnbm-stempel-hd.png"};
 const BANK={bank:"Bank Jateng",name:"NUSANTARA BUILDING MATERIAL",number:"1100001507"};
 const INVOICE_GAS_URL="https://script.google.com/macros/s/AKfycbyaUscsruoi7X_uWF1P1-CIbZ27QFsSajqeFDHwcCAK578WJ32MI30Uujxtj9FYnqFf/exec";
@@ -35,7 +36,7 @@ export function renderInvoicePage(){
  const root=document.querySelector("#page-content");if(!root)return;
  let lines=[newLine(),newLine()];
  root.innerHTML=`
- <section class="page-heading invoice-heading"><div><p class="eyebrow">Dokumen penjualan</p><h2>Invoice</h2><p class="page-description">Buat invoice, periksa hitungannya, lalu simpan sebagai PDF.</p></div><div class="invoice-actions"><button class="btn btn-light" id="inv-save" type="button">Simpan Draft</button><button class="btn btn-light" id="inv-open" type="button">Buka Draft</button><button class="btn btn-light" id="inv-reset" type="button">Invoice baru</button><button class="btn btn-primary" id="inv-print-top" type="button">Cetak / Simpan PDF</button></div></section>
+ <section class="page-heading invoice-heading"><div><p class="eyebrow">Dokumen penjualan</p><h2>Invoice</h2><p class="page-description">Buat invoice, periksa hitungannya, lalu simpan sebagai PDF.</p></div><div class="invoice-actions"><button class="btn btn-light" id="inv-save" type="button">Simpan Draft</button><button class="btn btn-light" id="inv-open" type="button">Buka Draft</button><button class="btn btn-light" id="inv-reset" type="button">Invoice baru</button><button class="btn btn-primary" id="inv-print-top" type="button">Cetak / Simpan PDF</button><button class="btn btn-light" id="inv-delivery-top" type="button">Surat Jalan PDF</button></div></section>
  <div class="invoice-layout"><section class="invoice-editor" aria-label="Form invoice">
  <div class="invoice-card"><h3>01 · Informasi invoice</h3><p>Identitas dokumen dan penerima.</p><div class="invoice-fields">
  ${field("Tanggal dibuat","inv-date",today(),"date","required")}${field("No. Invoice","inv-number",invNo(),"text","required")}${field("No. Nota","inv-note","")}${field("No. HP penerima","inv-phone","","tel")}${field("Kepada Yth.","inv-to","","text","required")}<label class="invoice-field"><span>Alamat penerima</span><textarea id="inv-address" rows="3"></textarea></label></div></div>
@@ -83,6 +84,25 @@ export function renderInvoicePage(){
  root.querySelector("#inv-pph").addEventListener("change",paint);
  function printInvoice(){const to=root.querySelector("#inv-to"),no=root.querySelector("#inv-number"),date=root.querySelector("#inv-date");for(const input of [date,no,to]){if(!input.checkValidity()){input.reportValidity();return}}if(!lines.some(x=>x.name.trim()&&num(x.qty)>0&&num(x.price)>0)){alert("Tambahkan minimal satu barang dengan nama, kuantitas, dan harga yang valid.");return}window.print()}
  root.querySelector("#inv-print").addEventListener("click",printInvoice);root.querySelector("#inv-print-top").addEventListener("click",printInvoice);
+ function printDeliveryNote(){
+  const dateInput=root.querySelector("#inv-date"),numberInput=root.querySelector("#inv-number"),recipientInput=root.querySelector("#inv-to");
+  for(const input of [dateInput,numberInput,recipientInput]){if(!input.checkValidity()){input.reportValidity();return}}
+  const entered=lines.filter(item=>item.name.trim());
+  if(!entered.length){alert("Tambahkan minimal satu deskripsi barang untuk surat jalan.");return}
+  if(entered.some(item=>num(item.qty)<=0)){alert("Pastikan kuantitas setiap barang lebih dari nol.");return}
+  openDeliveryNote({
+   brand:BRAND,
+   invoiceNumber:val("inv-number"),
+   invoiceDate:val("inv-date"),
+   noteNumber:val("inv-note"),
+   recipientName:val("inv-to"),
+   recipientAddress:val("inv-address"),
+   recipientPhone:val("inv-phone"),
+   signerName:val("inv-signer"),
+   items:entered.map(item=>({name:item.name.trim(),qty:num(item.qty),unit:item.unit.trim()||"—"}))
+  });
+ }
+ root.querySelector("#inv-delivery-top").addEventListener("click",printDeliveryNote);
  root.querySelector("#inv-wa").addEventListener("click",()=>{const t=calc(lines,root.querySelector("#inv-pph").checked),message=["Invoice "+val("inv-number"),"Kepada: "+val("inv-to"),"No. Nota: "+val("inv-note"),"Total barang: "+qtyFmt(t.qty),"Jumlah yang harus dibayar: "+money(t.pay),"TB Nusantara","Silakan lampirkan PDF invoice yang telah disimpan."].filter(Boolean).join("\n");window.open("https://wa.me/?text="+encodeURIComponent(message),"_blank","noopener,noreferrer")});
  root.querySelector("#inv-reset").addEventListener("click",()=>{if(confirm("Mulai invoice baru? Isian saat ini akan dihapus."))renderInvoicePage()});
  async function saveDraft(){
