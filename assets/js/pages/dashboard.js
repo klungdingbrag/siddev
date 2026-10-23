@@ -592,7 +592,8 @@ async function loadDashboard({ force = false, background = false } = {}) {
       document.querySelector("#dashboard-retry")?.addEventListener("click", () => loadDashboard({ force: true }));
     }
   } finally {
-    setDashboardLoading(false, { background });
+    // Keep success/error status rendered above; this call only clears the spinner and disabled state.
+    setDashboardLoading(false, { background: true });
   }
 }
 
