@@ -169,6 +169,28 @@ function normalizeProfitRows(rows) {
   });
 }
 
+function normalizeProfitDailyRows(rows) {
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => {
+      const rawDate = String(row?.tanggal || "").trim();
+      let tanggal = rawDate;
+
+      if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(rawDate)) {
+        const [day, month, year] = rawDate.split("/");
+        tanggal = `${year}-${month}-${day}`;
+      } else if (/^\\d{4}-\\d{2}-\\d{2}/.test(rawDate)) {
+        tanggal = rawDate.slice(0, 10);
+      }
+
+      const totalLaba = Number(String(row?.total_laba ?? 0).replace(/,/g, ""));
+      return {
+        tanggal,
+        total_laba: Number.isFinite(totalLaba) ? totalLaba : 0
+      };
+    })
+    .filter((row) => /^\\d{4}-\\d{2}-\\d{2}$/.test(row.tanggal));
+}
+
 function extractPiutangTotal(result) {
   const data = result;
   if (!data) return null;
