@@ -175,10 +175,18 @@ function normalizeProfitDailyRows(rows) {
       const rawDate = String(row?.tanggal || "").trim();
       let tanggal = rawDate;
 
-      if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(rawDate)) {
+      if (
+        rawDate.length === 10 &&
+        rawDate.charAt(2) === "/" &&
+        rawDate.charAt(5) === "/"
+      ) {
         const [day, month, year] = rawDate.split("/");
         tanggal = `${year}-${month}-${day}`;
-      } else if (/^\\d{4}-\\d{2}-\\d{2}/.test(rawDate)) {
+      } else if (
+        rawDate.length >= 10 &&
+        rawDate.charAt(4) === "-" &&
+        rawDate.charAt(7) === "-"
+      ) {
         tanggal = rawDate.slice(0, 10);
       }
 
@@ -188,7 +196,11 @@ function normalizeProfitDailyRows(rows) {
         total_laba: Number.isFinite(totalLaba) ? totalLaba : 0
       };
     })
-    .filter((row) => /^\\d{4}-\\d{2}-\\d{2}$/.test(row.tanggal));
+    .filter((row) =>
+      row.tanggal.length === 10 &&
+      row.tanggal.charAt(4) === "-" &&
+      row.tanggal.charAt(7) === "-"
+    );
 }
 
 function extractPiutangTotal(result) {
