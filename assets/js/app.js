@@ -1,7 +1,7 @@
 import { APP_CONFIG } from "./config.js";
 import { apiServerHealth } from "./api/client.js";
 import { renderPiutangPage } from "./pages/piutang.js?v=20261016-pdf-response-debug-v1";
-import { renderDashboardPage } from "./pages/dashboard.js?v=20261020-dashboard-swr-v2";
+import { renderDashboardPage } from "./pages/dashboard.js?v=20261023-dashboard-daily-profit-v1";
 import { renderPelangganPage } from "./pages/pelanggan.js?v=20261016-customer-api-recovery-v1";
 import { renderSupplierHutangPage } from "./pages/supplier-hutang.js?v=20261015-supplier-uiux-v1";
 import { renderInvoicePage } from "./pages/invoice.js?v=20261023-surat-jalan-prs-v1";
