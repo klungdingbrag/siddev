@@ -191,3 +191,15 @@ Jumlah selector bersama: **123**.
 Pemeriksaan read-only dilakukan pada domain aplikasi dengan viewport 1440×900 dan 1024×768. Namun, halaman yang dilayani masih memuat cache key CSS lama (`app.css?v=20261015-shell-owner-v1` dan `ui-polish.css?v=20261020-light-sidebar-v1`), sehingga belum membuktikan stylesheet baru dari branch ini sudah ter-deploy. Pada sesi tersebut, tiga request Dashboard menerima pesan SID Retail `server offline`; karena itu data panel, modal detail berbasis data, dan PDF/cetak tidak dapat dinyatakan lolos QA.
 
 Pembersihan source hanya menghapus blok duplikat identik dan mempertahankan blok yang tersisa. File Invoice/Kalkulator tidak berubah. Ulangi pemeriksaan desktop/tablet/modal/cetak setelah deployment branch ini benar-benar tampil dan endpoint SID Retail merespons normal.
+
+## QA follow-up — 2026-10-25
+
+Pemeriksaan ulang dilakukan setelah cache key baru diterapkan. Browser live memuat `app.css?v=20261025-css-dedup-v1` dan `ui-polish.css?v=20261025-css-dedup-v1`.
+
+- Dashboard tampil pada desktop 1440×900 dan tablet 1024×768; tidak terlihat horizontal overflow.
+- Pada sesi pemeriksaan terakhir, indikator API tampil online dan panel Dashboard berhasil menampilkan data.
+- Halaman Invoice dan pratinjau layar terbuka dengan data contoh yang hanya dimasukkan lokal dan tidak disimpan.
+- Halaman Pelanggan tidak selesai dimuat karena request API timeout, sehingga modal detail Pelanggan/Piutang belum dapat divalidasi.
+- Tombol cetak membuka tab `about:blank` pada browser QA dan tidak menghasilkan halaman pratinjau yang dapat diperiksa. Tidak ada perubahan pada `invoice.css`; hasil cetak tetap memerlukan verifikasi manual di browser/printer pengguna.
+
+Catatan browser sebelumnya yang menyebut cache CSS lama dan API Dashboard offline menggambarkan sesi awal saja. Hasil follow-up di atas menggantikannya untuk kondisi terbaru. Validasi visual desktop/tablet berhasil; validasi modal dan hasil cetak masih tertunda karena batas layanan/browser pada sesi ini.
