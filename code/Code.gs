@@ -5766,7 +5766,7 @@ function doPost(e) {
  * Mengikuti aset dan validasi logo yang sudah digunakan PDF Supplier.
  */
 function getPiutangPdfLogoDataUri_() {
-  const logoUrl = 'https://raw.githubusercontent.com/klungdingbrag/siddev/ui/ux-polish-v3/assets/img/CV.%20NUSANTARA%20BUILDING%20MATERIAL%20LOGO.png';
+  const logoUrl = 'https://raw.githubusercontent.com/klungdingbrag/siddev/ui/ux-polish-v3/assets/img/cvnbm-stempel-hd.png';
   const response = UrlFetchApp.fetch(logoUrl, {
     muteHttpExceptions: true,
     followRedirects: true
@@ -5793,20 +5793,21 @@ function buildPiutangPdfCompanyHeaderHtml_(logoDataUri) {
   const safeLogo = String(logoDataUri || '')
     .replace(/&/g, '&amp;')
     .replace(/"/g, '&quot;');
-  return '<div style="display:table;width:100%;text-align:left;margin:0 0 10px;padding:0 0 7px;border-bottom:2px solid #111827;">' +
-    '<div style="display:table-cell;width:27mm;vertical-align:middle;padding-right:5mm;">' +
-      '<img src="' + safeLogo + '" alt="Logo TB Nusantara" style="display:block;width:22mm;height:auto;margin:0;">' +
+  return '<div style="display:table;width:100%;text-align:left;margin:0 0 10px;padding:0 0 14px;border-bottom:3px solid #0b3f88;">' +
+    '<div style="display:table-cell;width:92px;vertical-align:middle;padding-right:12px;">' +
+      '<img src="' + safeLogo + '" alt="Logo TB Nusantara" style="display:block;width:88px;height:88px;object-fit:contain;margin:0;">' +
     '</div>' +
-    '<div style="display:table-cell;text-align:left;vertical-align:middle;">' +
-      '<div style="font-size:9pt;font-weight:700;line-height:1.2;">CV NUSANTARA BUILDING MATERIAL</div>' +
-      '<div style="font-size:14pt;font-weight:700;line-height:1.2;margin-top:2px;">TB NUSANTARA</div>' +
-      '<div style="font-size:8pt;line-height:1.25;margin-top:3px;">' +
-        'Jalan Lintas Selatan, Dk. Gudang RT 001/RW 001, Ds. Surorejan,<br>' +
-        'Kec. Puring, Kab. Kebumen, Jawa Tengah 54383' +
+    '<div style="display:table-cell;text-align:left;vertical-align:middle;color:#475467;font-size:9pt;line-height:1.4;">' +
+      '<div style="font-size:10pt;font-weight:700;line-height:1.35;color:#17202a;margin-bottom:3px;">' +
+        'CV NUSANTARA BUILDING MATERIAL | TB NUSANTARA' +
       '</div>' +
-      '<div style="font-size:7.5pt;line-height:1.25;margin-top:3px;">' +
-        'Telepon: 0823-4250-9336 | WhatsApp: 0812-3456-3843<br>' +
-        'Email: cvnbmgroup@gmail.com | Website: tbnusatara.com' +
+      '<div style="font-size:9pt;line-height:1.4;">' +
+        'Jalan Lintas Selatan, Dk. Gudang RT 001/RW 001,<br>' +
+        'Ds. Surorejan, Kec. Puring, Kab. Kebumen, Jawa Tengah 54383' +
+      '</div>' +
+      '<div style="font-size:8pt;line-height:1.4;margin-top:3px;overflow-wrap:anywhere;">' +
+        'Telepon: 0823-4250-9336 | WhatsApp: 0812-3456-3843 | ' +
+        'cvnbmgroup@gmail.com | tbnusantara.com' +
       '</div>' +
     '</div>' +
   '</div>';
