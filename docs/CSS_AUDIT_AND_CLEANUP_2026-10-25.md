@@ -17,7 +17,7 @@ Karena `ui-polish.css` dimuat setelah `app.css`, aturan dengan selector yang sam
 
 ## Temuan selector yang bertumpang tindih
 
-Pemeriksaan mencatat 92 selector yang muncul pada kedua file utama. Mayoritas memiliki deklarasi berbeda dan dipertahankan sebagai lapisan override, antara lain `.sidebar`, `.nav-item`, `.page-content`, `.btn`, `.modal-panel`, dan komponen Dashboard.
+Pemeriksaan mencatat 123 selector yang muncul pada kedua file utama. Mayoritas memiliki deklarasi berbeda dan dipertahankan sebagai lapisan override, antara lain `.sidebar`, `.nav-item`, `.page-content`, `.btn`, `.modal-panel`, dan komponen Dashboard.
 
 Contoh: `.sidebar` memakai ukuran/layout dasar dari `app.css`, sementara `ui-polish.css` mengganti warna, border, dan bayangan. Aturan-aturan ini bukan duplikat.
 
@@ -184,3 +184,10 @@ Jumlah selector bersama: **123**.
 | `button` | (global): font | (global): -webkit-tap-highlight-color | Additif / konteks berbeda |
 | `input` | (global): font | (global): -webkit-tap-highlight-color | Additif / konteks berbeda |
 | `select` | (global): font | (global): -webkit-tap-highlight-color | Additif / konteks berbeda |
+
+
+## Catatan pemeriksaan browser — 2026-10-25
+
+Pemeriksaan read-only dilakukan pada domain aplikasi dengan viewport 1440×900 dan 1024×768. Namun, halaman yang dilayani masih memuat cache key CSS lama (`app.css?v=20261015-shell-owner-v1` dan `ui-polish.css?v=20261020-light-sidebar-v1`), sehingga belum membuktikan stylesheet baru dari branch ini sudah ter-deploy. Pada sesi tersebut, tiga request Dashboard menerima pesan SID Retail `server offline`; karena itu data panel, modal detail berbasis data, dan PDF/cetak tidak dapat dinyatakan lolos QA.
+
+Pembersihan source hanya menghapus blok duplikat identik dan mempertahankan blok yang tersisa. File Invoice/Kalkulator tidak berubah. Ulangi pemeriksaan desktop/tablet/modal/cetak setelah deployment branch ini benar-benar tampil dan endpoint SID Retail merespons normal.
