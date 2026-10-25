@@ -13,11 +13,11 @@ ZIP GAS yang diunggah berisi enam file. Setelah diekstrak, isi keenam file diban
 | PDF | Generator / jalur |
 | --- | --- |
 | Laporan PDF dari detail pelanggan | `getPdfCustomerStatementV1` |
-| Ringkasan PDF dari detail Piutang | `getPdfRingkasanPiutangPelanggan` |
-| Laporan Detail PDF 6D.2 | `buildSemuaDetailPiutangPdfHtml_6D2` |
+| Ringkasan PDF dari detail Piutang | `getPdfRingkasanPiutangPelanggan` → `buildRingkasanPiutangPdfHtml_` |
+| Laporan Detail PDF 6D.2 | `getPdfSemuaDetailPiutang_6D2` → `stage6d2BuildReportHtml_` |
 | PDF Invoice untuk satu nota dari detail Piutang | `buildInvoicePdfHtml_`, dipanggil melalui `getPdfInvoiceTransaksi` |
 
-Keempat generator menggunakan `buildPiutangPdfCompanyHeaderHtml_` dan logo yang dimuat melalui `getPiutangPdfLogoDataUri_`. Perubahan satu helper kop ini menyamakan header keempat keluaran tersebut.
+Keempat jalur tersebut akhirnya merender melalui `buildPiutangPdfCompanyHeaderHtml_` dan logo yang dimuat melalui `getPiutangPdfLogoDataUri_`. Perubahan satu helper kop ini menyamakan header keempat keluaran tersebut.
 
 ## Perubahan
 
