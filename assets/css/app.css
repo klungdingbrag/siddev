@@ -357,7 +357,6 @@ button, input, select {
 .icon-btn { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 7px 10px; cursor: pointer; font-size: 12px; font-weight: 600; }
 .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
 .table-state { padding: 42px 20px; text-align: center; color: var(--muted); }
-.table-state.error { color: #b42318; }
 .table-state.empty { color: var(--muted); }
 .hidden { display: none !important; }
 
@@ -390,7 +389,6 @@ button, input, select {
 .detail-total-card strong { display: block; font-size: 24px; margin: 5px 0; }
 .detail-total-card small { font-size: 11px; }
 .detail-heading { font-weight: 700; margin: 20px 0 10px; }
-.detail-table-scroll { overflow-x: auto; }
 .detail-table { width: 100%; border-collapse: collapse; min-width: 650px; }
 .detail-table th, .detail-table td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; font-size: 12px; white-space: nowrap; }
 .detail-table th { color: var(--muted); font-size: 10px; text-transform: uppercase; }
@@ -408,7 +406,6 @@ button, input, select {
   .summary-grid { grid-template-columns: 1fr 1fr; }
   .table-scroll { display: none; }
   .mobile-data-cards { display: block; }
-  .detail-customer { grid-template-columns: 1fr; }
 }
 @media (max-width: 520px) {
   .summary-grid { grid-template-columns: 1fr; }
@@ -1222,10 +1219,6 @@ button, input, select {
 }
 
 @media (max-width: 1100px) {
-  .dashboard-kpis {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .dashboard-chart-grid {
     grid-template-columns: 1fr;
     grid-template-areas:
@@ -1507,10 +1500,6 @@ button, input, select {
     background: currentColor;
   }
 
-  .mobile-menu-toggle:active {
-    transform: scale(.97);
-  }
-
   .environment-badge {
     flex: 0 0 auto;
     padding: 6px 8px;
@@ -1627,9 +1616,6 @@ button, input, select {
     padding: 8px 4px 6px;
   }
 
-  .dashboard-chart {
-    height: 250px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

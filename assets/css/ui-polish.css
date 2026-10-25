@@ -17,10 +17,6 @@
 
 /* ---------- Global interaction ---------- */
 
-button {
-  -webkit-tap-highlight-color: transparent;
-}
-
 .btn,
 .icon-btn,
 .mini-action {
