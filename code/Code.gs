@@ -4947,19 +4947,23 @@ function stage6d2BuildReportHtml_(data) {
   html += '.qty{text-align:right;white-space:nowrap;}';
   html += '.money{text-align:right;white-space:nowrap;}';
   html += '.subtotal{font-weight:600;}';
-  html += '.summary-wrap{margin-top:8px;border-top:2px solid #111;padding-top:5px;page-break-inside:avoid;}';
+  html += '.summary-wrap{margin:0;padding:0;page-break-inside:avoid;break-inside:avoid;}';
   html += '.summary-title{font-weight:700;font-size:9.5pt;margin-bottom:4px;}';
   html += '.summary-table{width:100%;border-collapse:collapse;}';
   html += '.summary-table td{padding:2px 2px;}';
-  html += '.summary-label{font-weight:700;width:30%;}';
-  html += '.summary-value{text-align:right;font-weight:700;width:25%;}';
-  html += '.signature{float:right;width:42%;text-align:center;margin-top:-2px;}';
-  html += '.signature-space{height:42px;}';
+  html += '.summary-label{font-weight:700;width:60%;}';
+  html += '.summary-value{text-align:right;font-weight:700;width:40%;white-space:nowrap;}';
+  html += '.closing-layout{width:100%;border-collapse:collapse;table-layout:fixed;page-break-inside:avoid;break-inside:avoid;}';
+  html += '.closing-layout td{vertical-align:top;}';
+  html += '.closing-left{width:58%;padding-right:12px;}';
+  html += '.closing-right{width:42%;padding-left:12px;text-align:center;}';
+  html += '.signature{width:100%;text-align:center;margin:0;}';
+  html += '.signature-space{height:56px;}';
   html += '.signature-line{border-bottom:1px solid #111;margin:0 15px 2px;}';
-  html += '.payment{clear:both;margin-top:12px;padding-top:5px;border-top:1px solid #777;page-break-inside:avoid;}';
+  html += '.payment{margin-top:7px;padding-top:5px;border-top:1px solid #777;page-break-inside:avoid;break-inside:avoid;}';
   html += '.payment-title{font-weight:700;margin-bottom:3px;}';
   html += '.payment p{margin:1px 0;}';
-  html += '.footer-total{margin-top:5px;padding-top:4px;border-top:2px solid #111;font-size:10pt;font-weight:700;text-align:right;}';
+  html += '.footer-total{margin:8px 0 7px;padding:5px 2px;border-top:2px solid #111;border-bottom:2px solid #111;font-size:10pt;font-weight:700;text-align:right;page-break-inside:avoid;break-inside:avoid;}';
   html += '</style></head><body><div class="page">';
 
   html += buildPiutangPdfCompanyHeaderHtml_(logoDataUri);
@@ -5023,25 +5027,26 @@ function stage6d2BuildReportHtml_(data) {
 
   html += '</tbody></table>';
 
+  html += '<div class="footer-total">TOTAL SALDO HUTANG : ' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(totalSaldoHutang)) + '</div>';
+
+  html += '<table class="closing-layout"><tbody><tr><td class="closing-left">';
   html += '<div class="summary-wrap">';
-  html += '<table class="summary-table"><tr>';
-  html += '<td colspan="2" class="summary-title">RINGKASAN</td>';
-  html += '<td rowspan="4" class="signature">TTD<div class="signature-space"></div><div class="signature-line"></div><div>Wasimun</div></td>';
-  html += '</tr>';
+  html += '<div class="summary-title">RINGKASAN</div>';
+  html += '<table class="summary-table">';
   html += '<tr><td class="summary-label">TOTAL INVOICE</td><td class="summary-value">' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(totalInvoice)) + '</td></tr>';
   html += '<tr><td class="summary-label">TOTAL DIBAYAR</td><td class="summary-value">' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(totalDibayar)) + '</td></tr>';
   html += '<tr><td class="summary-label">TOTAL SALDO HUTANG</td><td class="summary-value">' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(totalSaldoHutang)) + '</td></tr>';
   html += '</table>';
-
-  html += '<div class="footer-total">TOTAL SALDO HUTANG : ' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(totalSaldoHutang)) + '</div>';
-
   html += '<div class="payment">';
   html += '<div class="payment-title">Pembayaran dapat dilakukan melalui transfer:</div>';
   html += '<p><strong>BRI</strong></p>';
   html += '<p>a.n. Wasimun</p>';
   html += '<p>No. Rekening: 003201105050505</p>';
   html += '</div>';
-  html += '</div></div></body></html>';
+  html += '</div></td><td class="closing-right">';
+  html += '<div class="signature">TTD<div class="signature-space"></div><div class="signature-line"></div><div>Wasimun</div></div>';
+  html += '</td></tr></tbody></table>';
+  html += '</div></body></html>';
 
   return {
     html: html,
