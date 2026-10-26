@@ -308,10 +308,3 @@ function closeDetail() {
   state.lastFocus?.focus?.();
 }
 
-function setFreshness(timestamp, label) {
-  const status = document.querySelector("#savings-status");
-  const updated = document.querySelector("#savings-updated");
-  if (!status || !updated) return;
-  status.textContent = label.includes("gagal") ? "Cache" : "Siap";
-  updated.textContent = timestamp ? `${label} · ${new Intl.DateTimeFormat("id-ID", { dateStyle: "short", timeStyle: "short" }).format(new Date(timestamp))}` : label;
-}
