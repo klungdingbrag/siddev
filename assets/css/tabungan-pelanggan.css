@@ -1,0 +1,59 @@
+/* Scoped styles for the read-only customer savings page. */
+.savings-heading { align-items: flex-start; }
+.savings-heading .page-description { max-width: 760px; }
+.savings-summary .summary-card strong { overflow-wrap: anywhere; }
+.savings-panel { min-width: 0; }
+.savings-toolbar { align-items: center; }
+.savings-toolbar .search-box { flex: 1 1 360px; min-width: min(100%, 260px); }
+.savings-table { min-width: 880px; }
+.savings-table th, .savings-table td { vertical-align: middle; }
+.savings-table th:nth-child(1) { width: 110px; }
+.savings-table th:nth-child(2) { width: 220px; }
+.savings-table th:nth-child(4) { width: 190px; }
+.savings-table th:nth-child(5) { width: 110px; }
+.savings-amount { text-align: right !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.savings-detail-button { min-width: 78px; }
+.savings-data-card { gap: 12px; }
+.savings-data-card dl { display: grid; gap: 12px; margin: 0; }
+.savings-data-card dl > div { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 12px; }
+.savings-data-card dt { color: var(--text-muted, #64748b); font-size: .82rem; }
+.savings-data-card dd { margin: 0; overflow-wrap: anywhere; }
+.savings-card-amount { font-weight: 700; font-variant-numeric: tabular-nums; }
+.savings-modal-panel { width: min(1120px, calc(100vw - 32px)); max-height: min(88vh, 900px); overflow: hidden; display: flex; flex-direction: column; }
+.savings-modal-panel .modal-body { min-height: 0; overflow: auto; }
+.savings-detail-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.savings-detail-summary article { display: grid; gap: 5px; padding: 14px 16px; border: 1px solid var(--border, #e2e8f0); border-radius: 12px; background: var(--surface-soft, #f8fafc); }
+.savings-detail-summary article span { color: var(--text-muted, #64748b); font-size: .82rem; }
+.savings-detail-summary article strong { font-size: 1.08rem; font-variant-numeric: tabular-nums; }
+.savings-history-note, .savings-reconciliation { margin: 0 0 12px; color: var(--text-muted, #64748b); font-size: .85rem; line-height: 1.5; }
+.savings-reconciliation { padding: 10px 12px; border-radius: 10px; border: 1px solid #f5d28a; background: #fff8e7; color: #805b12; }
+.savings-history-table-wrap { overflow: auto; border: 1px solid var(--border, #e2e8f0); border-radius: 10px; }
+.savings-history-table { min-width: 760px; }
+.savings-history-table th, .savings-history-table td { padding: 10px 12px; }
+.savings-history-table .is-deposit, .savings-history-card .is-deposit { color: #087443; }
+.savings-history-table .is-withdrawal, .savings-history-card .is-withdrawal { color: #b42318; }
+.savings-no-history { padding: 24px !important; text-align: center; color: var(--text-muted, #64748b); }
+.savings-history-cards { display: none; }
+.savings-history-card { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--border, #e2e8f0); border-radius: 10px; }
+.savings-history-card > div { display: flex; justify-content: space-between; gap: 12px; }
+.savings-history-card > div span, .savings-history-card small { color: var(--text-muted, #64748b); }
+.savings-history-card p { margin: 0; overflow-wrap: anywhere; }
+.savings-history-card > strong { font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) {
+  .savings-heading { flex-direction: column; }
+  .savings-heading #savings-refresh { align-self: stretch; }
+  .savings-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .savings-summary .summary-card:first-child { grid-column: 1 / -1; }
+  .savings-summary .summary-card strong { font-size: clamp(1.05rem, 4vw, 1.35rem); }
+  .savings-toolbar { align-items: stretch; }
+  .savings-toolbar .search-box { flex-basis: 100%; }
+  .savings-toolbar .page-size { justify-content: flex-end; }
+  .savings-modal-panel { width: calc(100vw - 20px); max-height: 92vh; }
+  .savings-history-table-wrap { display: none; }
+  .savings-history-cards { display: grid; gap: 8px; }
+}
+@media (max-width: 420px) {
+  .savings-summary { gap: 8px; }
+  .savings-summary .summary-card { padding: 12px; }
+  .savings-detail-summary { grid-template-columns: 1fr; }
+}
