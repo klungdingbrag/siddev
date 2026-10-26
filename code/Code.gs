@@ -4913,11 +4913,16 @@ function stage6d2BuildReportHtml_(data) {
   html += '.address{font-size:8pt;margin-top:2px;}';
   html += '.phone{font-size:8pt;margin-top:1px;}';
   html += '.separator{margin:5px 0 6px;}';
-  html += '.title{font-size:12pt;font-weight:700;text-transform:uppercase;margin-bottom:4px;}';
-  html += '.meta{width:100%;border-collapse:collapse;margin-bottom:5px;}';
-  html += '.meta td{padding:1.5px 2px;vertical-align:top;}';
-  html += '.meta .label{font-weight:700;width:85px;}';
-  html += '.meta .customer{font-weight:700;}';
+  html += '.title{font-size:12pt;font-weight:700;text-transform:uppercase;text-align:center;margin-bottom:6px;}';
+  html += '.meta-layout{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:7px;}';
+  html += '.meta-layout>tbody>tr>td{width:50%;vertical-align:top;padding:0 10px 0 0;}';
+  html += '.meta-layout>tbody>tr>td+td{padding:0 0 0 10px;}';
+  html += '.meta-block{width:100%;border-collapse:collapse;table-layout:fixed;}';
+  html += '.meta-block td{padding:1.5px 2px;vertical-align:top;}';
+  html += '.meta-block .label{font-weight:700;white-space:nowrap;}';
+  html += '.meta-block .colon{text-align:center;width:10px;}';
+  html += '.meta-block .value{overflow-wrap:anywhere;}';
+  html += '.meta-block-right .customer{font-weight:700;}';
   html += '.info-line{margin-top:1px;}';
   html += '.report{width:100%;border-collapse:collapse;table-layout:fixed;}';
   html += '.report col.c-no{width:5%;}';
@@ -4961,16 +4966,21 @@ function stage6d2BuildReportHtml_(data) {
   html += '<div class="separator"></div>';
 
   html += '<div class="title">LAPORAN DETAIL PIUTANG PELANGGAN</div>';
-  html += '<table class="meta">';
-  html += '<tr><td class="label">TANGGAL CETAK</td><td>: ' + stage6d2EscapeHtml_(tanggalCetak) + '</td></tr>';
-  html += '<tr><td class="label">PERIODE NOTA</td><td>: ' +
+  html += '<table class="meta-layout"><tbody><tr>';
+  html += '<td><table class="meta-block meta-block-left"><colgroup><col style="width:38%"><col style="width:5%"><col style="width:57%"></colgroup><tbody>';
+  html += '<tr><td class="label">TANGGAL CETAK</td><td class="colon">:</td><td class="value">' + stage6d2EscapeHtml_(tanggalCetak) + '</td></tr>';
+  html += '<tr><td class="label">PERIODE NOTA</td><td class="colon">:</td><td class="value">' +
     stage6d2EscapeHtml_(stage6d2FormatDate_(tanggalAwal ? Utilities.formatDate(tanggalAwal, Session.getScriptTimeZone(), 'yyyy-MM-dd') : '')) +
     ' S/D ' +
     stage6d2EscapeHtml_(stage6d2FormatDate_(tanggalAkhir ? Utilities.formatDate(tanggalAkhir, Session.getScriptTimeZone(), 'yyyy-MM-dd') : '')) +
     '</td></tr>';
-  html += '<tr><td class="label">Pelanggan</td><td class="customer">: ' + stage6d2EscapeHtml_(namaPelanggan) + ' &nbsp;&nbsp;&nbsp; Kode : ' + stage6d2EscapeHtml_(kodePelanggan) + '</td></tr>';
-  html += '<tr><td class="label">Alamat</td><td>: ' + stage6d2EscapeHtml_(alamat || '-') + '</td></tr>';
-  html += '</table>';
+  html += '</tbody></table></td>';
+  html += '<td><table class="meta-block meta-block-right"><colgroup><col style="width:27%"><col style="width:5%"><col style="width:68%"></colgroup><tbody>';
+  html += '<tr><td class="label">Pelanggan</td><td class="colon">:</td><td class="value customer">' + stage6d2EscapeHtml_(namaPelanggan) + '</td></tr>';
+  html += '<tr><td class="label">Kode</td><td class="colon">:</td><td class="value">' + stage6d2EscapeHtml_(kodePelanggan) + '</td></tr>';
+  html += '<tr><td class="label">Alamat</td><td class="colon">:</td><td class="value">' + stage6d2EscapeHtml_(alamat || '-') + '</td></tr>';
+  html += '</tbody></table></td>';
+  html += '</tr></tbody></table>';
 
   html += '<table class="report">';
   html += '<colgroup>';
