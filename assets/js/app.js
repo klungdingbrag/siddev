@@ -3,6 +3,7 @@ import { apiServerHealth } from "./api/client.js";
 import { renderPiutangPage } from "./pages/piutang.js?v=20261016-pdf-response-debug-v1";
 import { renderDashboardPage } from "./pages/dashboard.js?v=20261023-dashboard-daily-profit-v1";
 import { renderPelangganPage } from "./pages/pelanggan.js?v=20261016-customer-api-recovery-v1";
+import { renderTabunganPelangganPage } from "./pages/tabungan-pelanggan.js?v=20261026-customer-savings-v1";
 import { renderSupplierHutangPage } from "./pages/supplier-hutang.js?v=20261015-supplier-uiux-v1";
 import { renderInvoicePage } from "./pages/invoice.js?v=20261023-surat-jalan-prs-v1";
 import { renderCalculatorPage } from "./pages/calculator.js?v=20261019-invoice-tax-calculator-v3";
@@ -74,6 +75,7 @@ sidebar.innerHTML = `
   <nav class="nav">
     <a class="nav-item" href="#dashboard">Dashboard</a>
     <a class="nav-item" href="#pelanggan">Pelanggan</a>
+    <a class="nav-item" href="#tabungan-pelanggan">Tabungan Pelanggan</a>
     <a class="nav-item" href="#piutang">Piutang</a>
     <a class="nav-item" href="#hutang-supplier">Hutang Supplier</a>
     <a class="nav-item" href="#invoice">Invoice</a>
@@ -123,6 +125,10 @@ function route({ focusContent = false } = {}) {
     "#pelanggan": {
       title: "Pelanggan",
       render: () => renderPelangganPage()
+    },
+    "#tabungan-pelanggan": {
+      title: "Tabungan Pelanggan",
+      render: () => renderTabunganPelangganPage()
     },
     "#hutang-supplier": {
       title: "Hutang Supplier",
