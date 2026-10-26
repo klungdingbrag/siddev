@@ -22,7 +22,8 @@ Perubahan dibatasi pada CSS dan metadata table di `stage6d2BuildReportHtml_`, ge
 
 ## Addendum: susunan ringkasan, saldo, dan rekening
 
-**Commit source:** `da7514496cd1211d6be1b2686b605ec7d06e42fc`
+**Commit source:** `da7514496cd1211d6be1b2686b605ec7d06e42fc`  
+**Follow-up page-break commit:** `275bb780e5d5be03ea151cece9b7ce0971332cd5`
 
 Bagian akhir laporan kini dirancang sebagai berikut:
 
@@ -32,6 +33,6 @@ Bagian akhir laporan kini dirancang sebagai berikut:
 4. Kolom kanan memuat TTD dan nama Wasimun.
 5. Total saldo hutang ditampilkan kembali di dalam Ringkasan agar angka utama dan rinciannya sama-sama tampak.
 
-Perubahan hanya pada markup/CSS bagian penutup `stage6d2BuildReportHtml_`. Nilai menggunakan variabel yang sama seperti sebelumnya; query dan perhitungan tidak diubah. Layout penutup diberi aturan agar tidak terbelah antarhalaman bila ruang mencukupi.
+Perubahan hanya pada markup/CSS bagian penutup `stage6d2BuildReportHtml_`. Nilai menggunakan variabel yang sama seperti sebelumnya; query dan perhitungan tidak diubah. Seluruh kelompok penutup (baris total, ringkasan, rekening, dan TTD) diberi aturan agar tetap bersama saat pindah halaman.
 
 Perlu menyalin `code/Code.gs` terbaru ke Apps Script dan memperbarui deployment sebelum hasil ini muncul di PDF live. PDF pasca-deployment belum diperiksa.
