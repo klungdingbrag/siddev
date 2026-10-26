@@ -4953,6 +4953,7 @@ function stage6d2BuildReportHtml_(data) {
   html += '.summary-table td{padding:2px 2px;}';
   html += '.summary-label{font-weight:700;width:60%;}';
   html += '.summary-value{text-align:right;font-weight:700;width:40%;white-space:nowrap;}';
+  html += '.final-closing{page-break-inside:avoid;break-inside:avoid;}';
   html += '.closing-layout{width:100%;border-collapse:collapse;table-layout:fixed;page-break-inside:avoid;break-inside:avoid;}';
   html += '.closing-layout td{vertical-align:top;}';
   html += '.closing-left{width:58%;padding-right:12px;}';
@@ -5027,6 +5028,7 @@ function stage6d2BuildReportHtml_(data) {
 
   html += '</tbody></table>';
 
+  html += '<div class="final-closing">';
   html += '<div class="footer-total">TOTAL SALDO HUTANG : ' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(totalSaldoHutang)) + '</div>';
 
   html += '<table class="closing-layout"><tbody><tr><td class="closing-left">';
@@ -5046,7 +5048,7 @@ function stage6d2BuildReportHtml_(data) {
   html += '</div></td><td class="closing-right">';
   html += '<div class="signature">TTD<div class="signature-space"></div><div class="signature-line"></div><div>Wasimun</div></div>';
   html += '</td></tr></tbody></table>';
-  html += '</div></body></html>';
+  html += '</div></div></body></html>';
 
   return {
     html: html,
