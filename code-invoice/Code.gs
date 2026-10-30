@@ -14,7 +14,7 @@ const INV_SPREADSHEET_PROPERTY = "INVOICE_SPREADSHEET_ID";
 const INV_PPH_RATE = 0.015;
 const INV_VAT_INCLUDED_RATE = 0.11;
 const INV_ALLOWED_PARENT_ORIGIN = "https://admin.tbnusantara.com";
-const INV_BUILD_TAG = "2026-10-17-fetch-api-v1";
+const INV_BUILD_TAG = "2026-10-30-nippon-price-list-v1";
 
 /** JSON API for the standalone Invoice frontend. GET is read-only; POST saves drafts. */
 function doGet(e) {
@@ -43,6 +43,9 @@ function doGet(e) {
     if (action === "getInvoice") {
       return invoiceApiSuccess_(getInvoice(params.invoiceId || ""));
     }
+    if (action === "listNipponPrices") {
+      return invoiceApiSuccess_(listNipponPrices(params.searchText || "", params.limit));
+    }
     throw new Error("Action GET tidak dikenal: " + action);
   } catch (error) {
     return invoiceApiError_(error);
@@ -54,10 +57,13 @@ function doPost(e) {
   try {
     const body = JSON.parse(e && e.postData && e.postData.contents || "{}");
     const action = String(body.action || "");
-    if (action !== "saveInvoice") {
-      throw new Error("Action POST tidak dikenal: " + action);
+    if (action === "saveInvoice") {
+      return invoiceApiSuccess_(saveInvoice(body));
     }
-    return invoiceApiSuccess_(saveInvoice(body));
+    if (action === "saveNipponPrice") {
+      return invoiceApiSuccess_(saveNipponPrice(body));
+    }
+    throw new Error("Action POST tidak dikenal: " + action);
   } catch (error) {
     return invoiceApiError_(error);
   }
@@ -83,11 +89,18 @@ function invoiceHealthResponse_() {
   let storageReady = false;
   let bridgeTemplateReady = false;
   let bridgeUsesTopMessaging = false;
+  let nipponPriceListReady = false;
   try {
     invoiceGetSheets_();
     storageReady = true;
   } catch (error) {
     storageReady = false;
+  }
+  try {
+    invoiceGetNipponPriceSheet_();
+    nipponPriceListReady = true;
+  } catch (error) {
+    nipponPriceListReady = false;
   }
   try {
     const template = HtmlService.createTemplateFromFile("Bridge");
@@ -110,9 +123,10 @@ function invoiceHealthResponse_() {
     storageReady: storageReady,
     bridgeTemplateReady: bridgeTemplateReady,
     bridgeUsesTopMessaging: bridgeUsesTopMessaging,
+    priceListReady: nipponPriceListReady,
     api: {
-      get: ["health", "listInvoices", "getInvoice"],
-      post: ["saveInvoice"]
+      get: ["health", "listInvoices", "getInvoice", "listNipponPrices"],
+      post: ["saveInvoice", "saveNipponPrice"]
     },
     message: "Health check tidak membaca isi invoice dan tidak mengubah data."
   });
@@ -411,4 +425,126 @@ function listInvoices(searchText, limit) {
       delete invoice.items;
       return invoice;
     });
+}
+
+
+/* Nippon Paint purchase price list: separate sheet and actions, same Invoice GAS. */
+function invoiceGetNipponPriceSheet_() {
+  const spreadsheet = invoiceGetSpreadsheet_();
+  const sheet = spreadsheet.getSheetByName("NipponPriceList");
+  if (!sheet) {
+    throw new Error("Sheet NipponPriceList belum tersedia. Jalankan setupNipponPriceListSheet().");
+  }
+  if (!sheet.getLastRow()) {
+    throw new Error("Sheet NipponPriceList belum memiliki header. Jalankan setupNipponPriceListSheet().");
+  }
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), NIPPON_PRICE_HEADERS.length))
+    .getDisplayValues()[0]
+    .slice(0, NIPPON_PRICE_HEADERS.length);
+  if (NIPPON_PRICE_HEADERS.some(function (header, index) { return headers[index] !== header; })) {
+    throw new Error("Header NipponPriceList tidak sesuai dengan skema aplikasi.");
+  }
+  return sheet;
+}
+
+function nipponPriceText_(value, label, maxLength) {
+  const text = String(value == null ? "" : value).trim();
+  if (!text) throw new Error(label + " wajib diisi.");
+  if (text.length > maxLength) throw new Error(label + " maksimal " + maxLength + " karakter.");
+  return text;
+}
+
+function nipponPriceMoney_(value) {
+  if (typeof value === "string" && !value.trim()) throw new Error("HPP dasar wajib diisi.");
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > Number.MAX_SAFE_INTEGER) {
+    throw new Error("HPP dasar harus berupa angka lebih besar dari 0.");
+  }
+  return Math.round(amount);
+}
+
+function nipponPriceMapRow_(row, map) {
+  return {
+    priceId: String(row[map.price_id] || ""),
+    productName: String(row[map.product_name] || ""),
+    size: String(row[map.size] || ""),
+    baseCost: Number(row[map.base_cost] || 0),
+    active: row[map.active] !== false,
+    createdAt: row[map.created_at] || "",
+    updatedAt: row[map.updated_at] || ""
+  };
+}
+
+function listNipponPrices(searchText, limit) {
+  const sheet = invoiceGetNipponPriceSheet_();
+  if (sheet.getLastRow() < 2) return [];
+  const map = invoiceHeaderMap_(sheet);
+  const query = String(searchText || "").trim().toLocaleLowerCase("id-ID");
+  const max = Math.min(Math.max(Number(limit) || 200, 1), 500);
+  return sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn())
+    .getValues()
+    .map(function (row) { return nipponPriceMapRow_(row, map); })
+    .filter(function (product) {
+      return product.active && (!query ||
+        (product.productName + " " + product.size).toLocaleLowerCase("id-ID").indexOf(query) >= 0);
+    })
+    .sort(function (a, b) {
+      return a.productName.localeCompare(b.productName, "id") || a.size.localeCompare(b.size, "id");
+    })
+    .slice(0, max);
+}
+
+function saveNipponPrice(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Data produk Nippon Paint tidak valid.");
+  }
+  const productName = nipponPriceText_(payload.productName, "Nama barang", 180);
+  const size = nipponPriceText_(payload.size, "Ukuran/kemasan", 80);
+  const baseCost = nipponPriceMoney_(payload.baseCost);
+  const priceId = String(payload.priceId || "").trim();
+
+  return invoiceWithLock_(function () {
+    const sheet = invoiceGetNipponPriceSheet_();
+    const map = invoiceHeaderMap_(sheet);
+    const now = new Date();
+    const rows = sheet.getLastRow() > 1
+      ? sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues()
+      : [];
+    let targetRow = -1;
+    let createdAt = now;
+
+    rows.forEach(function (row, index) {
+      const existingId = String(row[map.price_id] || "");
+      if (priceId && existingId === priceId) {
+        targetRow = index + 2;
+        createdAt = row[map.created_at] || now;
+      }
+      const sameProduct = String(row[map.product_name] || "").trim().toLocaleLowerCase("id-ID") === productName.toLocaleLowerCase("id-ID");
+      const sameSize = String(row[map.size] || "").trim().toLocaleLowerCase("id-ID") === size.toLocaleLowerCase("id-ID");
+      if (row[map.active] !== false && sameProduct && sameSize && (!priceId || existingId !== priceId)) {
+        throw new Error("Produk dengan nama dan ukuran yang sama sudah terdaftar.");
+      }
+    });
+
+    if (priceId && targetRow < 0) throw new Error("Data produk Nippon Paint tidak ditemukan.");
+    const id = priceId || ("NPP-" + Utilities.getUuid());
+    const values = [id, productName, size, baseCost, true, createdAt, now];
+    if (targetRow > 0) {
+      sheet.getRange(targetRow, 1, 1, values.length).setValues([values]);
+    } else {
+      sheet.appendRow(values);
+    }
+    const savedRow = targetRow > 0 ? targetRow : sheet.getLastRow();
+    sheet.getRange(savedRow, 4).setNumberFormat("#,##0");
+    sheet.getRange(savedRow, 6, 1, 2).setNumberFormat("yyyy-mm-dd hh:mm:ss");
+    return {
+      priceId: id,
+      productName: productName,
+      size: size,
+      baseCost: baseCost,
+      active: true,
+      createdAt: createdAt,
+      updatedAt: now
+    };
+  });
 }
