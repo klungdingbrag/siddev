@@ -95,3 +95,54 @@ function setupInvoiceSpreadsheet() {
     message: "Struktur Spreadsheet Invoice siap digunakan."
   };
 }
+
+
+const NIPPON_PRICE_HEADERS = Object.freeze([
+  "price_id", "product_name", "size", "base_cost", "active", "created_at", "updated_at"
+]);
+
+/**
+ * Create only the Nippon price list tab. Does not modify Invoice sheets.
+ * Run once after deploying this source to the Invoice Apps Script project.
+ */
+function setupNipponPriceListSheet() {
+  const spreadsheet = invoiceGetSpreadsheet_();
+  const name = "NipponPriceList";
+  let sheet = spreadsheet.getSheetByName(name);
+
+  if (!sheet) sheet = spreadsheet.insertSheet(name);
+
+  if (sheet.getLastRow()) {
+    const lastColumn = Math.max(sheet.getLastColumn(), NIPPON_PRICE_HEADERS.length);
+    const headers = sheet.getRange(1, 1, 1, lastColumn)
+      .getDisplayValues()[0]
+      .slice(0, NIPPON_PRICE_HEADERS.length);
+    if (NIPPON_PRICE_HEADERS.some(function (header, index) {
+      return headers[index] !== header;
+    })) {
+      throw new Error(
+        "Header sheet " + name + " tidak sesuai. Tidak ada data yang diubah. " +
+        "Periksa baris pertama sebelum menjalankan setup kembali."
+      );
+    }
+  } else {
+    sheet.getRange(1, 1, 1, NIPPON_PRICE_HEADERS.length)
+      .setValues([NIPPON_PRICE_HEADERS]);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, NIPPON_PRICE_HEADERS.length)
+      .setFontWeight("bold")
+      .setBackground("#0b3f88")
+      .setFontColor("#ffffff");
+    sheet.autoResizeColumns(1, NIPPON_PRICE_HEADERS.length);
+    sheet.getRange("D:D").setNumberFormat("#,##0");
+    sheet.getRange("F:G").setNumberFormat("yyyy-mm-dd hh:mm:ss");
+  }
+
+  return {
+    ok: true,
+    spreadsheetId: spreadsheet.getId(),
+    sheet: name,
+    headers: NIPPON_PRICE_HEADERS.slice(),
+    message: "Sheet NipponPriceList siap digunakan."
+  };
+}
