@@ -120,7 +120,11 @@ function bindEvents() {
   };
   document.querySelector("#nippon-body").addEventListener("click", onProductAction);
   document.querySelector("#nippon-cards").addEventListener("click", onProductAction);
-  document.querySelector("#nippon-calc-product").addEventListener("change", updateCalculation);
+  document.querySelector("#nippon-calc-product").addEventListener("change", () => {
+    document.querySelector("#nippon-calc-ink").value = "0";
+    document.querySelector("#nippon-calc-color").value = "";
+    updateCalculation();
+  });
   document.querySelector("#nippon-calc-ink").addEventListener("input", updateCalculation);
   document.querySelector("#nippon-editor-form").addEventListener("submit", saveProduct);
   document.querySelector("#nippon-editor-close").addEventListener("click", closeEditor);
@@ -139,7 +143,11 @@ async function loadProducts() {
   if (!button) return;
   button.disabled = true;
   button.textContent = "↻ Memuat...";
-  setListState("loading", state.products.length ? "" : "Memuat daftar harga...");
+  if (!state.products.length) setListState("loading", "Memuat daftar harga...");
+  else {
+    document.querySelector("#nippon-status").textContent = "Memperbarui";
+    document.querySelector("#nippon-updated").textContent = "Mengambil data terbaru…";
+  }
   try {
     const rows = await request("listNipponPrices", { limit: 500 });
     if (!document.querySelector("#nippon-price-page")) return;
@@ -152,9 +160,13 @@ async function loadProducts() {
     filterAndRender();
   } catch (error) {
     if (!document.querySelector("#nippon-price-page")) return;
-    setListState("error", "Daftar harga gagal dimuat. " + (error?.message || "Periksa koneksi GAS."));
-    document.querySelector("#nippon-status").textContent = "Gagal";
-    document.querySelector("#nippon-updated").textContent = error?.message || "Periksa endpoint GAS Invoice.";
+    if (!state.products.length) {
+      setListState("error", "Daftar harga gagal dimuat. " + (error?.message || "Periksa koneksi GAS."));
+    }
+    document.querySelector("#nippon-status").textContent = state.products.length ? "Cache" : "Gagal";
+    document.querySelector("#nippon-updated").textContent = state.products.length
+      ? "Pembaruan gagal; data terakhir tetap ditampilkan."
+      : (error?.message || "Periksa endpoint GAS Invoice.");
   } finally {
     if (document.querySelector("#nippon-price-page")) {
       button.disabled = false;
