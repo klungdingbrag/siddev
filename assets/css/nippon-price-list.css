@@ -1,0 +1,68 @@
+/* Scoped layout for the Nippon Paint base-cost catalog and tint cost calculator. */
+.nippon-heading { align-items: flex-start; }
+.nippon-heading .page-description { max-width: 760px; }
+.nippon-heading-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.nippon-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.nippon-panel, .nippon-calculator { min-width: 0; }
+.nippon-toolbar .search-box { flex: 1 1 360px; min-width: min(100%, 260px); }
+.nippon-table { width: 100%; min-width: 1040px; table-layout: fixed; }
+.nippon-table th, .nippon-table td { vertical-align: middle; white-space: normal; overflow-wrap: anywhere; }
+.nippon-table th:nth-child(1) { width: 28%; }
+.nippon-table th:nth-child(2) { width: 16%; }
+.nippon-table th:nth-child(3) { width: 18%; }
+.nippon-table th:nth-child(4) { width: 21%; }
+.nippon-table th:nth-child(5) { width: 17%; }
+.nippon-table th:nth-child(1), .nippon-table td:nth-child(1),
+.nippon-table th:nth-child(2), .nippon-table td:nth-child(2) { text-align: left; }
+.nippon-table td:nth-child(1) strong { display: block; overflow-wrap: anywhere; }
+.nippon-table .nippon-money { text-align: right !important; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 700; }
+.nippon-row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.nippon-row-actions .btn { padding: 7px 10px; white-space: nowrap; }
+.nippon-section-heading h3 { margin: 0 0 6px; }
+.nippon-section-heading p:not(.eyebrow) { margin: 0; color: var(--muted, #64748b); line-height: 1.5; }
+.nippon-calc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+.nippon-field { display: grid; gap: 7px; min-width: 0; }
+.nippon-field > span { color: var(--text-muted, #64748b); font-size: .86rem; font-weight: 600; }
+.nippon-field input, .nippon-field select { width: 100%; min-width: 0; min-height: 42px; padding: 9px 11px; border: 1px solid var(--border, #dbe2ea); border-radius: 9px; background: var(--surface, #fff); color: inherit; font: inherit; }
+.nippon-calc-result { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 20px; padding: 16px; border: 1px solid var(--border, #e2e8f0); border-radius: 12px; background: var(--surface-soft, #f8fafc); }
+.nippon-calc-result > div { display: grid; gap: 5px; min-width: 0; }
+.nippon-calc-result span { color: var(--text-muted, #64748b); font-size: .84rem; }
+.nippon-calc-result strong { font-size: 1.05rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.nippon-calc-result .nippon-calc-plus, .nippon-calc-result .nippon-calc-equals { font-size: 1.2rem; font-weight: 700; color: var(--text-muted, #64748b); }
+.nippon-calc-result .nippon-calc-total { padding-left: 16px; border-left: 1px solid var(--border, #dbe2ea); }
+.nippon-calc-result .nippon-calc-total strong { color: var(--primary, #0b3f88); font-size: 1.2rem; }
+.nippon-calc-note { margin: 12px 0 0; color: var(--text-muted, #64748b); font-size: .84rem; line-height: 1.5; }
+.nippon-editor-panel { width: min(540px, calc(100vw - 28px)); max-height: 90vh; overflow: auto; }
+.nippon-editor-form { display: grid; gap: 14px; }
+.nippon-form-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 8px; }
+.nippon-form-error { margin: 0; padding: 10px 12px; border-radius: 8px; color: #9b1c1c; background: #fff0f0; }
+.nippon-product-card { display: grid; gap: 12px; margin: 10px; padding: 14px; border: 1px solid var(--border, #e2e8f0); border-radius: 12px; }
+.nippon-product-card-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.nippon-product-card-title strong { min-width: 0; overflow-wrap: anywhere; }
+.nippon-product-card-title span { flex: 0 0 auto; color: var(--text-muted, #64748b); }
+.nippon-product-card-cost { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.nippon-product-card-cost span, .nippon-product-card small { color: var(--text-muted, #64748b); }
+.nippon-product-card-cost strong { font-size: 1.08rem; font-variant-numeric: tabular-nums; }
+.nippon-product-card .nippon-row-actions { display: grid; grid-template-columns: 1fr 1fr; }
+@media (max-width: 900px) {
+  .nippon-heading { flex-direction: column; }
+  .nippon-heading-actions { width: 100%; }
+  .nippon-calc-grid { grid-template-columns: 1fr 1fr; }
+  .nippon-calc-result { flex-wrap: wrap; }
+}
+@media (max-width: 760px) {
+  .nippon-heading-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .nippon-heading-actions .btn { width: 100%; }
+  .nippon-summary { grid-template-columns: 1fr 1fr; }
+  .nippon-toolbar .search-box { flex-basis: 100%; }
+  .nippon-table-wrap { display: none; }
+  .nippon-calc-grid { grid-template-columns: 1fr; }
+  .nippon-calc-result { display: grid; grid-template-columns: 1fr auto; gap: 10px 14px; }
+  .nippon-calc-result .nippon-calc-plus, .nippon-calc-result .nippon-calc-equals { justify-self: center; }
+  .nippon-calc-result .nippon-calc-total { grid-column: 1 / -1; padding: 12px 0 0; border-left: 0; border-top: 1px solid var(--border, #dbe2ea); }
+}
+@media (max-width: 420px) {
+  .nippon-heading-actions { grid-template-columns: 1fr; }
+  .nippon-summary { gap: 8px; }
+  .nippon-summary .summary-card { padding: 12px; }
+}
