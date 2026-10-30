@@ -4,7 +4,7 @@ Source Google Apps Script untuk penyimpanan halaman Invoice. Proyek ini tetap te
 
 ## Isi folder
 
-- `setup.gs`: membuat sheet `Invoices`, `InvoiceItems`, dan `Config` tanpa menimpa sheet/header yang sudah terisi.
+- `setup.gs`: menyiapkan sheet Invoice yang ada dan menyediakan `setupNipponPriceListSheet()` untuk membuat tab `NipponPriceList` saja, tanpa mengubah sheet Invoice.
 - `Code.gs`: validasi, hitung ulang pajak di server, simpan draft, buka invoice, daftar invoice, serta JSON API untuk halaman statis.
 - `Bridge.html`: jembatan versi lama. Frontend saat ini memakai fetch langsung; file dan rute bridge dipertahankan sementara sebagai fallback.
 
@@ -26,7 +26,7 @@ Source Google Apps Script untuk penyimpanan halaman Invoice. Proyek ini tetap te
 6. Deployment harus dapat dipanggil oleh browser aplikasi di `https://admin.tbnusantara.com`. Pada pola fetch publik seperti repo WiFi, pilih akses yang mengizinkan pengguna aplikasi memanggil endpoint. Perubahan izin ini membuat endpoint dapat dipanggil pihak lain juga; lihat catatan keamanan di bawah.
 7. Deploy perubahan frontend dari branch `ui/ux-polish-v3` melalui proses hosting GitHub Pages yang biasa, lalu hard refresh browser.
 
-URL health `/exec` (tanpa parameter atau dengan `?action=health`) harus mengembalikan JSON dengan `status: "ok"`, `storageReady: true`, build `2026-10-17-fetch-api-v1`, dan daftar action API.
+URL health `/exec` (tanpa parameter atau dengan `?action=health`) mengembalikan JSON dengan `status: "ok"`, `storageReady: true`, `priceListReady`, build saat ini, dan daftar action API.
 
 ## Kontrak API fetch
 
@@ -37,6 +37,7 @@ Semua endpoint menggunakan URL deployment web app GAS yang sama.
 - `?action=health`: status layanan dan kesiapan sheet; tidak membaca isi invoice dan tidak menulis data.
 - `?action=listInvoices&searchText=...&limit=20`: daftar invoice terbaru/cocok.
 - `?action=getInvoice&invoiceId=...`: header dan rincian invoice.
+- `?action=listNipponPrices&searchText=...&limit=200`: daftar HPP dasar Nippon Paint (maksimum 500 produk).
 
 Contoh response sukses:
 
@@ -61,10 +62,23 @@ Frontend mengirim JSON sebagai `Content-Type: text/plain;charset=utf-8` untuk me
 
 Field lain yang didukung: `invoiceId` (untuk memperbarui draft), `noteNumber`, `recipientAddress`, `recipientPhone`, `bank`, `accountName`, `accountNumber`, dan `signerName`. Harga input sudah termasuk PPN. Server menghitung ulang DPP, PPN, PPh (jika aktif), dan total bayar. Response sukses dibungkus sebagai `{"success":true,"data":...}`; kegagalan sebagai `{"success":false,"message":"..."}`.
 
+## Nippon Paint
+
+Price List memakai Spreadsheet Invoice yang sama, tetapi data disimpan pada tab terpisah `NipponPriceList` dengan kolom `price_id`, `product_name`, `size`, `base_cost`, `active`, `created_at`, dan `updated_at`.
+
+Setelah menambahkan source terbaru ke proyek GAS Invoice, jalankan `setupNipponPriceListSheet()` satu kali. Fungsi ini hanya membuat/memeriksa tab `NipponPriceList`; fungsi ini tidak mengubah tab Invoice. Jangan menjalankan `setupInvoiceSpreadsheet()` untuk menyiapkan daftar Nippon.
+
+- GET `?action=listNipponPrices&searchText=...&limit=200` membaca produk aktif.
+- POST `{"action":"saveNipponPrice","productName":"Weatherbond","size":"5 L","baseCost":450000}` menambah produk.
+- Untuk edit, sertakan `priceId` dari hasil daftar/simpan. Produk dengan kombinasi nama dan ukuran yang sama ditolak agar tidak terduplikasi.
+- Harga tersimpan adalah HPP dasar sebelum tinta. Halaman menghitung perkiraan HPP warna dengan menambahkan biaya tinta manual per kemasan; biaya tinta hasil input tidak disimpan.
+
+Setelah mengubah GAS, deploy sebagai versi web app baru pada deployment yang sama. Health akan menyertakan `priceListReady: true` setelah tab siap. Frontend memakai action di deployment Invoice yang sama.
+
 ## Fungsi backend dan kompatibilitas
 
-- `doGet(e)`: health check atau action GET di atas. Rute lama `?mode=bridge&nonce=...` tetap tersedia sementara untuk rollback.
-- `doPost(e)`: hanya menerima action `saveInvoice` dan meneruskannya ke fungsi penyimpanan yang sudah ada.
+- `doGet(e)`: health check atau action GET Invoice/Nippon di atas. Rute lama `?mode=bridge&nonce=...` tetap tersedia sementara untuk rollback.
+- `doPost(e)`: menerima `saveInvoice` dan `saveNipponPrice`; action Invoice tetap memakai fungsi simpan draft yang sudah ada.
 - `saveInvoice(payload)`: membuat draft baru atau memperbarui draft menggunakan `invoiceId`.
 - `getInvoice(invoiceId)`: memuat header beserta item.
 - `listInvoices(searchText, limit)`: mencari berdasarkan nomor invoice, nomor nota, nama, atau telepon.
@@ -73,7 +87,7 @@ Tidak ada fungsi yang membaca atau menulis ke API SID Retail. Tidak ada fungsi u
 
 ## Keamanan dan batasan
 
-Pola fetch langsung ini mengikuti repo WiFi dan tidak menyediakan autentikasi aplikasi dengan sendirinya. URL deployment berada di frontend dan bukan rahasia. Jika deployment mengizinkan akses publik/anonim, pengguna yang mengetahui URL dapat mencoba memanggil fungsi baca/tulis; CORS bukan mekanisme autentikasi dan tidak mencegah pemanggilan dari server atau klien lain. Jangan menyimpan token rahasia di JavaScript browser. Untuk invoice produksi yang memerlukan akses terbatas, tambahkan lapisan autentikasi/backend perantara sebelum membuka akses publik.
+Pola fetch langsung ini mengikuti repo WiFi dan tidak menyediakan autentikasi aplikasi dengan sendirinya. URL deployment berada di frontend dan bukan rahasia. Jika deployment mengizinkan akses publik/anonim, pengguna yang mengetahui URL dapat mencoba memanggil fungsi baca/tulis Invoice maupun Price List; CORS bukan mekanisme autentikasi dan tidak mencegah pemanggilan dari server atau klien lain. Jangan menyimpan token rahasia di JavaScript browser.
 
 GAS ContentService dapat mengalihkan response ke domain `script.googleusercontent.com`; frontend harus membaca body response lalu mem-parsing JSON. Jika fetch gagal, periksa Console dan Network browser serta pastikan kode GAS dan deployment versi terbaru sudah aktif.
 
