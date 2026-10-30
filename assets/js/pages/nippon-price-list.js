@@ -65,6 +65,7 @@ export function renderNipponPriceListPage() {
         <thead><tr><th>Nama Produk</th><th>Ukuran / Kemasan</th><th>HPP Dasar</th><th>Terakhir Diperbarui</th><th>Aksi</th></tr></thead>
         <tbody id="nippon-body"></tbody>
       </table></div>
+      <div id="nippon-cards" class="mobile-data-cards hidden"></div>
     </section>
     <section class="card panel nippon-calculator" aria-labelledby="nippon-calc-title">
       <div class="nippon-section-heading"><div><p class="eyebrow">Perhitungan Manual</p><h3 id="nippon-calc-title">Hitung HPP Warna</h3><p>Masukkan biaya tinta untuk warna yang sedang dihitung. Biaya tinta tidak disimpan sebagai harga tetap.</p></div></div>
@@ -105,7 +106,7 @@ function bindEvents() {
     state.search = event.target.value.trim().toLocaleLowerCase("id-ID");
     filterAndRender();
   });
-  document.querySelector("#nippon-body").addEventListener("click", (event) => {
+  const onProductAction = (event) => {
     const button = event.target.closest("[data-nippon-action]");
     if (!button) return;
     const product = state.products.find((item) => item.priceId === button.dataset.priceId);
@@ -116,7 +117,9 @@ function bindEvents() {
       updateCalculation();
       document.querySelector("#nippon-calc-title").scrollIntoView({ behavior: "smooth", block: "center" });
     }
-  });
+  };
+  document.querySelector("#nippon-body").addEventListener("click", onProductAction);
+  document.querySelector("#nippon-cards").addEventListener("click", onProductAction);
   document.querySelector("#nippon-calc-product").addEventListener("change", updateCalculation);
   document.querySelector("#nippon-calc-ink").addEventListener("input", updateCalculation);
   document.querySelector("#nippon-editor-form").addEventListener("submit", saveProduct);
@@ -173,7 +176,14 @@ function filterAndRender() {
         <button type="button" class="btn btn-light" data-nippon-action="calculate" data-price-id="${esc(item.priceId)}">Hitung HPP</button>
         <button type="button" class="btn btn-light" data-nippon-action="edit" data-price-id="${esc(item.priceId)}">Edit</button>
       </div></td></tr>`).join("");
+  document.querySelector("#nippon-cards").innerHTML = state.filtered.map((item) => `
+    <article class="data-card nippon-product-card"><div class="nippon-product-card-title"><strong>${esc(item.productName)}</strong><span>${esc(item.size)}</span></div>
+      <div class="nippon-product-card-cost"><span>HPP Dasar</span><strong>${esc(fmtMoney(item.baseCost))}</strong></div>
+      <small>Diperbarui ${esc(formatDate(item.updatedAt))}</small>
+      <div class="nippon-row-actions"><button type="button" class="btn btn-light" data-nippon-action="calculate" data-price-id="${esc(item.priceId)}">Hitung HPP</button><button type="button" class="btn btn-light" data-nippon-action="edit" data-price-id="${esc(item.priceId)}">Edit</button></div>
+    </article>`).join("");
   document.querySelector("#nippon-table-wrap").classList.toggle("hidden", !state.filtered.length);
+  document.querySelector("#nippon-cards").classList.toggle("hidden", !state.filtered.length);
   setListState(state.filtered.length ? "hidden" : "empty",
     state.products.length ? "Tidak ada produk yang cocok dengan pencarian." : "Belum ada produk Nippon Paint. Tambahkan data HPP dasar pertama.");
 }
@@ -188,6 +198,7 @@ function setListState(kind, message) {
   stateEl.textContent = message;
   stateEl.classList.remove("hidden");
   document.querySelector("#nippon-table-wrap")?.classList.add("hidden");
+  document.querySelector("#nippon-cards")?.classList.add("hidden");
 }
 function formatDate(value) {
   if (!value) return "—";
