@@ -217,3 +217,20 @@
 @media(max-width:700px){
   #bonus-worker-cards:not(.hidden){grid-template-columns:1fr}
 }
+
+/* Keep every action visible; bonus recording gets its own full-width row. */
+.bonus-table{min-width:1082px}
+.bonus-table th:nth-child(8),.bonus-table td:nth-child(8){width:300px}
+.bonus-table .bonus-row-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"detail edit" "pay pay";gap:.4rem;width:100%;max-width:280px;margin:0 auto}
+.bonus-table .bonus-action-detail{grid-area:detail}
+.bonus-table .bonus-action-edit{grid-area:edit}
+.bonus-table .bonus-action-pay{grid-area:pay;white-space:normal;min-height:36px}
+.bonus-table .bonus-row-actions .btn{width:100%;padding:.48rem .4rem;font-size:.72rem}
+.bonus-worker-card .bonus-row-actions .bonus-action-pay{white-space:normal;min-height:40px}
+@media(max-width:1400px){
+  #bonus-table-wrap{display:none!important}
+  #bonus-worker-cards:not(.hidden){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;padding:.85rem}
+}
+@media(max-width:700px){
+  #bonus-worker-cards:not(.hidden){grid-template-columns:1fr}
+}
