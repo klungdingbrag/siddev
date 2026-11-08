@@ -75,6 +75,8 @@ Setelah menambahkan source terbaru ke proyek GAS Invoice, jalankan `setupNipponP
 
 Setelah mengubah GAS, deploy sebagai versi web app baru pada deployment yang sama. Health akan menyertakan `priceListReady: true` setelah tab siap. Frontend memakai action di deployment Invoice yang sama.
 
+Cache frontend Price List Nippon mengikuti Hutang Supplier menggunakan `sessionStorage` dengan masa berlaku 2 menit. Cache ditampilkan segera saat kembali ke halaman; cache kedaluwarsa akan diperbarui dari GAS. Tombol Refresh memaksa pembacaan terbaru, dan setelah harga disimpan cache dihapus sebelum daftar dimuat ulang.
+
 ## Fungsi backend dan kompatibilitas
 
 - `doGet(e)`: health check atau action GET Invoice/Nippon di atas. Rute lama `?mode=bridge&nonce=...` tetap tersedia sementara untuk rollback.
