@@ -700,6 +700,8 @@ function bonusBuildDashboard_(period) {
         totalPurchase: 0,
         totalPaid: 0,
         outstanding: 0,
+        bonusBasisPurchase: 0,
+        bonusOutstanding: 0,
         eligibleBonus: 0,
         pendingBonusEstimate: 0
       };
@@ -717,9 +719,13 @@ function bonusBuildDashboard_(period) {
         customerCode: String(row.customer_code || ""),
         projectName: String(row.project_name || ""),
         notes: [],
+        unallocatedNotes: [],
         totalPurchase: 0,
         totalPaid: 0,
         outstanding: 0,
+        bonusBasisPurchase: 0,
+        bonusBasisPaid: 0,
+        bonusOutstanding: 0,
         eligibleBonus: 0,
         pendingBonusEstimate: 0,
         status: "NO_NOTES"
@@ -732,7 +738,6 @@ function bonusBuildDashboard_(period) {
   });
 
   const allNotes = bonusRows_("notes", sheets.notes);
-  const unpaidBonusNotes = allNotes.filter(function (row) { return !String(row.bonus_realization_id || "").trim(); });
   const payments = bonusRows_("payments", sheets.payments);
   const paidByNote = {};
   const paymentsByNote = {};
@@ -748,32 +753,44 @@ function bonusBuildDashboard_(period) {
     });
   });
 
-  unpaidBonusNotes.forEach(function (row) {
+  allNotes.forEach(function (row) {
     const project = projectMap[String(row.project_id || "")];
     if (!project) return;
     const noteId = String(row.note_id || "");
     const total = Number(row.total_purchase || 0);
     const paid = paidByNote[noteId] || 0;
     const outstanding = Math.max(0, total - paid);
-    project.notes.push({
+    const note = {
       noteId: noteId,
       noteNumber: String(row.note_number || ""),
       noteDate: bonusIsoDate_(row.note_date),
       totalPurchase: total,
       totalPaid: paid,
       outstanding: outstanding,
+      bonusRealizationId: String(row.bonus_realization_id || ""),
       payments: paymentsByNote[noteId] || [],
       _row: row._row
-    });
+    };
+    project.notes.push(note);
     project.totalPurchase += total;
     project.totalPaid += paid;
     project.outstanding += outstanding;
+    if (!note.bonusRealizationId) {
+      project.unallocatedNotes.push(note);
+      project.bonusBasisPurchase += total;
+      project.bonusBasisPaid += paid;
+      project.bonusOutstanding += outstanding;
+    }
   });
 
-  const rate = period && period.status === "OPEN" ? Number(period.bonusRatePercent || 0) : 0;
+  const rate = period && period.status === "OPEN" ? Number(period.bonus_rate_percent || 0) : 0;
   projects.forEach(function (project) {
-    project.status = !project.notes.length ? "NO_NOTES" : project.outstanding === 0 ? "ELIGIBLE" : "PENDING";
-    const estimate = Math.round(project.totalPurchase * rate / 100);
+    project.status = !project.unallocatedNotes.length
+      ? "NO_NOTES"
+      : project.bonusOutstanding === 0
+        ? "ELIGIBLE"
+        : "PENDING";
+    const estimate = Math.round(project.bonusBasisPurchase * rate / 100);
     if (project.status === "ELIGIBLE") project.eligibleBonus = estimate;
     if (project.status === "PENDING") project.pendingBonusEstimate = estimate;
   });
@@ -781,6 +798,8 @@ function bonusBuildDashboard_(period) {
     worker.totalPurchase = worker.projects.reduce(function (sum, project) { return sum + project.totalPurchase; }, 0);
     worker.totalPaid = worker.projects.reduce(function (sum, project) { return sum + project.totalPaid; }, 0);
     worker.outstanding = worker.projects.reduce(function (sum, project) { return sum + project.outstanding; }, 0);
+    worker.bonusBasisPurchase = worker.projects.reduce(function (sum, project) { return sum + project.bonusBasisPurchase; }, 0);
+    worker.bonusOutstanding = worker.projects.reduce(function (sum, project) { return sum + project.bonusOutstanding; }, 0);
     worker.eligibleBonus = worker.projects.reduce(function (sum, project) { return sum + project.eligibleBonus; }, 0);
     worker.pendingBonusEstimate = worker.projects.reduce(function (sum, project) { return sum + project.pendingBonusEstimate; }, 0);
     worker.projects.sort(function (a, b) { return a.customerName.localeCompare(b.customerName, "id"); });
@@ -847,6 +866,10 @@ function saveBonusProject(payload) {
     const sheet = sheets.projects, map = invoiceHeaderMap_(sheet), rows = bonusRows_("projects", sheet);
     const existing = projectId ? bonusFindById_(rows, "project_id", projectId) : null;
     if (projectId && !existing) throw new Error("Proyek tidak ditemukan.");
+    if (existing && String(existing.worker_id) !== workerId) {
+      const linkedNotes = bonusRows_("notes", sheets.notes).some(function (note) { return String(note.project_id) === projectId; });
+      if (linkedNotes) throw new Error("Tukang proyek tidak dapat diganti setelah nota dicatat.");
+    }
     const duplicate = rows.find(function (row) {
       return row.active !== false &&
         String(row.worker_id) === workerId &&
@@ -934,6 +957,9 @@ function saveBonusPeriod(payload) {
   return invoiceWithLock_(function () {
     const sheets = bonusTukangSheets_(), sheet = sheets.periods, rows = bonusRows_("periods", sheet);
     const existing = rows.find(function (row) { return Number(row.eid_year) === year; }) || null;
+    const latestYear = rows.reduce(function (max, row) { return Math.max(max, Number(row.eid_year) || 0); }, 0);
+    if (!existing && year < latestYear) throw new Error("Periode baru harus lebih baru dari periode yang sudah tersimpan.");
+    if (existing && String(existing.status) === "CLOSED") throw new Error("Periode lama sudah ditutup dan tidak dapat dibuka kembali.");
     const id = existing ? String(existing.period_id) : ("EID-" + year);
     const realizations = bonusRows_("realizations", sheets.realizations)
       .filter(function (row) { return String(row.period_id) === id; });
