@@ -12,3 +12,55 @@
 @media(max-width:900px){.bonus-period-info{grid-template-columns:repeat(2,minmax(0,1fr))}.bonus-detail-summary,.bonus-project-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.bonus-table{min-width:900px}}
 @media(max-width:640px){.bonus-heading,.bonus-period-head,.bonus-detail-toolbar{align-items:stretch;flex-direction:column}.bonus-heading-actions{width:100%}.bonus-heading-actions .btn{flex:1}.bonus-period-info{grid-template-columns:1fr 1fr}.bonus-period-select{align-items:stretch;flex-direction:column}.bonus-period-select select{width:100%}.bonus-toolbar{justify-content:stretch}.bonus-toolbar .search-box{width:100%}.bonus-form-grid{grid-template-columns:1fr}.bonus-field.is-full{grid-column:auto}.bonus-detail-summary,.bonus-project-metrics{grid-template-columns:1fr 1fr}.bonus-note-row{align-items:flex-start;flex-direction:column}.bonus-note-actions{width:100%}.bonus-note-actions .btn{flex:1}}
 @media print{.bonus-heading-actions,.bonus-toolbar,.bonus-row-actions,.bonus-period-panel{display:none!important}}
+
+/* Layout refinement: prevent heading/card collisions and clarify period selection. */
+.bonus-heading{align-items:flex-start;flex-wrap:wrap;row-gap:1rem;min-width:0}
+.bonus-heading>div:first-child{flex:1 1 360px;min-width:0}
+.bonus-heading h2{line-height:1.2;overflow-wrap:anywhere}
+.bonus-heading .page-description{max-width:62ch;line-height:1.55}
+.bonus-heading-actions{flex:0 1 auto;min-width:0}
+.bonus-period-panel{padding:clamp(1rem,2.4vw,1.5rem)}
+.bonus-period-head{align-items:center;flex-wrap:wrap;min-width:0;row-gap:.85rem}
+.bonus-period-head>div{flex:1 1 340px;min-width:0}
+.bonus-period-head h3{line-height:1.3;overflow-wrap:anywhere}
+.bonus-period-head p:not(.eyebrow){max-width:68ch;line-height:1.55}
+.bonus-period-head>.btn{flex:0 0 auto;white-space:nowrap}
+.bonus-period-info>div{min-width:0}
+.bonus-period-info strong{overflow-wrap:anywhere;line-height:1.35}
+.bonus-period-select{display:flex;align-items:center;justify-content:space-between;gap:1.25rem;margin-top:1.1rem;padding-top:1rem;border-top:1px solid var(--border-color,#e2e8f0)}
+.bonus-period-label{display:grid;gap:.22rem;min-width:0}
+.bonus-period-label>span{color:var(--text-muted,#64748b);font-size:.68rem;font-weight:750;letter-spacing:.09em}
+.bonus-period-label>strong{font-size:.92rem;line-height:1.35}
+.bonus-period-control{display:flex;align-items:center;gap:.65rem;min-width:0;width:min(100%,390px)}
+.bonus-period-current{flex:0 0 auto;padding:.42rem .68rem;border:1px solid #bbf7d0;border-radius:999px;background:#f0fdf4;color:#15803d;font-size:.72rem;font-weight:700;white-space:nowrap}
+.bonus-period-current.is-closed{border-color:#e2e8f0;background:#f8fafc;color:#64748b}
+.bonus-period-select select{width:100%;min-width:0;min-height:2.8rem;padding:.55rem 2.5rem .55rem .85rem;border:1px solid var(--border-color,#cbd5e1);border-radius:.7rem;background-color:var(--surface,#fff);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .8rem center;color:var(--text-color,#1e293b);font:inherit;font-size:.86rem;font-weight:650;appearance:none;cursor:pointer}
+.bonus-period-select select:focus-visible{outline:3px solid rgba(37,99,235,.18);border-color:#2563eb}
+.bonus-summary{grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(.55rem,1.2vw,.9rem)}
+.bonus-summary .summary-card{min-width:0;padding:clamp(.8rem,1.5vw,1.15rem)}
+.bonus-summary .summary-card span,.bonus-summary .summary-card small{line-height:1.4;overflow-wrap:anywhere}
+.bonus-summary .summary-card strong{font-size:clamp(1rem,1.6vw,1.3rem);line-height:1.25;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.bonus-worker-card,.bonus-worker-card-head,.bonus-worker-card dl>div{min-width:0}
+.bonus-worker-card-head{align-items:flex-start}
+.bonus-worker-card-head>div{min-width:0;overflow-wrap:anywhere}
+.bonus-worker-card-head>span{flex:0 0 auto;white-space:nowrap}
+.bonus-worker-card dl dd{overflow-wrap:anywhere}
+@media(max-width:900px){.bonus-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){
+  .bonus-heading{gap:.75rem}
+  .bonus-heading-actions{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bonus-heading-actions .btn{min-width:0;white-space:normal;line-height:1.25}
+  .bonus-period-head>.btn{width:100%}
+  .bonus-period-select{align-items:stretch;flex-direction:column;gap:.65rem}
+  .bonus-period-control{width:100%}
+  .bonus-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bonus-summary .summary-card{padding:.8rem}
+}
+@media(max-width:420px){
+  .bonus-period-info{grid-template-columns:1fr}
+  .bonus-period-control{align-items:stretch;flex-direction:column}
+  .bonus-period-current{align-self:flex-start}
+  .bonus-summary{grid-template-columns:1fr}
+  .bonus-heading-actions{grid-template-columns:1fr}
+  .bonus-detail-summary,.bonus-project-metrics{grid-template-columns:1fr}
+}
