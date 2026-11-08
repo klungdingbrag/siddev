@@ -1,5 +1,7 @@
 const NIPPON_GAS_URL = "https://script.google.com/macros/s/AKfycbyaUscsruoi7X_uWF1P1-CIbZ27QFsSajqeFDHwcCAK578WJ32MI30Uujxtj9FYnqFf/exec";
-const state = { products: [], filtered: [], search: "", editingId: "", escapeHandler: null, focusBeforeModal: null, loaded: false, loading: false, dataSavedAt: null };\nconst NIPPON_CACHE_KEY = "sidretail:nippon-price-list:v1";\nconst NIPPON_CACHE_TTL_MS = 2 * 60 * 1000;
+const state = { products: [], filtered: [], search: "", editingId: "", escapeHandler: null, focusBeforeModal: null, loaded: false, loading: false, dataSavedAt: null };
+const NIPPON_CACHE_KEY = "sidretail:nippon-price-list:v1";
+const NIPPON_CACHE_TTL_MS = 2 * 60 * 1000;
 const rupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
 const countFormat = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 });
 const root = () => document.querySelector("#page-content");
@@ -348,8 +350,9 @@ async function saveProduct(event) {
   errorEl.classList.add("hidden");
   try {
     await request("saveNipponPrice", {}, "POST", payload);
+    invalidateNipponCache();
     closeEditor();
-    await loadProducts();
+    await loadProducts(true);
   } catch (error) {
     errorEl.textContent = error?.message || "Produk gagal disimpan.";
     errorEl.classList.remove("hidden");
