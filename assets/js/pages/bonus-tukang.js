@@ -45,7 +45,7 @@ export function renderBonusTukangPage() {
     <section class="card panel bonus-period-panel" aria-labelledby="bonus-period-title">
       <div class="bonus-period-head"><div><p class="eyebrow">Kalender Lebaran</p><h3 id="bonus-period-title">Periode Bonus Tahunan</h3><p>Tanggal Lebaran diisi sesuai tanggal resmi. Pembagian dijadwalkan 7 atau 10 hari sebelumnya.</p></div><button id="bonus-period-edit" class="btn btn-light" type="button">Atur Periode</button></div>
       <div class="bonus-period-info" id="bonus-period-info"><span class="table-state loading">Memuat periode...</span></div>
-      <label class="bonus-period-select"><span>Lihat periode</span><select id="bonus-period-select"><option value="">Periode bonus belum dibuat</option></select></label>
+      <div class="bonus-period-select"><label class="bonus-period-label" for="bonus-period-select"><span>PERIODE BONUS</span><strong>Pilih periode Lebaran</strong></label><div class="bonus-period-control"><span id="bonus-period-current" class="bonus-period-current">Belum dibuat</span><select id="bonus-period-select" aria-label="Pilih periode Lebaran"><option value="">Periode bonus belum dibuat</option></select></div></div>
     </section>
     <section class="summary-grid bonus-summary" aria-label="Ringkasan bonus tukang">
       <article class="summary-card"><span>Tukang Aktif</span><strong id="bonus-worker-count">0</strong><small>terdaftar</small></article>
@@ -131,6 +131,12 @@ function renderPeriodSelector() {
     ? state.periods.map((period) => `<option value="${esc(period.periodId)}">${esc(String(period.eidYear))} · ${period.status === "OPEN" ? "Aktif" : "Ditutup"}</option>`).join("")
     : '<option value="">Periode bonus belum dibuat</option>';
   select.value = state.selectedPeriodId;
+  const currentPeriod = state.periods.find((item) => item.periodId === state.selectedPeriodId);
+  const currentBadge = document.querySelector("#bonus-period-current");
+  if (currentBadge) {
+    currentBadge.textContent = currentPeriod ? (currentPeriod.status === "OPEN" ? "Periode aktif" : "Periode ditutup") : "Belum dibuat";
+    currentBadge.classList.toggle("is-closed", currentPeriod?.status !== "OPEN");
+  }
   renderPeriodInfo();
 }
 function renderPeriodInfo() {
