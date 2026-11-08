@@ -91,3 +91,42 @@ Pola fetch langsung ini mengikuti repo WiFi dan tidak menyediakan autentikasi ap
 
 GAS ContentService dapat mengalihkan response ke domain `script.googleusercontent.com`; frontend harus membaca body response lalu mem-parsing JSON. Jika fetch gagal, periksa Console dan Network browser serta pastikan kode GAS dan deployment versi terbaru sudah aktif.
 
+
+## Bonus Tukang
+
+Modul Bonus Tukang memakai **proyek GAS dan Spreadsheet Invoice yang sama**. Semua perubahan source GAS tetap dicatat di folder `code-invoice`; halaman web berada di `assets/js/pages/bonus-tukang.js` dan stylesheet-nya terpisah agar tidak mengubah tampilan modul lain.
+
+### Penyiapan
+
+1. Salin `Code.gs` dan `setup.gs` terbaru dari folder ini ke proyek GAS Invoice.
+2. Jalankan `setupBonusTukangSheets()` satu kali. Fungsi idempoten ini hanya membuat atau memastikan enam tab Bonus Tukang, tanpa menulis ulang tab Invoice atau Nippon.
+3. Deploy versi web app baru pada deployment Invoice yang sama. URL endpoint tetap URL GAS Invoice.
+4. Deploy frontend branch ini dan buka menu **Bonus Tukang**.
+5. Buat periode Lebaran dengan tanggal resmi yang berlaku, pilih pembagian 7 atau 10 hari sebelumnya dan atur persentase bonus.
+
+### Tab Spreadsheet
+
+- `BonusTukang`: master tukang (nama, alamat, HP).
+- `BonusProyek`: konsumen/proyek yang dibawa tukang.
+- `BonusNota`: nota SID Retail yang dimasukkan manual; nomor, tanggal, dan total belanja.
+- `BonusPembayaran`: cicilan/pembayaran nota yang dicatat manual.
+- `BonusPeriode`: tanggal Lebaran, tanggal rencana pembagian, tarif, dan status periode.
+- `BonusRealisasi`: catatan pembayaran bonus yang sudah dilakukan.
+
+Tidak ada koneksi tulis ke SID Retail. Nomor nota, nilai belanja, dan pembayaran harus disalin/dicatat manual dari SID Retail oleh pengguna.
+
+### Aturan akumulasi dan realisasi
+
+- Nota dikelompokkan di bawah konsumen/proyek tukang; semua nota aktif proyek tersebut harus lunas agar cohort nota yang belum pernah direalisasikan menjadi layak dibayar.
+- Bonus dihitung dari total belanja cohort yang layak dikali persentase pada periode Lebaran. Persentase dan tanggal pembagian dapat diatur untuk periode baru.
+- Tombol **Catat Bonus Dibayar** hanya aktif untuk bonus layak dan periode terbuka. Aksi ini mencatat realisasi di Spreadsheet, bukan mengirim transfer.
+- Jika masih ada nota yang belum lunas, bonus proyek tertunda. Nota yang belum direalisasikan tetap berada dalam cohort terbuka dan terbawa ke periode berikutnya. Setelah realisasi, hanya nota pada cohort tersebut yang ditandai; nota baru dapat membentuk cohort berikutnya.
+- Data periode lama tetap tersedia untuk ditinjau. Periode yang sudah ditutup tidak dapat menerima realisasi.
+
+### API Bonus Tukang
+
+GET: `listBonusPeriods`, `getBonusDashboard`.
+
+POST: `saveBonusWorker`, `saveBonusProject`, `saveBonusNote`, `saveBonusPayment`, `saveBonusPeriod`, `payBonusWorker`.
+
+Health check menampilkan `bonusTukangReady` setelah enam tab tersedia. Pengecekan kesiapan tidak membaca isi catatan dan tidak mengubah data.
