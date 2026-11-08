@@ -14,7 +14,7 @@ const INV_SPREADSHEET_PROPERTY = "INVOICE_SPREADSHEET_ID";
 const INV_PPH_RATE = 0.015;
 const INV_VAT_INCLUDED_RATE = 0.11;
 const INV_ALLOWED_PARENT_ORIGIN = "https://admin.tbnusantara.com";
-const INV_BUILD_TAG = "2026-10-30-nippon-price-list-v1";
+const INV_BUILD_TAG = "2026-11-08-bonus-tukang-v1";
 
 /** JSON API for the standalone Invoice frontend. GET is read-only; POST saves drafts. */
 function doGet(e) {
@@ -46,6 +46,12 @@ function doGet(e) {
     if (action === "listNipponPrices") {
       return invoiceApiSuccess_(listNipponPrices(params.searchText || "", params.limit));
     }
+    if (action === "listBonusPeriods") {
+      return invoiceApiSuccess_(listBonusPeriods());
+    }
+    if (action === "getBonusDashboard") {
+      return invoiceApiSuccess_(getBonusDashboard(params.periodId || ""));
+    }
     throw new Error("Action GET tidak dikenal: " + action);
   } catch (error) {
     return invoiceApiError_(error);
@@ -63,6 +69,12 @@ function doPost(e) {
     if (action === "saveNipponPrice") {
       return invoiceApiSuccess_(saveNipponPrice(body));
     }
+    if (action === "saveBonusWorker") return invoiceApiSuccess_(saveBonusWorker(body));
+    if (action === "saveBonusProject") return invoiceApiSuccess_(saveBonusProject(body));
+    if (action === "saveBonusNote") return invoiceApiSuccess_(saveBonusNote(body));
+    if (action === "saveBonusPayment") return invoiceApiSuccess_(saveBonusPayment(body));
+    if (action === "saveBonusPeriod") return invoiceApiSuccess_(saveBonusPeriod(body));
+    if (action === "payBonusWorker") return invoiceApiSuccess_(payBonusWorker(body));
     throw new Error("Action POST tidak dikenal: " + action);
   } catch (error) {
     return invoiceApiError_(error);
@@ -90,6 +102,7 @@ function invoiceHealthResponse_() {
   let bridgeTemplateReady = false;
   let bridgeUsesTopMessaging = false;
   let nipponPriceListReady = false;
+  let bonusTukangReady = false;
   try {
     invoiceGetSheets_();
     storageReady = true;
@@ -101,6 +114,12 @@ function invoiceHealthResponse_() {
     nipponPriceListReady = true;
   } catch (error) {
     nipponPriceListReady = false;
+  }
+  try {
+    bonusTukangSheets_();
+    bonusTukangReady = true;
+  } catch (error) {
+    bonusTukangReady = false;
   }
   try {
     const template = HtmlService.createTemplateFromFile("Bridge");
@@ -124,9 +143,10 @@ function invoiceHealthResponse_() {
     bridgeTemplateReady: bridgeTemplateReady,
     bridgeUsesTopMessaging: bridgeUsesTopMessaging,
     priceListReady: nipponPriceListReady,
+    bonusTukangReady: bonusTukangReady,
     api: {
-      get: ["health", "listInvoices", "getInvoice", "listNipponPrices"],
-      post: ["saveInvoice", "saveNipponPrice"]
+      get: ["health", "listInvoices", "getInvoice", "listNipponPrices", "listBonusPeriods", "getBonusDashboard"],
+      post: ["saveInvoice", "saveNipponPrice", "saveBonusWorker", "saveBonusProject", "saveBonusNote", "saveBonusPayment", "saveBonusPeriod", "payBonusWorker"]
     },
     message: "Health check tidak membaca isi invoice dan tidak mengubah data."
   });
@@ -545,6 +565,439 @@ function saveNipponPrice(payload) {
       active: true,
       createdAt: createdAt,
       updatedAt: now
+    };
+  });
+}
+
+
+/* Bonus Tukang: manual sale/payment register stored in dedicated tabs. */
+function bonusTukangSheets_() {
+  const spreadsheet = invoiceGetSpreadsheet_();
+  const names = {
+    workers: "BonusTukang",
+    projects: "BonusProyek",
+    notes: "BonusNota",
+    payments: "BonusPembayaran",
+    periods: "BonusPeriode",
+    realizations: "BonusRealisasi"
+  };
+  const result = {};
+  Object.keys(names).forEach(function (key) {
+    const sheet = spreadsheet.getSheetByName(names[key]);
+    const headers = BONUS_SHEET_HEADERS[key];
+    if (!sheet || !headers || sheet.getLastRow() < 1) {
+      throw new Error("Tab " + names[key] + " belum siap. Jalankan setupBonusTukangSheets().");
+    }
+    const actual = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), headers.length))
+      .getDisplayValues()[0].slice(0, headers.length);
+    if (headers.some(function (header, index) { return actual[index] !== header; })) {
+      throw new Error("Header tab " + names[key] + " tidak sesuai.");
+    }
+    result[key] = sheet;
+  });
+  return result;
+}
+
+function bonusRows_(key, sheet) {
+  const target = sheet || bonusTukangSheets_()[key];
+  if (target.getLastRow() < 2) return [];
+  const map = invoiceHeaderMap_(target);
+  return target.getRange(2, 1, target.getLastRow() - 1, target.getLastColumn())
+    .getValues()
+    .map(function (values, index) {
+      const item = {};
+      Object.keys(map).forEach(function (header) { item[header] = values[map[header]]; });
+      item._row = index + 2;
+      return item;
+    });
+}
+
+function bonusText_(value, label, maxLength, required) {
+  const text = String(value == null ? "" : value).trim();
+  if (required && !text) throw new Error(label + " wajib diisi.");
+  if (text.length > maxLength) throw new Error(label + " maksimal " + maxLength + " karakter.");
+  return text;
+}
+
+function bonusMoney_(value, label, allowZero) {
+  if (typeof value === "string" && !value.trim()) {
+    if (allowZero) return 0;
+    throw new Error(label + " wajib diisi.");
+  }
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount < 0 || (!allowZero && amount === 0) || amount > Number.MAX_SAFE_INTEGER) {
+    throw new Error(label + " tidak valid.");
+  }
+  return Math.round(amount);
+}
+
+function bonusDate_(value, label) {
+  const text = bonusText_(value, label, 10, true);
+  const date = new Date(text + "T00:00:00Z");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text) || isNaN(date.getTime()) ||
+      date.toISOString().slice(0, 10) !== text) {
+    throw new Error(label + " harus memakai tanggal valid YYYY-MM-DD.");
+  }
+  return text;
+}
+
+function bonusId_(prefix) {
+  return prefix + "-" + Utilities.getUuid();
+}
+
+function bonusFindById_(rows, idField, id) {
+  return rows.find(function (row) { return String(row[idField] || "") === String(id || ""); }) || null;
+}
+
+function bonusPeriodOutput_(row) {
+  return {
+    periodId: String(row.period_id || ""),
+    eidYear: Number(row.eid_year || 0),
+    eidDate: bonusIsoDate_(row.eid_date),
+    payoutDaysBefore: Number(row.payout_days_before || 7),
+    payoutDate: bonusIsoDate_(row.payout_date),
+    bonusRatePercent: Number(row.bonus_rate_percent || 1),
+    status: String(row.status || "OPEN"),
+    createdAt: row.created_at || "",
+    updatedAt: row.updated_at || ""
+  };
+}
+
+function bonusIsoDate_(value) {
+  if (!value) return "";
+  if (Object.prototype.toString.call(value) === "[object Date]" && !isNaN(value.getTime())) {
+    return Utilities.formatDate(value, "UTC", "yyyy-MM-dd");
+  }
+  return String(value).slice(0, 10);
+}
+
+function bonusPayoutDate_(eidDate, daysBefore) {
+  const date = new Date(eidDate + "T12:00:00Z");
+  date.setUTCDate(date.getUTCDate() - daysBefore);
+  return date.toISOString().slice(0, 10);
+}
+
+function listBonusPeriods() {
+  return bonusRows_("periods")
+    .map(bonusPeriodOutput_)
+    .sort(function (a, b) { return b.eidYear - a.eidYear; });
+}
+
+function bonusBuildDashboard_(period) {
+  const sheets = bonusTukangSheets_();
+  const workers = bonusRows_("workers", sheets.workers)
+    .filter(function (row) { return row.active !== false; })
+    .map(function (row) {
+      return {
+        workerId: String(row.worker_id || ""),
+        name: String(row.name || ""),
+        address: String(row.address || ""),
+        phone: String(row.phone || ""),
+        active: row.active !== false,
+        createdAt: row.created_at || "",
+        updatedAt: row.updated_at || "",
+        projects: [],
+        totalPurchase: 0,
+        totalPaid: 0,
+        outstanding: 0,
+        eligibleBonus: 0,
+        pendingBonusEstimate: 0
+      };
+    });
+  const workerMap = {};
+  workers.forEach(function (worker) { workerMap[worker.workerId] = worker; });
+
+  const projects = bonusRows_("projects", sheets.projects)
+    .filter(function (row) { return row.active !== false && workerMap[String(row.worker_id || "")]; })
+    .map(function (row) {
+      return {
+        projectId: String(row.project_id || ""),
+        workerId: String(row.worker_id || ""),
+        customerName: String(row.customer_name || ""),
+        customerCode: String(row.customer_code || ""),
+        projectName: String(row.project_name || ""),
+        notes: [],
+        totalPurchase: 0,
+        totalPaid: 0,
+        outstanding: 0,
+        eligibleBonus: 0,
+        pendingBonusEstimate: 0,
+        status: "NO_NOTES"
+      };
+    });
+  const projectMap = {};
+  projects.forEach(function (project) {
+    projectMap[project.projectId] = project;
+    workerMap[project.workerId].projects.push(project);
+  });
+
+  const allNotes = bonusRows_("notes", sheets.notes);
+  const unpaidBonusNotes = allNotes.filter(function (row) { return !String(row.bonus_realization_id || "").trim(); });
+  const payments = bonusRows_("payments", sheets.payments);
+  const paidByNote = {};
+  const paymentsByNote = {};
+  payments.forEach(function (payment) {
+    const noteId = String(payment.note_id || "");
+    paidByNote[noteId] = (paidByNote[noteId] || 0) + Number(payment.amount || 0);
+    if (!paymentsByNote[noteId]) paymentsByNote[noteId] = [];
+    paymentsByNote[noteId].push({
+      paymentId: String(payment.payment_id || ""),
+      paymentDate: bonusIsoDate_(payment.payment_date),
+      amount: Number(payment.amount || 0),
+      reference: String(payment.reference || "")
+    });
+  });
+
+  unpaidBonusNotes.forEach(function (row) {
+    const project = projectMap[String(row.project_id || "")];
+    if (!project) return;
+    const noteId = String(row.note_id || "");
+    const total = Number(row.total_purchase || 0);
+    const paid = paidByNote[noteId] || 0;
+    const outstanding = Math.max(0, total - paid);
+    project.notes.push({
+      noteId: noteId,
+      noteNumber: String(row.note_number || ""),
+      noteDate: bonusIsoDate_(row.note_date),
+      totalPurchase: total,
+      totalPaid: paid,
+      outstanding: outstanding,
+      payments: paymentsByNote[noteId] || [],
+      _row: row._row
+    });
+    project.totalPurchase += total;
+    project.totalPaid += paid;
+    project.outstanding += outstanding;
+  });
+
+  const rate = period && period.status === "OPEN" ? Number(period.bonusRatePercent || 0) : 0;
+  projects.forEach(function (project) {
+    project.status = !project.notes.length ? "NO_NOTES" : project.outstanding === 0 ? "ELIGIBLE" : "PENDING";
+    const estimate = Math.round(project.totalPurchase * rate / 100);
+    if (project.status === "ELIGIBLE") project.eligibleBonus = estimate;
+    if (project.status === "PENDING") project.pendingBonusEstimate = estimate;
+  });
+  workers.forEach(function (worker) {
+    worker.totalPurchase = worker.projects.reduce(function (sum, project) { return sum + project.totalPurchase; }, 0);
+    worker.totalPaid = worker.projects.reduce(function (sum, project) { return sum + project.totalPaid; }, 0);
+    worker.outstanding = worker.projects.reduce(function (sum, project) { return sum + project.outstanding; }, 0);
+    worker.eligibleBonus = worker.projects.reduce(function (sum, project) { return sum + project.eligibleBonus; }, 0);
+    worker.pendingBonusEstimate = worker.projects.reduce(function (sum, project) { return sum + project.pendingBonusEstimate; }, 0);
+    worker.projects.sort(function (a, b) { return a.customerName.localeCompare(b.customerName, "id"); });
+  });
+
+  return {
+    period: period ? bonusPeriodOutput_(period) : null,
+    workers: workers,
+    projects: projects,
+    summary: {
+      workerCount: workers.length,
+      projectCount: projects.length,
+      eligibleBonus: workers.reduce(function (sum, worker) { return sum + worker.eligibleBonus; }, 0),
+      pendingBonusEstimate: workers.reduce(function (sum, worker) { return sum + worker.pendingBonusEstimate; }, 0),
+      outstanding: workers.reduce(function (sum, worker) { return sum + worker.outstanding; }, 0)
+    }
+  };
+}
+
+function getBonusDashboard(periodId) {
+  const periods = bonusRows_("periods");
+  let selected = bonusFindById_(periods, "period_id", periodId);
+  if (!selected) {
+    const open = periods.filter(function (row) { return String(row.status || "") === "OPEN"; })
+      .sort(function (a, b) { return Number(b.eid_year || 0) - Number(a.eid_year || 0); });
+    selected = open[0] || periods.sort(function (a, b) { return Number(b.eid_year || 0) - Number(a.eid_year || 0); })[0] || null;
+  }
+  return bonusBuildDashboard_(selected);
+}
+
+function saveBonusWorker(payload) {
+  if (!payload || typeof payload !== "object") throw new Error("Data tukang tidak valid.");
+  const workerId = String(payload.workerId || "").trim();
+  const name = bonusText_(payload.name, "Nama tukang", 180, true);
+  const address = bonusText_(payload.address, "Alamat", 500, false);
+  const phone = bonusText_(payload.phone, "Nomor HP", 40, false);
+  return invoiceWithLock_(function () {
+    const sheet = bonusTukangSheets_().workers;
+    const map = invoiceHeaderMap_(sheet);
+    const rows = bonusRows_("workers", sheet);
+    const existing = workerId ? bonusFindById_(rows, "worker_id", workerId) : null;
+    if (workerId && !existing) throw new Error("Data tukang tidak ditemukan.");
+    const now = new Date();
+    const id = workerId || bonusId_("TUK");
+    const values = [id, name, address, phone, true, existing ? existing.created_at : now, now];
+    if (existing) sheet.getRange(existing._row, 1, 1, values.length).setValues([values]);
+    else sheet.appendRow(values);
+    return { workerId: id, name: name, address: address, phone: phone, active: true };
+  });
+}
+
+function saveBonusProject(payload) {
+  if (!payload || typeof payload !== "object") throw new Error("Data proyek tidak valid.");
+  const projectId = String(payload.projectId || "").trim();
+  const workerId = bonusText_(payload.workerId, "Tukang", 100, true);
+  const customerName = bonusText_(payload.customerName, "Nama konsumen", 180, true);
+  const customerCode = bonusText_(payload.customerCode, "Kode konsumen", 80, false);
+  const projectName = bonusText_(payload.projectName, "Nama proyek", 180, false);
+  return invoiceWithLock_(function () {
+    const sheets = bonusTukangSheets_();
+    const workers = bonusRows_("workers", sheets.workers);
+    const worker = bonusFindById_(workers, "worker_id", workerId);
+    if (!worker || worker.active === false) throw new Error("Tukang aktif tidak ditemukan.");
+    const sheet = sheets.projects, map = invoiceHeaderMap_(sheet), rows = bonusRows_("projects", sheet);
+    const existing = projectId ? bonusFindById_(rows, "project_id", projectId) : null;
+    if (projectId && !existing) throw new Error("Proyek tidak ditemukan.");
+    const duplicate = rows.find(function (row) {
+      return row.active !== false &&
+        String(row.worker_id) === workerId &&
+        String(row.customer_name).toLowerCase() === customerName.toLowerCase() &&
+        String(row.project_name || "").toLowerCase() === projectName.toLowerCase() &&
+        String(row.project_id) !== projectId;
+    });
+    if (duplicate) throw new Error("Konsumen/proyek ini sudah tercatat untuk tukang tersebut.");
+    const now = new Date(), id = projectId || bonusId_("PRJ");
+    const values = [id, workerId, customerName, customerCode, projectName, true, existing ? existing.created_at : now, now];
+    if (existing) sheet.getRange(existing._row, 1, 1, values.length).setValues([values]);
+    else sheet.appendRow(values);
+    return { projectId: id, workerId: workerId, customerName: customerName, customerCode: customerCode, projectName: projectName, active: true };
+  });
+}
+
+function saveBonusNote(payload) {
+  if (!payload || typeof payload !== "object") throw new Error("Data nota tidak valid.");
+  const noteId = String(payload.noteId || "").trim();
+  const projectId = bonusText_(payload.projectId, "Proyek", 100, true);
+  const noteNumber = bonusText_(payload.noteNumber, "Nomor nota", 100, true);
+  const noteDate = bonusDate_(payload.noteDate, "Tanggal nota");
+  const totalPurchase = bonusMoney_(payload.totalPurchase, "Total belanja", false);
+  return invoiceWithLock_(function () {
+    const sheets = bonusTukangSheets_(), projectRows = bonusRows_("projects", sheets.projects);
+    if (!bonusFindById_(projectRows, "project_id", projectId)) throw new Error("Konsumen/proyek tidak ditemukan.");
+    const sheet = sheets.notes, rows = bonusRows_("notes", sheet);
+    const existing = noteId ? bonusFindById_(rows, "note_id", noteId) : null;
+    if (noteId && !existing) throw new Error("Nota tidak ditemukan.");
+    if (existing && String(existing.bonus_realization_id || "").trim()) {
+      throw new Error("Nota sudah masuk realisasi bonus dan tidak dapat diedit.");
+    }
+    const duplicate = rows.find(function (row) {
+      return String(row.note_number || "").toLowerCase() === noteNumber.toLowerCase() && String(row.note_id) !== noteId;
+    });
+    if (duplicate) throw new Error("Nomor nota sudah pernah dicatat.");
+    if (existing) {
+      const oldPaid = bonusRows_("payments", sheets.payments)
+        .filter(function (payment) { return String(payment.note_id) === noteId; })
+        .reduce(function (sum, payment) { return sum + Number(payment.amount || 0); }, 0);
+      if (totalPurchase < oldPaid) throw new Error("Total nota tidak boleh kurang dari pembayaran yang sudah dicatat.");
+    }
+    const now = new Date(), id = noteId || bonusId_("NOT");
+    const values = [id, projectId, noteNumber, noteDate, totalPurchase, existing ? existing.bonus_realization_id : "", existing ? existing.created_at : now, now];
+    if (existing) sheet.getRange(existing._row, 1, 1, values.length).setValues([values]);
+    else sheet.appendRow(values);
+    return { noteId: id, projectId: projectId, noteNumber: noteNumber, noteDate: noteDate, totalPurchase: totalPurchase };
+  });
+}
+
+function saveBonusPayment(payload) {
+  if (!payload || typeof payload !== "object") throw new Error("Data pembayaran tidak valid.");
+  const noteId = bonusText_(payload.noteId, "Nota", 100, true);
+  const paymentDate = bonusDate_(payload.paymentDate, "Tanggal pembayaran");
+  const amount = bonusMoney_(payload.amount, "Jumlah pembayaran", false);
+  const reference = bonusText_(payload.reference, "Referensi pembayaran", 180, false);
+  return invoiceWithLock_(function () {
+    const sheets = bonusTukangSheets_();
+    const note = bonusFindById_(bonusRows_("notes", sheets.notes), "note_id", noteId);
+    if (!note) throw new Error("Nota tidak ditemukan.");
+    if (String(note.bonus_realization_id || "").trim()) throw new Error("Nota sudah menerima realisasi bonus.");
+    const paid = bonusRows_("payments", sheets.payments)
+      .filter(function (row) { return String(row.note_id) === noteId; })
+      .reduce(function (sum, row) { return sum + Number(row.amount || 0); }, 0);
+    if (paid + amount > Number(note.total_purchase || 0)) {
+      throw new Error("Pembayaran melebihi sisa nota sebesar " + Math.max(0, Number(note.total_purchase || 0) - paid) + ".");
+    }
+    const id = bonusId_("BYR"), now = new Date();
+    sheets.payments.appendRow([id, noteId, paymentDate, amount, reference, now]);
+    return { paymentId: id, noteId: noteId, paymentDate: paymentDate, amount: amount, reference: reference };
+  });
+}
+
+function saveBonusPeriod(payload) {
+  if (!payload || typeof payload !== "object") throw new Error("Data periode tidak valid.");
+  const year = Number(payload.eidYear);
+  if (!Number.isInteger(year) || year < 2020 || year > 2100) throw new Error("Tahun Lebaran tidak valid.");
+  const eidDate = bonusDate_(payload.eidDate, "Tanggal Lebaran");
+  if (Number(eidDate.slice(0, 4)) !== year) throw new Error("Tahun tanggal Lebaran harus sama dengan tahun periode.");
+  const days = Number(payload.payoutDaysBefore);
+  if (days !== 7 && days !== 10) throw new Error("Pembagian bonus dipilih 7 atau 10 hari sebelum Lebaran.");
+  const rate = Number(payload.bonusRatePercent);
+  if (!Number.isFinite(rate) || rate <= 0 || rate > 100) throw new Error("Persentase bonus harus lebih dari 0 dan maksimal 100.");
+  const payoutDate = bonusPayoutDate_(eidDate, days);
+  return invoiceWithLock_(function () {
+    const sheets = bonusTukangSheets_(), sheet = sheets.periods, rows = bonusRows_("periods", sheet);
+    const existing = rows.find(function (row) { return Number(row.eid_year) === year; }) || null;
+    const id = existing ? String(existing.period_id) : ("EID-" + year);
+    const realizations = bonusRows_("realizations", sheets.realizations)
+      .filter(function (row) { return String(row.period_id) === id; });
+    if (realizations.length && Number(existing.bonus_rate_percent) !== rate) {
+      throw new Error("Tarif periode sudah dipakai dalam realisasi bonus dan tidak dapat diubah.");
+    }
+    rows.forEach(function (row) {
+      if (String(row.period_id) !== id && String(row.status) === "OPEN" && Number(row.eid_year) < year) {
+        sheet.getRange(row._row, 7).setValue("CLOSED");
+        sheet.getRange(row._row, 9).setValue(new Date());
+      }
+    });
+    const now = new Date();
+    const values = [id, year, eidDate, days, payoutDate, rate, "OPEN", existing ? existing.created_at : now, now];
+    if (existing) sheet.getRange(existing._row, 1, 1, values.length).setValues([values]);
+    else sheet.appendRow(values);
+    return bonusPeriodOutput_({
+      period_id: id, eid_year: year, eid_date: eidDate, payout_days_before: days,
+      payout_date: payoutDate, bonus_rate_percent: rate, status: "OPEN",
+      created_at: existing ? existing.created_at : now, updated_at: now
+    });
+  });
+}
+
+function payBonusWorker(payload) {
+  if (!payload || typeof payload !== "object") throw new Error("Data pembayaran bonus tidak valid.");
+  const periodId = bonusText_(payload.periodId, "Periode", 100, true);
+  const workerId = bonusText_(payload.workerId, "Tukang", 100, true);
+  const payoutDate = bonusDate_(payload.payoutDate, "Tanggal pembayaran bonus");
+  const reference = bonusText_(payload.reference, "Referensi/catatan pembayaran", 180, false);
+
+  return invoiceWithLock_(function () {
+    const sheets = bonusTukangSheets_();
+    const periodRow = bonusFindById_(bonusRows_("periods", sheets.periods), "period_id", periodId);
+    if (!periodRow || String(periodRow.status) !== "OPEN") throw new Error("Periode bonus tidak aktif untuk pencatatan pembayaran.");
+    if (payoutDate > bonusIsoDate_(periodRow.eid_date)) throw new Error("Tanggal pembayaran bonus harus sebelum atau pada tanggal Lebaran.");
+    const dashboard = bonusBuildDashboard_(periodRow);
+    const worker = dashboard.workers.find(function (item) { return item.workerId === workerId; });
+    if (!worker) throw new Error("Tukang tidak ditemukan.");
+    const eligible = worker.projects.filter(function (project) { return project.status === "ELIGIBLE"; });
+    if (!eligible.length) throw new Error("Belum ada proyek dengan seluruh nota lunas dan bonus layak dibayar.");
+    const noteRows = bonusRows_("notes", sheets.notes);
+    const noteMap = invoiceHeaderMap_(sheets.notes);
+    const now = new Date(), created = [];
+    eligible.forEach(function (project) {
+      const realizationId = bonusId_("RLS");
+      const bonusAmount = Math.round(project.totalPurchase * Number(periodRow.bonus_rate_percent) / 100);
+      sheets.realizations.appendRow([
+        realizationId, periodId, workerId, project.projectId, project.totalPurchase,
+        project.totalPaid, Number(periodRow.bonus_rate_percent), bonusAmount,
+        payoutDate, reference, now
+      ]);
+      project.notes.forEach(function (note) {
+        const original = noteRows.find(function (row) { return String(row.note_id) === note.noteId; });
+        if (original) sheets.notes.getRange(original._row, noteMap.bonus_realization_id + 1).setValue(realizationId);
+      });
+      created.push({ realizationId: realizationId, projectId: project.projectId, bonusAmount: bonusAmount });
+    });
+    return {
+      periodId: periodId,
+      workerId: workerId,
+      payoutDate: payoutDate,
+      totalBonusPaid: created.reduce(function (sum, row) { return sum + row.bonusAmount; }, 0),
+      realizations: created
     };
   });
 }
