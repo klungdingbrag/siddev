@@ -234,3 +234,17 @@
 @media(max-width:700px){
   #bonus-worker-cards:not(.hidden){grid-template-columns:1fr}
 }
+
+/* Session cache status indicator, matching the supplier debt page pattern. */
+.bonus-summary{grid-template-columns:repeat(5,minmax(0,1fr))}
+.bonus-cache-card{min-width:0}
+.bonus-cache-card .bonus-data-status{display:inline-flex;align-items:center;width:max-content;max-width:100%;min-height:25px;margin-top:7px;padding:4px 10px;border:1px solid transparent;border-radius:999px;font-size:.7rem!important;font-weight:750;line-height:1.2;letter-spacing:.01em;font-variant-numeric:tabular-nums}
+.bonus-data-status[data-state="current"]{color:#067647;background:#ecfdf3;border-color:#abefc6}
+.bonus-data-status[data-state="cache"]{color:#93370d;background:#fffaeb;border-color:#fedf89}
+.bonus-data-status[data-state="refreshing"]{color:#1849a9;background:#eff8ff;border-color:#b2ddff}
+.bonus-data-status[data-state="error"]{color:#b42318;background:#fef3f2;border-color:#fecdca}
+.bonus-data-status[data-state="idle"]{color:#667085;background:#f2f4f7;border-color:#eaecf0}
+.bonus-cache-card small{overflow-wrap:anywhere;line-height:1.4}
+@media(max-width:1100px){.bonus-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:800px){.bonus-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.bonus-summary{grid-template-columns:1fr}}
