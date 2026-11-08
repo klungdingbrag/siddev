@@ -1,5 +1,5 @@
 const NIPPON_GAS_URL = "https://script.google.com/macros/s/AKfycbyaUscsruoi7X_uWF1P1-CIbZ27QFsSajqeFDHwcCAK578WJ32MI30Uujxtj9FYnqFf/exec";
-const state = { products: [], filtered: [], search: "", editingId: "", escapeHandler: null, focusBeforeModal: null, loaded: false, loading: false, dataSavedAt: null };
+const state = { products: [], filtered: [], search: "", editingId: "", escapeHandler: null, focusBeforeModal: null, loaded: false, loading: false, refreshAfterLoad: false, dataSavedAt: null };
 const NIPPON_CACHE_KEY = "sidretail:nippon-price-list:v1";
 const NIPPON_CACHE_TTL_MS = 2 * 60 * 1000;
 const rupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
