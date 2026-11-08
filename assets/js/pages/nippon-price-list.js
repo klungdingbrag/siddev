@@ -1,5 +1,5 @@
 const NIPPON_GAS_URL = "https://script.google.com/macros/s/AKfycbyaUscsruoi7X_uWF1P1-CIbZ27QFsSajqeFDHwcCAK578WJ32MI30Uujxtj9FYnqFf/exec";
-const state = { products: [], filtered: [], search: "", editingId: "", escapeHandler: null, focusBeforeModal: null };
+const state = { products: [], filtered: [], search: "", editingId: "", escapeHandler: null, focusBeforeModal: null, loaded: false, loading: false, dataSavedAt: null };\nconst NIPPON_CACHE_KEY = "sidretail:nippon-price-list:v1";\nconst NIPPON_CACHE_TTL_MS = 2 * 60 * 1000;
 const rupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
 const countFormat = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 });
 const root = () => document.querySelector("#page-content");
@@ -54,7 +54,7 @@ export function renderNipponPriceListPage() {
     </section>
     <section class="summary-grid nippon-summary" aria-label="Ringkasan daftar Nippon Paint">
       <article class="summary-card"><span>Produk Terdaftar</span><strong id="nippon-count">0</strong><small>varian ukuran aktif</small></article>
-      <article class="summary-card"><span>Status Data</span><strong id="nippon-status">Memuat</strong><small id="nippon-updated">Menghubungkan ke GAS Invoice</small></article>
+      <article class="summary-card"><span>Status Data</span><strong id="nippon-status" class="nippon-data-status" data-state="idle">Memuat</strong><small id="nippon-updated">Menghubungkan ke GAS Invoice</small></article>
     </section>
     <section class="card panel nippon-panel">
       <div class="toolbar nippon-toolbar">
@@ -100,7 +100,7 @@ export function renderNipponPriceListPage() {
 }
 
 function bindEvents() {
-  document.querySelector("#nippon-refresh").addEventListener("click", loadProducts);
+  document.querySelector("#nippon-refresh").addEventListener("click", () => loadProducts(true));
   document.querySelector("#nippon-add").addEventListener("click", () => openEditor());
   document.querySelector("#nippon-search").addEventListener("input", (event) => {
     state.search = event.target.value.trim().toLocaleLowerCase("id-ID");
@@ -138,38 +138,110 @@ function bindEvents() {
   document.addEventListener("keydown", state.escapeHandler);
 }
 
-async function loadProducts() {
-  const button = document.querySelector("#nippon-refresh");
-  if (!button) return;
-  button.disabled = true;
-  button.textContent = "↻ Memuat...";
-  if (!state.products.length) setListState("loading", "Memuat daftar harga...");
-  else {
-    document.querySelector("#nippon-status").textContent = "Memperbarui";
-    document.querySelector("#nippon-updated").textContent = "Mengambil data terbaru…";
+function formatNipponCacheAge(ageMs) {
+  const minutes = Math.floor(Math.max(0, Number(ageMs) || 0) / 60000);
+  return minutes < 1 ? "baru saja" : minutes + " mnt lalu";
+}
+function formatNipponUpdatedAt(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "baru saja" : new Intl.DateTimeFormat("id-ID", { dateStyle: "short", timeStyle: "short" }).format(date);
+}
+function setNipponStatus(status, detail) {
+  const label = document.querySelector("#nippon-status");
+  const updated = document.querySelector("#nippon-updated");
+  const labels = { current: "Terkini", cache: "Cache", refreshing: "Memuat", error: "Gagal", idle: "Siap" };
+  if (label) { label.textContent = labels[status] || "Status"; label.dataset.state = status; }
+  if (updated) updated.textContent = detail || "";
+}
+function readNipponCache() {
+  try {
+    const raw = sessionStorage.getItem(NIPPON_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.version !== 1 || !Array.isArray(parsed.products)) {
+      sessionStorage.removeItem(NIPPON_CACHE_KEY);
+      return null;
+    }
+    const savedAt = Number(parsed.savedAt);
+    if (!Number.isFinite(savedAt) || savedAt <= 0) {
+      sessionStorage.removeItem(NIPPON_CACHE_KEY);
+      return null;
+    }
+    return { products: parsed.products, savedAt, ageMs: Math.max(0, Date.now() - savedAt) };
+  } catch (error) {
+    console.warn("[NIPPON PRICE CACHE] read failed:", error);
+    return null;
   }
+}
+function writeNipponCache(savedAt = Date.now()) {
+  try {
+    sessionStorage.setItem(NIPPON_CACHE_KEY, JSON.stringify({ version: 1, savedAt, products: state.products }));
+  } catch (error) {
+    console.warn("[NIPPON PRICE CACHE] write failed:", error);
+  }
+}
+function invalidateNipponCache() {
+  try { sessionStorage.removeItem(NIPPON_CACHE_KEY); }
+  catch (error) { console.warn("[NIPPON PRICE CACHE] clear failed:", error); }
+}
+function applyNipponCache(cached) {
+  state.products = cached.products;
+  state.loaded = true;
+  state.dataSavedAt = cached.savedAt;
+  document.querySelector("#nippon-count").textContent = countFormat.format(state.products.length);
+  populateCalculator();
+  filterAndRender();
+}
+async function loadProducts(force = false) {
+  const button = document.querySelector("#nippon-refresh");
+  if (!button || state.loading) return;
+  let cached = null;
+  if (!force) {
+    cached = readNipponCache();
+    if (cached) {
+      applyNipponCache(cached);
+      const detail = "Data " + formatNipponCacheAge(cached.ageMs) + " · diperbarui " + formatNipponUpdatedAt(cached.savedAt);
+      if (cached.ageMs < NIPPON_CACHE_TTL_MS) {
+        setNipponStatus("cache", detail);
+        return;
+      }
+      setNipponStatus("refreshing", "Cache · " + detail + " · memperbarui dari server");
+    }
+  }
+  if (!state.loaded) setListState("loading", "Memuat daftar harga...");
+  else if (force) setNipponStatus("refreshing", "Memperbarui data terbaru · data terakhir tetap ditampilkan");
+  else if (!cached) setNipponStatus("refreshing", "Mengambil data terbaru dari server...");
+  state.loading = true;
+  button.disabled = true;
+  button.classList.add("ui-busy");
+  button.textContent = "↻ Memuat...";
   try {
     const rows = await request("listNipponPrices", { limit: 500 });
     if (!document.querySelector("#nippon-price-page")) return;
     if (!Array.isArray(rows)) throw new Error("Format daftar harga tidak dikenali.");
     state.products = rows.filter((row) => row && row.active !== false);
+    state.loaded = true;
+    state.dataSavedAt = Date.now();
+    writeNipponCache(state.dataSavedAt);
     document.querySelector("#nippon-count").textContent = countFormat.format(state.products.length);
-    document.querySelector("#nippon-status").textContent = "Siap";
-    document.querySelector("#nippon-updated").textContent = "Diperbarui " + new Intl.DateTimeFormat("id-ID", { dateStyle: "short", timeStyle: "short" }).format(new Date());
     populateCalculator();
     filterAndRender();
+    setNipponStatus("current", "Diperbarui " + formatNipponUpdatedAt(state.dataSavedAt));
   } catch (error) {
     if (!document.querySelector("#nippon-price-page")) return;
-    if (!state.products.length) {
+    if (state.loaded) {
+      const age = Date.now() - Number(state.dataSavedAt || cached?.savedAt || 0);
+      setNipponStatus("cache", "Cache · diperbarui " + formatNipponCacheAge(age) + " · refresh gagal");
+      console.warn("[NIPPON PRICE CACHE] refresh failed:", error);
+    } else {
       setListState("error", "Daftar harga gagal dimuat. " + (error?.message || "Periksa koneksi GAS."));
+      setNipponStatus("error", error?.message || "Periksa endpoint GAS Invoice.");
     }
-    document.querySelector("#nippon-status").textContent = state.products.length ? "Cache" : "Gagal";
-    document.querySelector("#nippon-updated").textContent = state.products.length
-      ? "Pembaruan gagal; data terakhir tetap ditampilkan."
-      : (error?.message || "Periksa endpoint GAS Invoice.");
   } finally {
+    state.loading = false;
     if (document.querySelector("#nippon-price-page")) {
       button.disabled = false;
+      button.classList.remove("ui-busy");
       button.textContent = "↻ Refresh";
     }
   }
