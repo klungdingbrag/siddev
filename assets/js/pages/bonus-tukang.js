@@ -302,7 +302,7 @@ function showWorkerDetail(worker) {
   const projects = worker.projects || [];
   const projectHtml = projects.length ? projects.map((project) => `
     <section class="bonus-project-section">
-      <header><div><h4>${esc(project.customerName)}${project.projectCode ? " · " + esc(project.customerCode) : ""}</h4><p>${esc(project.projectName || "Konsumen")}</p></div><button type="button" class="btn btn-light" data-bonus-action="edit-project" data-project-id="${esc(project.projectId)}">Edit</button></header>
+      <header><div><h4>${esc(project.customerName)}${project.customerCode ? " · " + esc(project.customerCode) : ""}</h4><p>${esc(project.projectName || "Konsumen")}</p></div><button type="button" class="btn btn-light" data-bonus-action="edit-project" data-project-id="${esc(project.projectId)}">Edit</button></header>
       <div class="bonus-project-metrics"><span>Akumulasi Belanja <strong>${esc(money(project.totalPurchase))}</strong></span><span>Dibayar <strong>${esc(money(project.totalPaid))}</strong></span><span>Kurang <strong>${esc(money(project.outstanding))}</strong></span><span>Bonus periode <strong>${esc(project.status === "ELIGIBLE" ? money(project.eligibleBonus) : project.status === "PENDING" ? money(project.pendingBonusEstimate) + " · tertunda" : "Sudah direalisasikan")}</strong></span></div>
       <div class="bonus-project-actions"><button type="button" class="btn btn-light" data-bonus-action="add-note" data-project-id="${esc(project.projectId)}">＋ Tambah Nota</button></div>
       <div class="bonus-notes-list">${project.notes.length ? project.notes.map((note) => `
@@ -333,7 +333,7 @@ async function onFormSubmit(event) {
     const kind = form.dataset.bonusForm;
     if (kind === "worker") await request("saveBonusWorker", {}, "POST", { workerId: form.dataset.workerId || undefined, ...data });
     if (kind === "project") await request("saveBonusProject", {}, "POST", { projectId: form.dataset.projectId || undefined, ...data });
-    if (kind === "note") await request("saveBonusNote", {}, "POST", { noteId: form.dataset.noteId || undefined, totalPurchase: parseMoney(data.totalPurchase), ...data });
+    if (kind === "note") await request("saveBonusNote", {}, "POST", { ...data, noteId: form.dataset.noteId || undefined, totalPurchase: parseMoney(data.totalPurchase) });
     if (kind === "payment") await request("saveBonusPayment", {}, "POST", { amount: parseMoney(data.amount), ...data });
     if (kind === "period") {
       const saved = await request("saveBonusPeriod", {}, "POST", { ...data, eidYear: Number(data.eidYear), payoutDaysBefore: Number(data.payoutDaysBefore), bonusRatePercent: Number(data.bonusRatePercent) });
