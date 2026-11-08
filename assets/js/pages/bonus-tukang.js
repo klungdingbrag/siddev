@@ -306,19 +306,44 @@ function showPayWorkerForm(worker) {
 }
 function showWorkerDetail(worker) {
   const projects = worker.projects || [];
-  const projectHtml = projects.length ? projects.map((project) => `
-    <section class="bonus-project-section">
-      <header><div><h4>${esc(project.customerName)}${project.customerCode ? " · " + esc(project.customerCode) : ""}</h4><p>${esc(project.projectName || "Konsumen")}</p></div><button type="button" class="btn btn-light" data-bonus-action="edit-project" data-project-id="${esc(project.projectId)}">Edit</button></header>
-      <div class="bonus-project-metrics"><span>Akumulasi Belanja <strong>${esc(money(project.totalPurchase))}</strong></span><span>Dibayar <strong>${esc(money(project.totalPaid))}</strong></span><span>Kurang <strong>${esc(money(project.outstanding))}</strong></span><span>Bonus periode <strong>${esc(project.status === "ELIGIBLE" ? money(project.eligibleBonus) : project.status === "PENDING" ? money(project.pendingBonusEstimate) + " · tertunda" : "Sudah direalisasikan")}</strong></span></div>
-      <div class="bonus-project-actions"><button type="button" class="btn btn-light" data-bonus-action="add-note" data-project-id="${esc(project.projectId)}">＋ Tambah Nota</button></div>
-      <div class="bonus-notes-list">${project.notes.length ? project.notes.map((note) => `
-        <article class="bonus-note-row"><div class="bonus-note-info"><strong>${esc(note.noteNumber)}</strong><span>${esc(formatDate(note.noteDate))}</span><span>Total ${esc(money(note.totalPurchase))} · Dibayar ${esc(money(note.totalPaid))} · Kurang ${esc(money(note.outstanding))}</span>${note.bonusRealizationId ? '<small class="bonus-realized-tag">Bonus sudah direalisasikan</small>' : ""}</div>
-        <div class="bonus-note-actions">${note.bonusRealizationId ? "" : `<button type="button" class="btn btn-light" data-bonus-action="edit-note" data-project-id="${esc(project.projectId)}" data-note-id="${esc(note.noteId)}">Edit</button>${note.outstanding > 0 ? `<button type="button" class="btn btn-light" data-bonus-action="add-payment" data-note-id="${esc(note.noteId)}">Catat Bayar</button>` : '<span class="bonus-paid-tag">Lunas</span>'}`}</div></article>`).join("") : '<p class="bonus-empty-note">Belum ada nota.</p>'}</div>
-    </section>`).join("") : '<p class="bonus-empty-note">Belum ada konsumen/proyek yang dicatat.</p>';
+  const projectHtml = projects.length ? projects.map((project) => {
+    const notes = project.notes || [];
+    const notesTable = notes.length ? `
+      <div class="bonus-note-table-scroll">
+        <table class="bonus-note-table">
+          <thead><tr><th>Nota</th><th>Tanggal</th><th>Total Nota</th><th>Sudah Dibayar</th><th>Sisa</th><th>Status / Aksi</th></tr></thead>
+          <tbody>${notes.map((note) => {
+            const noteStatus = note.bonusRealizationId ? "Bonus direalisasikan" : Number(note.outstanding) <= 0 ? "Lunas" : "Belum lunas";
+            const noteStatusClass = note.bonusRealizationId ? "is-realized" : Number(note.outstanding) <= 0 ? "is-paid" : "is-pending";
+            const actions = note.bonusRealizationId
+              ? '<span class="bonus-note-status is-realized">Sudah direalisasikan</span>'
+              : Number(note.outstanding) > 0
+                ? `<div class="bonus-note-actions"><button type="button" class="btn btn-light" data-bonus-action="edit-note" data-project-id="${esc(project.projectId)}" data-note-id="${esc(note.noteId)}">Edit</button><button type="button" class="btn btn-light" data-bonus-action="add-payment" data-note-id="${esc(note.noteId)}">Catat Bayar</button></div>`
+                : '<span class="bonus-note-status is-paid">Lunas</span>';
+            return `<tr>
+              <td data-label="Nota"><strong>${esc(note.noteNumber)}</strong><span class="bonus-note-status ${noteStatusClass} bonus-mobile-status">${esc(noteStatus)}</span></td>
+              <td data-label="Tanggal">${esc(formatDate(note.noteDate))}</td>
+              <td data-label="Total Nota" class="bonus-table-money">${esc(money(note.totalPurchase))}</td>
+              <td data-label="Sudah Dibayar" class="bonus-table-money">${esc(money(note.totalPaid))}</td>
+              <td data-label="Sisa" class="bonus-table-money">${esc(money(note.outstanding))}</td>
+              <td data-label="Status / Aksi">${actions}</td>
+            </tr>`;
+          }).join("")}</tbody>
+        </table>
+      </div>` : '<p class="bonus-empty-note">Belum ada nota untuk konsumen/proyek ini.</p>';
+    const bonusLabel = project.status === "ELIGIBLE" ? money(project.eligibleBonus) : project.status === "PENDING" ? money(project.pendingBonusEstimate) + " · tertunda" : "Sudah direalisasikan";
+    return `
+      <section class="bonus-project-section">
+        <header class="bonus-project-header"><div class="bonus-project-title"><span class="bonus-section-kicker">KONSUMEN / PROYEK</span><h4>${esc(project.customerName)}${project.customerCode ? ` <small>· ${esc(project.customerCode)}</small>` : ""}</h4><p>${esc(project.projectName || "Konsumen")}</p></div><button type="button" class="btn btn-light" data-bonus-action="edit-project" data-project-id="${esc(project.projectId)}">Edit</button></header>
+        <div class="bonus-project-metrics"><div><span>Total belanja</span><strong>${esc(money(project.totalPurchase))}</strong></div><div><span>Sudah dibayar</span><strong>${esc(money(project.totalPaid))}</strong></div><div><span>Kekurangan</span><strong>${esc(money(project.outstanding))}</strong></div><div><span>Bonus periode ini</span><strong class="${project.status === "ELIGIBLE" ? "is-eligible" : ""}">${esc(bonusLabel)}</strong></div></div>
+        <div class="bonus-project-actions"><span>Daftar nota</span><button type="button" class="btn btn-light" data-bonus-action="add-note" data-project-id="${esc(project.projectId)}">＋ Tambah Nota</button></div>
+        ${notesTable}
+      </section>`;
+  }).join("") : '<div class="bonus-detail-empty"><strong>Belum ada konsumen atau proyek</strong><span>Tambahkan konsumen untuk mulai mencatat nota dari SID Retail.</span></div>';
   openDialog("Detail Tukang · " + worker.name, `
-    <div class="bonus-detail-toolbar"><div><span>Alamat</span><strong>${esc(worker.address || "Belum diisi")}</strong><span>Nomor HP · ${esc(worker.phone || "Belum diisi")}</span></div><button type="button" class="btn btn-primary" data-bonus-action="add-project" data-worker-id="${esc(worker.workerId)}">＋ Tambah Konsumen / Proyek</button></div>
-    <div class="bonus-detail-summary"><div><span>Total belanja seluruh nota</span><strong>${esc(money(worker.totalPurchase))}</strong></div><div><span>Total pembayaran</span><strong>${esc(money(worker.totalPaid))}</strong></div><div><span>Total kekurangan</span><strong>${esc(money(worker.outstanding))}</strong></div><div><span>Bonus layak periode ini</span><strong>${esc(money(worker.eligibleBonus))}</strong></div></div>
-    ${projectHtml}`);
+    <div class="bonus-detail-toolbar"><div class="bonus-worker-contact"><div><span>Alamat</span><strong>${esc(worker.address || "Belum diisi")}</strong></div><div><span>Nomor HP</span><strong>${esc(worker.phone || "Belum diisi")}</strong></div></div><button type="button" class="btn btn-primary" data-bonus-action="add-project" data-worker-id="${esc(worker.workerId)}">＋ Tambah Konsumen / Proyek</button></div>
+    <section class="bonus-detail-summary" aria-label="Ringkasan tukang"><div><span>Total belanja</span><strong>${esc(money(worker.totalPurchase))}</strong></div><div><span>Total dibayar</span><strong>${esc(money(worker.totalPaid))}</strong></div><div><span>Total kekurangan</span><strong>${esc(money(worker.outstanding))}</strong></div><div><span>Bonus layak periode ini</span><strong class="is-eligible">${esc(money(worker.eligibleBonus))}</strong></div></section>
+    <div class="bonus-detail-projects"><div class="bonus-detail-section-heading"><div><span class="bonus-section-kicker">RINCIAN</span><h4>Konsumen dan nota</h4></div><span>${projects.length} konsumen/proyek</span></div>${projectHtml}</div>`);
 }
 function formatDate(value) {
   if (!value) return "Belum ditentukan";
