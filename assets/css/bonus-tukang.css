@@ -144,3 +144,54 @@
   .bonus-detail-summary,.bonus-project-metrics{grid-template-columns:1fr 1fr}
   .bonus-note-actions .btn{flex:1}
 }
+
+/* List view alignment and tablet-friendly worker cards. */
+.bonus-toolbar{align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.15rem}
+.bonus-toolbar-copy{min-width:0}
+.bonus-toolbar-copy h3{margin:0;color:#253858;font-size:.98rem;line-height:1.35}
+.bonus-toolbar-copy p{margin:.25rem 0 0;color:#667085;font-size:.78rem;line-height:1.45}
+.bonus-toolbar .search-box{flex:0 1 360px;min-width:min(100%,240px);width:auto}
+.bonus-table{width:100%;min-width:1280px;table-layout:fixed}
+.bonus-table th,.bonus-table td{vertical-align:middle}
+.bonus-table th:first-child,.bonus-table td:first-child{text-align:left}
+.bonus-table th:nth-child(1),.bonus-table td:nth-child(1){width:190px}
+.bonus-table th:nth-child(2),.bonus-table td:nth-child(2){width:88px}
+.bonus-table th:nth-child(n+3):nth-child(-n+7),.bonus-table td:nth-child(n+3):nth-child(-n+7){width:145px}
+.bonus-table th:nth-child(8),.bonus-table td:nth-child(8){width:285px}
+.bonus-table th.bonus-project-heading,.bonus-table td.bonus-project-count{text-align:center}
+.bonus-table th.bonus-number-heading,.bonus-table td.bonus-money{text-align:right}
+.bonus-table th.bonus-action-heading,.bonus-table td.bonus-action-cell{text-align:center}
+.bonus-table th{height:48px;padding:.65rem .75rem;line-height:1.3;white-space:normal}
+.bonus-table td{padding:.8rem .75rem;line-height:1.4}
+.bonus-table td:first-child strong{display:block;color:#253858;line-height:1.35}
+.bonus-table .bonus-contact{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bonus-row-actions{display:grid;grid-template-columns:64px 56px minmax(120px,1fr);align-items:center;justify-content:center;gap:.4rem;min-width:0;width:100%;max-width:270px;margin:0 auto}
+.bonus-row-actions .btn{min-width:0;padding:.48rem .5rem;font-size:.72rem;line-height:1.2}
+.bonus-action-cell .bonus-row-actions .btn-primary{white-space:normal}
+.bonus-worker-card{padding:1rem 1.1rem;border:1px solid #e3eaf2;border-radius:14px;background:#fff;box-shadow:0 3px 12px rgba(16,24,40,.045)}
+.bonus-worker-card-head{padding-bottom:.7rem;border-bottom:1px solid #edf1f5}
+.bonus-worker-card-head strong{color:#253858;font-size:.98rem;line-height:1.35}
+.bonus-worker-card-head>span{padding:.27rem .55rem;border-radius:999px;background:#f1f5f9;color:#526174;font-size:.7rem;font-weight:700}
+.bonus-worker-card dl{margin:.8rem 0}
+.bonus-worker-card dl dt{font-size:.72rem}
+.bonus-worker-card dl dd{color:#253858;font-size:.85rem}
+.bonus-worker-card .bonus-row-actions{grid-template-columns:repeat(2,minmax(0,1fr));max-width:none;margin-top:.4rem}
+.bonus-worker-card .bonus-row-actions .btn:last-child{grid-column:1/-1}
+@media(max-width:1100px){
+  #bonus-table-wrap{display:none!important}
+  #bonus-worker-cards:not(.hidden){display:grid;gap:.7rem;padding:.85rem}
+  .bonus-toolbar{align-items:flex-start}
+}
+@media(max-width:640px){
+  .bonus-toolbar{display:flex;align-items:stretch;flex-direction:column}
+  .bonus-toolbar .search-box{width:100%;min-width:0;max-width:none;flex:1}
+  #bonus-worker-cards:not(.hidden){padding:.65rem}
+  .bonus-worker-card{padding:.85rem}
+  .bonus-worker-card dl{gap:.7rem}
+  .bonus-worker-card .bonus-row-actions{gap:.45rem}
+}
+@media(max-width:420px){
+  .bonus-worker-card dl{grid-template-columns:1fr 1fr}
+  .bonus-worker-card .bonus-row-actions{grid-template-columns:1fr}
+  .bonus-worker-card .bonus-row-actions .btn:last-child{grid-column:auto}
+}
