@@ -8,6 +8,7 @@ import { renderSupplierHutangPage } from "./pages/supplier-hutang.js?v=20261015-
 import { renderInvoicePage } from "./pages/invoice.js?v=20261023-surat-jalan-prs-v1";
 import { renderNipponPriceListPage } from "./pages/nippon-price-list.js?v=20261030-nippon-price-list-v1";
 import { renderCalculatorPage } from "./pages/calculator.js?v=20261019-invoice-tax-calculator-v3";
+import { renderBonusTukangPage } from "./pages/bonus-tukang.js?v=20261108-bonus-tukang-v1";
 
 const sidebar = document.querySelector("#sidebar");
 const content = document.querySelector("#page-content");
@@ -81,6 +82,7 @@ sidebar.innerHTML = `
     <a class="nav-item" href="#hutang-supplier">Hutang Supplier</a>
     <a class="nav-item" href="#invoice">Invoice</a>
     <a class="nav-item" href="#price-list-nippon">Price List Nippon Paint</a>
+    <a class="nav-item" href="#bonus-tukang">Bonus Tukang</a>
     <a class="nav-item" href="#barang">Data Barang</a>
     <a class="nav-item" href="#kalkulator">Kalkulator</a>
   </nav>
@@ -143,6 +145,10 @@ function route({ focusContent = false } = {}) {
     "#price-list-nippon": {
       title: "Price List Nippon Paint",
       render: () => renderNipponPriceListPage()
+    },
+    "#bonus-tukang": {
+      title: "Bonus Tukang",
+      render: () => renderBonusTukangPage()
     },
     "#barang": {
       title: "Data Barang",
