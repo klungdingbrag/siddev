@@ -8,7 +8,7 @@ import { renderSupplierHutangPage } from "./pages/supplier-hutang.js?v=20261015-
 import { renderInvoicePage } from "./pages/invoice.js?v=20261023-surat-jalan-prs-v1";
 import { renderNipponPriceListPage } from "./pages/nippon-price-list.js?v=20261030-nippon-price-list-v1";
 import { renderCalculatorPage } from "./pages/calculator.js?v=20261019-invoice-tax-calculator-v3";
-import { renderBonusTukangPage } from "./pages/bonus-tukang.js?v=20261108-bonus-tukang-v1";
+import { renderBonusTukangPage } from "./pages/bonus-tukang.js?v=20261108-bonus-tukang-layout-v2";
 
 const sidebar = document.querySelector("#sidebar");
 const content = document.querySelector("#page-content");
