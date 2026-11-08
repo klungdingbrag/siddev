@@ -123,6 +123,10 @@ Tidak ada koneksi tulis ke SID Retail. Nomor nota, nilai belanja, dan pembayaran
 - Jika masih ada nota yang belum lunas, bonus proyek tertunda. Nota yang belum direalisasikan tetap berada dalam cohort terbuka dan terbawa ke periode berikutnya. Setelah realisasi, hanya nota pada cohort tersebut yang ditandai; nota baru dapat membentuk cohort berikutnya.
 - Data periode lama tetap tersedia untuk ditinjau. Periode yang sudah ditutup tidak dapat menerima realisasi.
 
+### Cache frontend Bonus Tukang
+
+Halaman memakai `sessionStorage` pada tab browser, mengikuti pola halaman Hutang Supplier. Ringkasan periode dan dashboard tampil dari cache ketika tersedia; masa berlaku cache adalah 2 menit. Cache kedaluwarsa ditampilkan sambil diperbarui dari GAS, tombol Refresh selalu meminta data terbaru, dan setelah penyimpanan/perubahan data cache dihapus sebelum pembacaan ulang. Status **Terkini**, **Cache**, atau **Memuat** serta waktu pembaruan terlihat pada kartu Status Data. Cache hanya untuk mempercepat tampilan; Spreadsheet tetap menjadi sumber data utama.
+
 ### API Bonus Tukang
 
 GET: `listBonusPeriods`, `getBonusDashboard`.
