@@ -1006,13 +1006,13 @@ function payBonusWorker(payload) {
     const now = new Date(), created = [];
     eligible.forEach(function (project) {
       const realizationId = bonusId_("RLS");
-      const bonusAmount = Math.round(project.totalPurchase * Number(periodRow.bonus_rate_percent) / 100);
+      const bonusAmount = Math.round(project.bonusBasisPurchase * Number(periodRow.bonus_rate_percent) / 100);
       sheets.realizations.appendRow([
-        realizationId, periodId, workerId, project.projectId, project.totalPurchase,
-        project.totalPaid, Number(periodRow.bonus_rate_percent), bonusAmount,
+        realizationId, periodId, workerId, project.projectId, project.bonusBasisPurchase,
+        project.bonusBasisPaid, Number(periodRow.bonus_rate_percent), bonusAmount,
         payoutDate, reference, now
       ]);
-      project.notes.forEach(function (note) {
+      project.unallocatedNotes.forEach(function (note) {
         const original = noteRows.find(function (row) { return String(row.note_id) === note.noteId; });
         if (original) sheets.notes.getRange(original._row, noteMap.bonus_realization_id + 1).setValue(realizationId);
       });
