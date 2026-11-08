@@ -1,5 +1,7 @@
 const BONUS_GAS_URL = "https://script.google.com/macros/s/AKfycbyaUscsruoi7X_uWF1P1-CIbZ27QFsSajqeFDHwcCAK578WJ32MI30Uujxtj9FYnqFf/exec";
-const state = { periods: [], selectedPeriodId: "", dashboard: null, query: "", escapeHandler: null, focusBeforeDialog: null };
+const state = { periods: [], selectedPeriodId: "", dashboard: null, query: "", escapeHandler: null, focusBeforeDialog: null, loaded: false, loading: false, dataSavedAt: null };
+const BONUS_CACHE_KEY = "sidretail:bonus-tukang:v1";
+const BONUS_CACHE_TTL_MS = 2 * 60 * 1000;
 const moneyFormat = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
 const countFormat = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 });
 const root = () => document.querySelector("#page-content");
@@ -32,10 +34,7 @@ async function request(action, params = {}, method = "GET", payload = {}) {
 }
 
 export function renderBonusTukangPage() {
-  state.periods = [];
-  state.selectedPeriodId = "";
-  state.dashboard = null;
-  state.query = "";
+  Object.assign(state, { periods: [], selectedPeriodId: "", dashboard: null, query: "", loaded: false, loading: false, dataSavedAt: null });
   root().innerHTML = `
     <section class="page-heading bonus-heading">
       <div><p class="eyebrow">Program Loyalitas Mitra</p><h2>Bonus Tukang</h2>
@@ -52,6 +51,7 @@ export function renderBonusTukangPage() {
       <article class="summary-card"><span>Bonus Layak Dibayar</span><strong id="bonus-eligible-total">Rp0</strong><small>nota cohort sudah lunas</small></article>
       <article class="summary-card"><span>Bonus Tertunda</span><strong id="bonus-pending-total">Rp0</strong><small>menunggu pelunasan</small></article>
       <article class="summary-card"><span>Total Kekurangan</span><strong id="bonus-outstanding-total">Rp0</strong><small>seluruh nota aktif</small></article>
+      <article class="summary-card bonus-cache-card"><span>Status Data</span><strong id="bonus-data-status" class="bonus-data-status" data-state="idle">Siap</strong><small id="bonus-data-status-detail" role="status" aria-live="polite">Belum memuat data</small></article>
     </section>
     <section class="card panel bonus-main-panel">
       <div class="toolbar bonus-toolbar">
@@ -103,26 +103,125 @@ function bindEvents() {
   };
   document.addEventListener("keydown", state.escapeHandler);
 }
-async function loadPage(showRefresh = false) {
+function bonusMounted() { return Boolean(document.querySelector("#bonus-table-state")); }
+function setBonusDataStatus(status, detail) {
+  const label = document.querySelector("#bonus-data-status");
+  const description = document.querySelector("#bonus-data-status-detail");
+  const labels = { current: "Terkini", cache: "Cache", refreshing: "Memuat", error: "Gagal", idle: "Siap" };
+  if (label) { label.textContent = labels[status] || "Status"; label.dataset.state = status; }
+  if (description) description.textContent = detail || "";
+}
+function formatBonusCacheAge(ageMs) {
+  const minutes = Math.floor(Math.max(0, Number(ageMs) || 0) / 60000);
+  return minutes < 1 ? "baru saja" : minutes + " mnt lalu";
+}
+function formatBonusUpdatedAt(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "baru saja" : new Intl.DateTimeFormat("id-ID", { dateStyle: "short", timeStyle: "short" }).format(date);
+}
+function readBonusCache() {
+  try {
+    const raw = sessionStorage.getItem(BONUS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.version !== 1 || !Array.isArray(parsed.periods) || !parsed.dashboard || typeof parsed.dashboard !== "object") {
+      sessionStorage.removeItem(BONUS_CACHE_KEY);
+      return null;
+    }
+    const savedAt = Number(parsed.savedAt);
+    if (!Number.isFinite(savedAt) || savedAt <= 0) {
+      sessionStorage.removeItem(BONUS_CACHE_KEY);
+      return null;
+    }
+    return { ...parsed, savedAt, ageMs: Math.max(0, Date.now() - savedAt) };
+  } catch (error) {
+    console.warn("[BONUS TUKANG CACHE] read failed:", error);
+    return null;
+  }
+}
+function writeBonusCache(savedAt = Date.now()) {
+  try {
+    sessionStorage.setItem(BONUS_CACHE_KEY, JSON.stringify({
+      version: 1, savedAt, periods: state.periods,
+      selectedPeriodId: state.selectedPeriodId, dashboard: state.dashboard
+    }));
+  } catch (error) {
+    console.warn("[BONUS TUKANG CACHE] write failed:", error);
+  }
+}
+function invalidateBonusCache() {
+  try { sessionStorage.removeItem(BONUS_CACHE_KEY); }
+  catch (error) { console.warn("[BONUS TUKANG CACHE] clear failed:", error); }
+}
+function applyBonusCache(cached) {
+  state.periods = cached.periods;
+  state.selectedPeriodId = cached.selectedPeriodId || "";
+  state.dashboard = cached.dashboard;
+  state.dataSavedAt = cached.savedAt;
+  state.loaded = true;
+  if (state.dashboard?.period && !state.periods.some((item) => item.periodId === state.dashboard.period.periodId)) state.periods.unshift(state.dashboard.period);
+  renderPeriodSelector();
+  renderWorkers();
+}
+function setBonusLoading(message = "Mengambil data Bonus Tukang...") {
+  document.querySelector("#bonus-table-wrap")?.classList.add("hidden");
+  document.querySelector("#bonus-worker-cards")?.classList.add("hidden");
+  const tableState = document.querySelector("#bonus-table-state");
+  if (tableState) { tableState.className = "table-state loading"; tableState.textContent = message; }
+}
+async function loadPage(force = false) {
+  if (state.loading || !bonusMounted()) return;
   const button = document.querySelector("#bonus-refresh");
-  if (button) { button.disabled = true; button.textContent = "↻ Memuat..."; }
+  let cached = null;
+  if (!force) {
+    cached = readBonusCache();
+    if (cached) {
+      applyBonusCache(cached);
+      const detail = "Data " + formatBonusCacheAge(cached.ageMs) + " · diperbarui " + formatBonusUpdatedAt(cached.savedAt);
+      if (cached.ageMs < BONUS_CACHE_TTL_MS) {
+        setBonusDataStatus("cache", detail);
+        return;
+      }
+      setBonusDataStatus("refreshing", "Cache · " + detail + " · memperbarui dari server");
+    }
+  }
+  if (!state.loaded) {
+    setBonusLoading();
+    setBonusDataStatus("refreshing", "Mengambil data dari server...");
+  } else if (force) {
+    setBonusDataStatus("refreshing", "Memperbarui data terbaru · data terakhir tetap ditampilkan");
+  }
+  state.loading = true;
+  if (button) { button.disabled = true; button.classList.add("ui-busy"); button.textContent = "↻ Memuat..."; }
   try {
     const periods = await request("listBonusPeriods");
     state.periods = Array.isArray(periods) ? periods : [];
     if (!state.periods.some((item) => item.periodId === state.selectedPeriodId)) {
       state.selectedPeriodId = state.periods.find((item) => item.status === "OPEN")?.periodId || state.periods[0]?.periodId || "";
     }
+    const dashboard = await request("getBonusDashboard", { periodId: state.selectedPeriodId });
+    state.dashboard = dashboard;
+    if (dashboard?.period && !state.periods.some((item) => item.periodId === dashboard.period.periodId)) state.periods.unshift(dashboard.period);
+    state.loaded = true;
+    state.dataSavedAt = Date.now();
     renderPeriodSelector();
-    await loadDashboard();
+    renderWorkers();
+    writeBonusCache(state.dataSavedAt);
+    setBonusDataStatus("current", "Diperbarui " + formatBonusUpdatedAt(state.dataSavedAt));
   } catch (error) {
-    const tableState = document.querySelector("#bonus-table-state");
-    if (tableState) {
-      tableState.className = "table-state error";
-      tableState.textContent = "Data Bonus Tukang gagal dimuat. " + (error?.message || "Periksa koneksi GAS.");
+    if (state.loaded) {
+      const age = Date.now() - Number(state.dataSavedAt || cached?.savedAt || 0);
+      setBonusDataStatus("cache", "Cache · diperbarui " + formatBonusCacheAge(age) + " · refresh gagal");
+      console.warn("[BONUS TUKANG CACHE] refresh failed:", error);
+    } else {
+      const tableState = document.querySelector("#bonus-table-state");
+      if (tableState) { tableState.className = "table-state error"; tableState.textContent = "Data Bonus Tukang gagal dimuat. " + (error?.message || "Periksa koneksi GAS."); }
+      setBonusDataStatus("error", error?.message || "Data belum tersedia.");
+      showFeedback(error?.message || "Periksa tab Bonus Tukang di Spreadsheet Invoice.", true);
     }
-    showFeedback(error?.message || "Periksa tab Bonus Tukang di Spreadsheet Invoice.", true);
   } finally {
-    if (button) { button.disabled = false; button.textContent = "↻ Refresh"; }
+    state.loading = false;
+    if (button) { button.disabled = false; button.classList.remove("ui-busy"); button.textContent = "↻ Refresh"; }
   }
 }
 function renderPeriodSelector() {
@@ -155,14 +254,44 @@ function renderPeriodInfo() {
     <div><span>Status Periode</span><strong class="bonus-period-status ${period.status === "OPEN" ? "is-open" : "is-closed"}">${period.status === "OPEN" ? "Aktif" : "Ditutup"}</strong></div>`;
 }
 async function loadDashboard() {
-  const data = await request("getBonusDashboard", { periodId: state.selectedPeriodId });
-  state.dashboard = data;
-  if (data?.period && !state.periods.some((item) => item.periodId === data.period.periodId)) {
-    state.periods.unshift(data.period);
-    renderPeriodSelector();
+  if (state.loading) return;
+  const cached = readBonusCache();
+  if (cached && cached.selectedPeriodId === state.selectedPeriodId) {
+    applyBonusCache(cached);
+    const detail = "Data " + formatBonusCacheAge(cached.ageMs) + " · diperbarui " + formatBonusUpdatedAt(cached.savedAt);
+    if (cached.ageMs < BONUS_CACHE_TTL_MS) {
+      setBonusDataStatus("cache", detail);
+      return;
+    }
+    setBonusDataStatus("refreshing", "Cache · " + detail + " · memperbarui periode dari server");
+  } else {
+    state.dashboard = null;
+    setBonusLoading("Memuat data periode...");
+    setBonusDataStatus("refreshing", "Mengambil data periode dari server...");
   }
-  renderPeriodInfo();
-  renderWorkers();
+  state.loading = true;
+  try {
+    const data = await request("getBonusDashboard", { periodId: state.selectedPeriodId });
+    state.dashboard = data;
+    if (data?.period && !state.periods.some((item) => item.periodId === data.period.periodId)) state.periods.unshift(data.period);
+    state.loaded = true;
+    state.dataSavedAt = Date.now();
+    renderPeriodInfo();
+    renderWorkers();
+    writeBonusCache(state.dataSavedAt);
+    setBonusDataStatus("current", "Diperbarui " + formatBonusUpdatedAt(state.dataSavedAt));
+  } catch (error) {
+    if (!state.dashboard) {
+      const tableState = document.querySelector("#bonus-table-state");
+      if (tableState) { tableState.className = "table-state error"; tableState.textContent = "Data periode gagal dimuat. " + (error?.message || "Periksa koneksi GAS."); }
+      setBonusDataStatus("error", error?.message || "Periode belum tersedia.");
+    } else {
+      setBonusDataStatus("cache", "Cache · refresh gagal");
+    }
+    showFeedback(error?.message || "Periode bonus gagal dimuat.", true);
+  } finally {
+    state.loading = false;
+  }
 }
 function showFeedback(message, isError = false) {
   const el = document.querySelector("#bonus-feedback");
@@ -380,8 +509,9 @@ async function onFormSubmit(event) {
         reference: data.reference
       });
     }
+    invalidateBonusCache();
     closeDialog();
-    await loadPage();
+    await loadPage(true);
     if (kind === "payout") showFeedback("Realisasi bonus berhasil dicatat.");
     else showFeedback("Data Bonus Tukang berhasil disimpan.");
   } catch (error) {
