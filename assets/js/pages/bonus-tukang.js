@@ -55,12 +55,13 @@ export function renderBonusTukangPage() {
     </section>
     <section class="card panel bonus-main-panel">
       <div class="toolbar bonus-toolbar">
+        <div class="bonus-toolbar-copy"><h3>Daftar Tukang</h3><p>Cari tukang atau konsumen untuk melihat rincian belanja dan bonus.</p></div>
         <label class="search-box" for="bonus-search"><span aria-hidden="true">⌕</span><input id="bonus-search" type="search" placeholder="Cari nama tukang atau konsumen..." autocomplete="off"></label>
       </div>
       <div id="bonus-feedback" class="bonus-feedback hidden" role="status"></div>
       <div id="bonus-table-state" class="table-state loading" role="status">Memuat data Bonus Tukang...</div>
       <div id="bonus-table-wrap" class="table-scroll hidden"><table class="data-table bonus-table">
-        <thead><tr><th>Tukang</th><th>Proyek</th><th>Total Belanja</th><th>Sudah Dibayar</th><th>Kurang</th><th>Bonus Layak</th><th>Bonus Tertunda</th><th>Aksi</th></tr></thead>
+        <thead><tr><th scope="col">Tukang</th><th scope="col" class="bonus-project-heading">Proyek</th><th scope="col" class="bonus-number-heading">Total Belanja</th><th scope="col" class="bonus-number-heading">Sudah Dibayar</th><th scope="col" class="bonus-number-heading">Kurang</th><th scope="col" class="bonus-number-heading">Bonus Layak</th><th scope="col" class="bonus-number-heading">Bonus Tertunda</th><th scope="col" class="bonus-action-heading">Aksi</th></tr></thead>
         <tbody id="bonus-worker-body"></tbody>
       </table></div>
       <div id="bonus-worker-cards" class="mobile-data-cards hidden"></div>
@@ -202,9 +203,9 @@ function renderWorkers() {
 }
 function workerRow(worker, card, period) {
   const canPay = period?.status === "OPEN" && Number(worker.eligibleBonus) > 0;
-  const actions = `<div class="bonus-row-actions"><button type="button" class="btn btn-light" data-bonus-action="detail" data-worker-id="${esc(worker.workerId)}">Detail</button><button type="button" class="btn btn-light" data-bonus-action="edit-worker" data-worker-id="${esc(worker.workerId)}">Edit</button><button type="button" class="btn btn-primary" data-bonus-action="pay-worker" data-worker-id="${esc(worker.workerId)}" ${canPay ? "" : "disabled"}>Catat Bonus Dibayar</button></div>`;
+  const actions = `<div class="bonus-row-actions"><button type="button" class="btn btn-light" data-bonus-action="detail" data-worker-id="${esc(worker.workerId)}">Detail</button><button type="button" class="btn btn-light" data-bonus-action="edit-worker" data-worker-id="${esc(worker.workerId)}">Edit</button><button type="button" class="btn btn-primary" data-bonus-action="pay-worker" data-worker-id="${esc(worker.workerId)}" aria-label="Catat Bonus Dibayar untuk ${esc(worker.name)}" title="Catat Bonus Dibayar" ${canPay ? "" : "disabled"}>Bayar Bonus</button></div>`;
   if (card) return `<article class="data-card bonus-worker-card"><div class="bonus-worker-card-head"><div><strong>${esc(worker.name)}</strong><span>${esc(worker.phone || "Nomor HP belum diisi")}</span></div><span>${worker.projects.length} proyek</span></div><dl><div><dt>Total Belanja</dt><dd>${esc(money(worker.totalPurchase))}</dd></div><div><dt>Dibayar</dt><dd>${esc(money(worker.totalPaid))}</dd></div><div><dt>Kurang</dt><dd>${esc(money(worker.outstanding))}</dd></div><div><dt>Bonus Layak</dt><dd class="bonus-good">${esc(money(worker.eligibleBonus))}</dd></div><div><dt>Tertunda</dt><dd>${esc(money(worker.pendingBonusEstimate))}</dd></div></dl>${actions}</article>`;
-  return `<tr><td><strong>${esc(worker.name)}</strong><small class="bonus-contact">${esc(worker.phone || "Nomor HP belum diisi")}</small></td><td>${countFormat.format(worker.projects.length)}</td><td class="bonus-money">${esc(money(worker.totalPurchase))}</td><td class="bonus-money">${esc(money(worker.totalPaid))}</td><td class="bonus-money">${esc(money(worker.outstanding))}</td><td class="bonus-money bonus-good">${esc(money(worker.eligibleBonus))}</td><td class="bonus-money">${esc(money(worker.pendingBonusEstimate))}</td><td>${actions}</td></tr>`;
+  return `<tr><td><strong>${esc(worker.name)}</strong><small class="bonus-contact">${esc(worker.phone || "Nomor HP belum diisi")}</small></td><td class="bonus-project-count">${countFormat.format(worker.projects.length)}</td><td class="bonus-money">${esc(money(worker.totalPurchase))}</td><td class="bonus-money">${esc(money(worker.totalPaid))}</td><td class="bonus-money">${esc(money(worker.outstanding))}</td><td class="bonus-money bonus-good">${esc(money(worker.eligibleBonus))}</td><td class="bonus-money">${esc(money(worker.pendingBonusEstimate))}</td><td class="bonus-action-cell">${actions}</td></tr>`;
 }
 async function onAction(event) {
   const button = event.target.closest("[data-bonus-action]");
