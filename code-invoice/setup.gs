@@ -146,3 +146,58 @@ function setupNipponPriceListSheet() {
     message: "Sheet NipponPriceList siap digunakan."
   };
 }
+
+
+const BONUS_SHEET_HEADERS = Object.freeze({
+  workers: ["worker_id", "name", "address", "phone", "active", "created_at", "updated_at"],
+  projects: ["project_id", "worker_id", "customer_name", "customer_code", "project_name", "active", "created_at", "updated_at"],
+  notes: ["note_id", "project_id", "note_number", "note_date", "total_purchase", "bonus_realization_id", "created_at", "updated_at"],
+  payments: ["payment_id", "note_id", "payment_date", "amount", "reference", "created_at"],
+  periods: ["period_id", "eid_year", "eid_date", "payout_days_before", "payout_date", "bonus_rate_percent", "status", "created_at", "updated_at"],
+  realizations: ["realization_id", "period_id", "worker_id", "project_id", "total_purchase", "total_paid", "bonus_rate_percent", "bonus_amount", "payout_date", "payout_reference", "created_at"]
+});
+
+/**
+ * Create/check only the Bonus Tukang tabs. Does not format or modify Invoice tabs.
+ */
+function setupBonusTukangSheets() {
+  const spreadsheet = invoiceGetSpreadsheet_();
+  const specs = [
+    { name: "BonusTukang", headers: BONUS_SHEET_HEADERS.workers, moneyColumns: [] },
+    { name: "BonusProyek", headers: BONUS_SHEET_HEADERS.projects, moneyColumns: [] },
+    { name: "BonusNota", headers: BONUS_SHEET_HEADERS.notes, moneyColumns: [5] },
+    { name: "BonusPembayaran", headers: BONUS_SHEET_HEADERS.payments, moneyColumns: [4] },
+    { name: "BonusPeriode", headers: BONUS_SHEET_HEADERS.periods, moneyColumns: [] },
+    { name: "BonusRealisasi", headers: BONUS_SHEET_HEADERS.realizations, moneyColumns: [5, 6, 8] }
+  ];
+
+  specs.forEach(function (spec) {
+    let sheet = spreadsheet.getSheetByName(spec.name);
+    if (!sheet) sheet = spreadsheet.insertSheet(spec.name);
+
+    if (sheet.getLastRow()) {
+      const lastColumn = Math.max(sheet.getLastColumn(), spec.headers.length);
+      const headers = sheet.getRange(1, 1, 1, lastColumn).getDisplayValues()[0].slice(0, spec.headers.length);
+      if (spec.headers.some(function (header, index) { return headers[index] !== header; })) {
+        throw new Error("Header sheet " + spec.name + " tidak sesuai. Tidak ada data yang diubah.");
+      }
+      return;
+    }
+
+    sheet.getRange(1, 1, 1, spec.headers.length).setValues([spec.headers]);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, spec.headers.length)
+      .setFontWeight("bold").setBackground("#0b3f88").setFontColor("#ffffff");
+    sheet.autoResizeColumns(1, spec.headers.length);
+    spec.moneyColumns.forEach(function (column) {
+      sheet.getRange(2, column, sheet.getMaxRows() - 1, 1).setNumberFormat("#,##0");
+    });
+  });
+
+  return {
+    ok: true,
+    spreadsheetId: spreadsheet.getId(),
+    sheets: specs.map(function (spec) { return spec.name; }),
+    message: "Tab Bonus Tukang siap digunakan."
+  };
+}
