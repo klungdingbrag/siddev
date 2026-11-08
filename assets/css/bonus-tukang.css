@@ -195,3 +195,25 @@
   .bonus-worker-card .bonus-row-actions{grid-template-columns:1fr}
   .bonus-worker-card .bonus-row-actions .btn:last-child{grid-column:auto}
 }
+
+/* Final width correction: reserve room for the last Aksi column. */
+.bonus-main-panel{min-width:0;overflow:hidden}
+#bonus-table-wrap{width:100%;max-width:100%;min-width:0;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-gutter:stable}
+.bonus-table{width:100%;min-width:1014px;table-layout:fixed}
+.bonus-table th:nth-child(1),.bonus-table td:nth-child(1){width:152px}
+.bonus-table th:nth-child(2),.bonus-table td:nth-child(2){width:70px}
+.bonus-table th:nth-child(n+3):nth-child(-n+7),.bonus-table td:nth-child(n+3):nth-child(-n+7){width:112px}
+.bonus-table th:nth-child(8),.bonus-table td:nth-child(8){width:232px}
+.bonus-table th{padding:.62rem .45rem;font-size:.64rem;line-height:1.25;overflow-wrap:anywhere}
+.bonus-table td{padding:.7rem .45rem;font-size:.75rem}
+.bonus-table td.bonus-money{white-space:nowrap;font-size:.72rem}
+.bonus-table .bonus-row-actions{grid-template-columns:52px 46px minmax(0,1fr);gap:.3rem;max-width:220px}
+.bonus-table .bonus-row-actions .btn{padding:.45rem .35rem;font-size:.68rem}
+.bonus-table th:nth-child(7){overflow-wrap:normal}
+@media(max-width:1260px){
+  #bonus-table-wrap{display:none!important}
+  #bonus-worker-cards:not(.hidden){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;padding:.85rem}
+}
+@media(max-width:700px){
+  #bonus-worker-cards:not(.hidden){grid-template-columns:1fr}
+}
