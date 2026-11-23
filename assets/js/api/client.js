@@ -21,7 +21,7 @@ function buildUrl(action, params = {}) {
   return url.toString();
 }
 
-async function fetchJson(url, timeoutMs) {
+async function fetchJson(url, timeoutMs, requestOptions = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -31,7 +31,8 @@ async function fetchJson(url, timeoutMs) {
       mode: "cors",
       redirect: "follow",
       cache: "no-store",
-      signal: controller.signal
+      signal: controller.signal,
+      ...requestOptions
     });
 
     // Keep the request deadline active while the response body is being read.
@@ -62,6 +63,9 @@ const API_TIMEOUTS = Object.freeze({
   pdfRingkasanPiutang: 60000,
   pdfSemuaDetailPiutang6D1: 60000,
   pdfSemuaDetailPiutang6D2: 180000,
+  pdfPiutang6D2JobStart: 45000,
+  pdfPiutang6D2JobProcess: 90000,
+  pdfPiutang6D2JobStatus: 20000,
   pdfCustomerStatementV1: 60000,
   pdfSupplierHutangSummaryV1: 60000,
   pdfSupplierHutangInvoiceV1: 60000,
@@ -74,15 +78,25 @@ function getApiTimeout(action) {
   return API_TIMEOUTS[action] || DEFAULT_API_TIMEOUT;
 }
 
-export async function apiRequest(action, params = {}) {
-  const url = buildUrl(action, params);
+async function requestApi(action, { params = {}, method = "GET", body = null } = {}) {
+  const url = buildUrl(action, method === "GET" ? params : {});
+  const requestOptions = method === "POST"
+    ? {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action, ...(body || {}) })
+      }
+    : {};
   let lastError = null;
 
-  // GAS Content Service uses a redirect to script.googleusercontent.com.
-  // Retry once for transient redirect/service failures without changing the backend.
+  // GAS Content Service redirects its response to script.googleusercontent.com.
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const { response, text, result } = await fetchJson(url, getApiTimeout(action));
+      const { response, text, result } = await fetchJson(
+        url,
+        getApiTimeout(action),
+        requestOptions
+      );
 
       if (!response.ok) {
         const finalUrl = response.url || url;
@@ -134,9 +148,6 @@ export async function apiRequest(action, params = {}) {
         ? `timeout setelah ${getApiTimeout(action) / 1000} detik`
         : (error?.message || "Unknown error");
 
-      // Retry transient network failures, but do not retry a timeout.
-      // A timed-out Piutang request can be expensive on the backend, so retrying
-      // it immediately would duplicate the same heavy operation.
       if (
         attempt === 0 &&
         error?.name !== "AbortError" &&
@@ -159,6 +170,14 @@ export async function apiRequest(action, params = {}) {
   }
 
   throw lastError || new Error(`API "${action}" gagal.`);
+}
+
+export async function apiRequest(action, params = {}) {
+  return requestApi(action, { params, method: "GET" });
+}
+
+export async function apiRequestPost(action, body = {}) {
+  return requestApi(action, { body, method: "POST" });
 }
 
 export async function apiHealth() {
