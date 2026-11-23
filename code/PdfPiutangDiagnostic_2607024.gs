@@ -99,7 +99,7 @@ function runDiagnosticPdfPiutang2607024ToPrivateDrive() {
   // Bentuk objek dan gunakan renderer 6D.2 yang sama dengan PDF produksi.
   var reportData = {
     status: 'success',
-    generated_at: ringkasan.generated_at,
+    generated_at: new Date().toISOString(),
     kode_pelanggan: customerCode,
     nama_pelanggan: ringkasan.nama_pelanggan,
     telp: ringkasan.telp,
