@@ -41,6 +41,7 @@ function startPiutangPdf6D2JobV1(kodePelanggan, requestId) {
 
     var jobFolder = root.createFolder('temporary_' + requestKey);
     var manifest = {
+      type: 'piutang_pdf_6d2_job',
       version: 1,
       status: summary.data.length ? 'processing' : 'ready_to_render',
       request_id: requestKey,
