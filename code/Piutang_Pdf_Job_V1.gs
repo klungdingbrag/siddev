@@ -117,7 +117,6 @@ function processPiutangPdf6D2JobV1(jobId) {
           'Saldo nota berubah selama proses. Muat ulang detail pelanggan dan mulai ulang laporan.';
         manifest.updated_at = new Date().toISOString();
         piutangPdfJobDiscardTemporaryFilesV1_(manifest);
-        piutangPdfJobDiscardTemporaryFilesV1_(manifest);
         manifest.summary = null;
         savePiutangPdfJobManifestV1_(manifestFile, manifest);
         throw new Error(manifest.error);
@@ -130,6 +129,7 @@ function processPiutangPdf6D2JobV1(jobId) {
         manifest.error =
           'Saldo salah satu nota berubah selama proses. Muat ulang detail pelanggan dan mulai ulang laporan.';
         manifest.updated_at = new Date().toISOString();
+        piutangPdfJobDiscardTemporaryFilesV1_(manifest);
         manifest.summary = null;
         savePiutangPdfJobManifestV1_(manifestFile, manifest);
         throw new Error(manifest.error);
