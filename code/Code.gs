@@ -4839,6 +4839,13 @@ function stage6d2BuildReportHtml_(data) {
   );
 
   const invoices = Array.isArray(data.invoices) ? data.invoices.slice() : [];
+  const ageByInvoiceCode = {};
+  (Array.isArray(data.ringkasan) ? data.ringkasan : []).forEach(function(row) {
+    const invoiceCode = String(row && row.kode_transaksi || '');
+    if (invoiceCode && row.umur_hari !== undefined && row.umur_hari !== null) {
+      ageByInvoiceCode[invoiceCode] = row.umur_hari;
+    }
+  });
 
   // Laporan disusun berdasarkan tanggal nota agar periode dan urutan
   // dokumen mengikuti kronologi transaksi, bukan urutan kode nota.
@@ -4936,7 +4943,8 @@ function stage6d2BuildReportHtml_(data) {
   html += '.report th.center{text-align:center;}';
   html += '.report th.money{text-align:right;}';
   html += '.report td{padding:2px 2px;vertical-align:top;}';
-  html += '.nota-row{font-weight:700;border-top:1px solid #888;page-break-inside:avoid;}';
+  html += '.invoice-group{page-break-inside:avoid;break-inside:avoid;}';
+  html += '.nota-row{font-weight:700;border-top:1px solid #888;page-break-inside:avoid;break-inside:avoid;page-break-after:avoid;break-after:avoid;}';
   html += '.nota-row td{padding-top:4px;padding-bottom:2px;}';
   html += '.nota-no{text-align:center;}';
   html += '.nota-kode{font-weight:700;}';
@@ -4999,12 +5007,20 @@ function stage6d2BuildReportHtml_(data) {
   html += '<th class="money">QTY</th>';
   html += '<th class="money">HARGA</th>';
   html += '<th class="money">SUBTOTAL</th>';
-  html += '</tr></thead><tbody>';
+  html += '</tr></thead>';
 
   invoices.forEach(function(nota, index) {
     const header = nota.header || {};
     const items = Array.isArray(nota.items) ? nota.items : [];
+    const invoiceCode = String(header.kode_transaksi || '');
+    if (
+      Object.prototype.hasOwnProperty.call(ageByInvoiceCode, invoiceCode) &&
+      (header.umur_hari === undefined || header.umur_hari === null)
+    ) {
+      header.umur_hari = ageByInvoiceCode[invoiceCode];
+    }
 
+    html += '<tbody class="invoice-group">';
     html += '<tr class="nota-row">';
     html += '<td class="nota-no">' + stage6d2EscapeHtml_(String(index + 1).padStart(2, '0')) + '</td>';
     html += '<td colspan="2">' + stage6d2EscapeHtml_(header.kode_transaksi || '') +
@@ -5024,9 +5040,10 @@ function stage6d2BuildReportHtml_(data) {
       html += '<td class="money subtotal">' + stage6d2EscapeHtml_(stage6d2FormatNumber_(item.subtotal)) + '</td>';
       html += '</tr>';
     });
+    html += '</tbody>';
   });
 
-  html += '</tbody></table>';
+  html += '</table>';
 
   html += '<div class="final-closing">';
   html += '<div class="footer-total">TOTAL SALDO HUTANG : ' + stage6d2EscapeHtml_(stage6d2FormatRupiah_(totalSaldoHutang)) + '</div>';
@@ -5198,6 +5215,14 @@ function apiV1Handle_(e, method) {
   try {
     var request = apiV1ParseRequest_(e, method);
     var action = String(request.action || '').trim();
+    var postOnlyPdfJobActions = [
+      'pdfPiutang6D2JobStart',
+      'pdfPiutang6D2JobProcess',
+      'pdfPiutang6D2JobStatus'
+    ];
+    if (postOnlyPdfJobActions.indexOf(action) !== -1 && method !== 'POST') {
+      throw new Error('Action ' + action + ' hanya menerima POST.');
+    }
 
     if (!action) {
       return apiV1Json_({
@@ -5544,6 +5569,22 @@ function apiV1Dispatch_(action, request) {
     case 'pdfSemuaDetailPiutang6D1':
       return getPdfSemuaDetailPiutang_6D1(
         apiV1Required_(request, 'kode_pelanggan')
+      );
+
+    case 'pdfPiutang6D2JobStart':
+      return startPiutangPdf6D2JobV1(
+        apiV1Required_(request, 'kode_pelanggan'),
+        apiV1Required_(request, 'request_id')
+      );
+
+    case 'pdfPiutang6D2JobProcess':
+      return processPiutangPdf6D2JobV1(
+        apiV1Required_(request, 'job_id')
+      );
+
+    case 'pdfPiutang6D2JobStatus':
+      return getPiutangPdf6D2JobStatusV1(
+        apiV1Required_(request, 'job_id')
       );
 
     case 'pdfSemuaDetailPiutang6D2':
