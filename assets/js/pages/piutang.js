@@ -704,7 +704,6 @@ async function handlePdfAction(type, code) {
 
 async function generatePdf6D2(code) {
   const storageKey = "sidretail:piutang:detail-pdf-job:" + String(code);
-  const downloadWindow = window.open("about:blank", "_blank");
   let saved = null;
   let job = null;
   let jobId = "";
@@ -820,17 +819,50 @@ async function generatePdf6D2(code) {
     );
     showToast("Laporan Detail PDF selesai dibuat dan disimpan di Drive.");
 
-    if (downloadWindow && !downloadWindow.closed) {
-      downloadWindow.opener = null;
-      downloadWindow.location.replace(job.download_url);
-    } else {
-      window.location.assign(job.download_url);
-    }
+    showPdfDriveResult(job.download_url, job.filename);
   } catch (error) {
-    if (downloadWindow && !downloadWindow.closed) downloadWindow.close();
     setPdfLoading(false, "PDF gagal", "Laporan Detail PDF gagal dibuat.");
     showToast("Gagal membuat PDF detail: " + (error.message || "Unknown error"), true);
   }
+}
+
+function showPdfDriveResult(url, filename) {
+  let dialog = document.querySelector("#pdf-drive-result-dialog");
+  if (!dialog) {
+    dialog = document.createElement("dialog");
+    dialog.id = "pdf-drive-result-dialog";
+    dialog.setAttribute("aria-labelledby", "pdf-drive-result-title");
+    document.body.appendChild(dialog);
+  }
+
+  if (!document.querySelector("#pdf-drive-result-style")) {
+    const style = document.createElement("style");
+    style.id = "pdf-drive-result-style";
+    style.textContent =
+      "#pdf-drive-result-dialog{width:min(440px,calc(100vw - 32px));padding:0;border:1px solid #e2e8f0;border-radius:18px;box-shadow:0 24px 70px rgba(15,23,42,.24);color:#172033;font-family:system-ui,sans-serif}" +
+      "#pdf-drive-result-dialog::backdrop{background:rgba(15,23,42,.48);backdrop-filter:blur(2px)}" +
+      "#pdf-drive-result-dialog .pdf-drive-result-card{padding:26px}" +
+      "#pdf-drive-result-dialog h3{margin:0;font-size:18px}" +
+      "#pdf-drive-result-dialog p{margin:9px 0 20px;color:#667085;font-size:14px;line-height:1.5;overflow-wrap:anywhere}" +
+      "#pdf-drive-result-dialog .pdf-drive-result-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}" +
+      "#pdf-drive-result-dialog .pdf-drive-result-link{text-decoration:none}";
+    document.head.appendChild(style);
+  }
+
+  dialog.innerHTML =
+    '<div class="pdf-drive-result-card">' +
+      '<h3 id="pdf-drive-result-title">Laporan detail siap</h3>' +
+      '<p>' + esc(filename || "PDF laporan detail") +
+        ' sudah disimpan di Drive privat. Pilih tombol untuk membukanya tanpa meninggalkan halaman Piutang.</p>' +
+      '<div class="pdf-drive-result-actions">' +
+        '<button type="button" class="btn btn-light" data-close-pdf-result>Tutup</button>' +
+        '<a class="btn btn-primary pdf-drive-result-link" href="' + esc(url) +
+          '" target="_blank" rel="noopener noreferrer">Buka PDF di Google Drive</a>' +
+      '</div>' +
+    '</div>';
+
+  dialog.querySelector("[data-close-pdf-result]").addEventListener("click", () => dialog.close());
+  if (!dialog.open) dialog.showModal();
 }
 
 function createPdfJobRequestId() {
