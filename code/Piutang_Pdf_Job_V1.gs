@@ -112,7 +112,15 @@ function processPiutangPdf6D2JobV1(jobId) {
         throw new Error('Detail nota urutan ' + (index + 1) + ' gagal dibaca.');
       }
       if (Number(note.summary.piutang) <= 0) {
-        throw new Error('Nota urutan ' + (index + 1) + ' tidak lagi outstanding.');
+        manifest.status = 'failed';
+        manifest.error =
+          'Saldo nota berubah selama proses. Muat ulang detail pelanggan dan mulai ulang laporan.';
+        manifest.updated_at = new Date().toISOString();
+        piutangPdfJobDiscardTemporaryFilesV1_(manifest);
+        piutangPdfJobDiscardTemporaryFilesV1_(manifest);
+        manifest.summary = null;
+        savePiutangPdfJobManifestV1_(manifestFile, manifest);
+        throw new Error(manifest.error);
       }
 
       var expected = Number(summaryRow.piutang || 0);
@@ -364,6 +372,25 @@ function piutangPdfJobPublicStateV1_(manifest, jobId) {
     filename: manifest.filename || '',
     error: manifest.error || ''
   };
+}
+
+function piutangPdfJobDiscardTemporaryFilesV1_(manifest) {
+  (manifest.batch_files || []).forEach(function(batchRef) {
+    try {
+      DriveApp.getFileById(batchRef.file_id).setTrashed(true);
+    } catch (error) {
+      Logger.log('PIUTANG PDF JOB: file checkpoint gagal dibersihkan.');
+    }
+  });
+  if (manifest.temp_folder_id) {
+    try {
+      DriveApp.getFolderById(manifest.temp_folder_id).setTrashed(true);
+    } catch (error) {
+      Logger.log('PIUTANG PDF JOB: folder checkpoint gagal dibersihkan.');
+    }
+  }
+  manifest.batch_files = [];
+  manifest.temp_folder_id = '';
 }
 
 function getPiutangPdfJobRootFolderV1_() {
