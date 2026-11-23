@@ -1,6 +1,6 @@
 import { APP_CONFIG } from "./config.js";
 import { apiServerHealth } from "./api/client.js";
-import { renderPiutangPage } from "./pages/piutang.js?v=20261016-pdf-response-debug-v1";
+import { renderPiutangPage } from "./pages/piutang.js?v=20261123-piutang-pdf-job-v1";
 import { renderDashboardPage } from "./pages/dashboard.js?v=20261023-dashboard-daily-profit-v1";
 import { renderPelangganPage } from "./pages/pelanggan.js?v=20261016-customer-api-recovery-v1";
 import { renderTabunganPelangganPage } from "./pages/tabungan-pelanggan.js?v=20261026-customer-savings-v1";
