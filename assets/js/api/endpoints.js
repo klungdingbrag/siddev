@@ -1,4 +1,4 @@
-import { apiRequest } from "./client.js?v=20261016-pdf-response-debug-v1";
+import { apiRequest, apiRequestPost } from "./client.js?v=20261123-piutang-pdf-job-v1";
 
 export const api = Object.freeze({
   health: () => apiRequest("health"),
@@ -55,6 +55,15 @@ export const api = Object.freeze({
       kode_pelanggan: kodePelanggan,
       ...extra
     }),
+  pdfPiutang6D2JobStart: (kodePelanggan, requestId) =>
+    apiRequestPost("pdfPiutang6D2JobStart", {
+      kode_pelanggan: kodePelanggan,
+      request_id: requestId
+    }),
+  pdfPiutang6D2JobProcess: (jobId) =>
+    apiRequestPost("pdfPiutang6D2JobProcess", { job_id: jobId }),
+  pdfPiutang6D2JobStatus: (jobId) =>
+    apiRequestPost("pdfPiutang6D2JobStatus", { job_id: jobId }),
   pdfInvoice: (kodeTransaksi) =>
     apiRequest("pdfInvoice", {
       kode_transaksi: kodeTransaksi
