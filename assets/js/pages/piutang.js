@@ -1,5 +1,5 @@
 import { renderPiutangRow, renderPiutangCard } from "./piutang/list-renderers.js?v=20261016-list-v1";
-import { api } from "../api/endpoints.js?v=20261016-pdf-response-debug-v1";
+import { api } from "../api/endpoints.js?v=20261123-piutang-pdf-job-v1";
 
 const state = {
   loaded: false,
@@ -703,53 +703,141 @@ async function handlePdfAction(type, code) {
 }
 
 async function generatePdf6D2(code) {
-  setPdfLoading(true, "Membuat Laporan Detail PDF 6D.2...", "PDF sedang dibuat. Mohon tunggu.");
+  const storageKey = "sidretail:piutang:detail-pdf-job:" + String(code);
+  const downloadWindow = window.open("about:blank", "_blank");
+  let saved = null;
+  let job = null;
+  let jobId = "";
+
   try {
-    const data = await api.pdfSemuaDetailPiutang6D2(code);
-    const payload = extractPdfPayload(data);
-    if (!payload.base64) throw new Error("Backend tidak mengembalikan pdf_base64.");
-
-    const bytes = base64ToBytes(payload.base64);
-    const transportCheck = validatePdfBytes(bytes);
-
-    console.info("[PDF 6D.2] transport check", {
-      base64Length: payload.base64.length,
-      expectedSize: payload.expectedSize,
-      decodedSize: bytes.length,
-      sizeMatch: payload.expectedSize ? bytes.length === payload.expectedSize : null,
-      header: transportCheck.header,
-      startxref: transportCheck.startxref,
-      eof: transportCheck.eof
-    });
-
-    if (bytes.length < 100 || !transportCheck.header) {
-      throw new Error("PDF yang diterima kosong atau header PDF tidak valid.");
+    try {
+      saved = JSON.parse(sessionStorage.getItem(storageKey) || "null");
+    } catch {
+      saved = null;
     }
 
-    if (!transportCheck.startxref || !transportCheck.eof) {
-      throw new Error(
-        "PDF 6D.2 diterima lengkap (" + bytes.length +
-        " byte), tetapi pemeriksaan marker PDF gagal: " +
-        "startxref=" + (transportCheck.startxref ? "OK" : "GAGAL") +
-        ", %%EOF=" + (transportCheck.eof ? "OK" : "GAGAL") + "."
+    if (saved && String(saved.kode_pelanggan) !== String(code)) {
+      sessionStorage.removeItem(storageKey);
+      saved = null;
+    }
+
+    setPdfLoading(
+      true,
+      "Menyiapkan Laporan Detail PDF...",
+      "Membaca ringkasan piutang dan menyiapkan proses bertahap."
+    );
+
+    if (saved?.job_id) {
+      try {
+        job = await api.pdfPiutang6D2JobStatus(saved.job_id);
+        jobId = job.job_id || saved.job_id;
+      } catch (statusError) {
+        if (!/tidak ditemukan|tidak valid/i.test(statusError.message || "")) {
+          throw statusError;
+        }
+        job = null;
+      }
+    }
+
+    if (!job) {
+      const requestId = saved?.request_id || createPdfJobRequestId();
+      sessionStorage.setItem(storageKey, JSON.stringify({
+        kode_pelanggan: String(code),
+        request_id: requestId,
+        job_id: ""
+      }));
+      job = await api.pdfPiutang6D2JobStart(code, requestId);
+      jobId = job.job_id || "";
+      if (!jobId) throw new Error("Backend tidak mengembalikan ID pekerjaan PDF.");
+      sessionStorage.setItem(storageKey, JSON.stringify({
+        kode_pelanggan: String(code),
+        request_id: requestId,
+        job_id: jobId
+      }));
+    }
+
+    let transientFailures = 0;
+    while (job.status !== "completed") {
+      if (job.status === "failed") {
+        sessionStorage.removeItem(storageKey);
+        throw new Error(job.error || "Proses laporan detail gagal.");
+      }
+
+      if (job.status === "busy") {
+        setPdfLoading(
+          true,
+          "Laporan sedang diproses...",
+          "Menunggu batch sebelumnya selesai."
+        );
+        await new Promise(resolve => setTimeout(resolve, job.retry_after_ms || 1500));
+        job = await api.pdfPiutang6D2JobStatus(jobId);
+        continue;
+      }
+
+      const processed = Number(job.processed || 0);
+      const total = Number(job.total || 0);
+      const nextEstimate = Math.min(processed + Number(job.batch_size || 8), total);
+
+      setPdfLoading(
+        true,
+        "Mengambil detail nota...",
+        total
+          ? "Nota " + Math.min(processed + 1, total) + "–" + nextEstimate +
+            " dari " + total + ". Hasil akhir tetap satu PDF utuh."
+          : "Menyiapkan satu PDF utuh."
       );
+
+      try {
+        job = await api.pdfPiutang6D2JobProcess(jobId);
+        jobId = job.job_id || jobId;
+        sessionStorage.setItem(storageKey, JSON.stringify({
+          kode_pelanggan: String(code),
+          request_id: saved?.request_id || job.request_id || "",
+          job_id: jobId
+        }));
+        transientFailures = 0;
+      } catch (processError) {
+        if (++transientFailures > 2) throw processError;
+        setPdfLoading(
+          true,
+          "Menghubungkan kembali...",
+          "Memeriksa progres tersimpan agar nota tidak perlu diproses ulang."
+        );
+        await new Promise(resolve => setTimeout(resolve, 1800));
+        job = await api.pdfPiutang6D2JobStatus(jobId);
+      }
     }
 
-    if (payload.expectedSize && bytes.length !== payload.expectedSize) {
-      throw new Error(
-        "Ukuran PDF berubah saat diterima browser: backend " +
-        payload.expectedSize + " byte, frontend " + bytes.length + " byte."
-      );
+    if (!job.download_url) {
+      throw new Error("PDF selesai dibuat, tetapi tautan Drive tidak tersedia.");
     }
 
-    const blob = new Blob([bytes], { type: "application/pdf" });
-    downloadBlob(blob, payload.filename);
-    setPdfLoading(false, "PDF selesai", "Laporan Detail PDF 6D.2 selesai dibuat dan diunduh.");
-    showToast("Laporan Detail PDF 6D.2 selesai dibuat.");
+    sessionStorage.removeItem(storageKey);
+    setPdfLoading(
+      false,
+      "PDF selesai",
+      "Satu PDF utuh telah disimpan di Drive privat."
+    );
+    showToast("Laporan Detail PDF selesai dibuat dan disimpan di Drive.");
+
+    if (downloadWindow && !downloadWindow.closed) {
+      downloadWindow.opener = null;
+      downloadWindow.location.replace(job.download_url);
+    } else {
+      window.location.assign(job.download_url);
+    }
   } catch (error) {
-    setPdfLoading(false, "PDF gagal", "Laporan Detail PDF 6D.2 gagal dibuat.");
-    showToast("Gagal membuat PDF 6D.2: " + (error.message || "Unknown error"), true);
+    if (downloadWindow && !downloadWindow.closed) downloadWindow.close();
+    setPdfLoading(false, "PDF gagal", "Laporan Detail PDF gagal dibuat.");
+    showToast("Gagal membuat PDF detail: " + (error.message || "Unknown error"), true);
   }
+}
+
+function createPdfJobRequestId() {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+  return Date.now().toString(36) + "-" +
+    Math.random().toString(36).slice(2) +
+    Math.random().toString(36).slice(2);
 }
 
 async function generatePdf(loader, label) {
